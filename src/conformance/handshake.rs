@@ -34,21 +34,31 @@ use std::net::SocketAddr;
 #[tokio::test]
 async fn handshake_initiator_side() {
     let listener = TcpListener::bind("127.0.0.1:8081").await.unwrap();
+    let node_addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
 
     match listener.accept().await {
         Ok((mut peer_stream, addr)) => {
             let mut b = [0u8; 24];
             peer_stream.read_exact(&mut b).await;
             let h = MessageHeader::from(b);
+            dbg!(&h);
 
             // let mut b = vec![0u8; h.body_length as usize];
             // peer_stream.read_exact(&mut b).await;
             // let v = Version::decode(&b);
 
             if let Ok(v) = Version::decode(&mut peer_stream).await {
-                dbg!(v);
+                // dbg!(v);
             }
-            println!("new client: {:?}", addr)
+
+            let v = Version::new(node_addr, listener.local_addr().unwrap())
+                .encode(&mut peer_stream)
+                .await;
+
+            let mut b = [0u8; 24];
+            peer_stream.read_exact(&mut b).await;
+            let h = MessageHeader::from(b);
+            dbg!(h);
         }
         Err(e) => println!("couldn't get client: {:?}", e),
     }

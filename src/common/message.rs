@@ -1,5 +1,5 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
-use bytes::{BufMut, BytesMut};
+// use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
+// use bytes::{BufMut, BytesMut};
 use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use rand::{thread_rng, Rng};
@@ -10,8 +10,9 @@ use tokio::net::tcp::OwnedWriteHalf;
 
 use std::convert::TryInto;
 use std::fmt;
+use std::io::Write;
 use std::net::{IpAddr::*, Ipv6Addr};
-use std::{io, io::Write, net::IpAddr, net::SocketAddr};
+use std::{io, net::IpAddr, net::SocketAddr};
 use tokio::net::TcpStream;
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ impl Version {
         }
     }
 
-    pub fn encode(&self, buffer: &mut BytesMut) -> io::Result<()> {
+    pub async fn encode(&self, mut stream: &mut TcpStream) -> io::Result<()> {
         // Composition:
         //
         // Header (24 bytes):
@@ -73,90 +74,59 @@ impl Version {
         // - 4 bytes of checksum (0ed initially, then computed after the body has been
         // written),
         //
-        // Body (53 + variable bytes):
+        // Body (85 + variable bytes):
         //
         // - 4 bytes for the version
         // - 8 bytes for the peer services
-        // - 8 + 16 + 2 for the address_recv
-        // - 8 + 16 + 2 for the address_from
+        // - 8 for timestamp
+        // - 8 + 16 + 2 (26) for the address_recv
+        // - 8 + 16 + 2 (26) for the address_from
         // - 8 for the nonce
         // - 1, 3, 5 or 9 for compact size (variable)
         // - user_agent (variable)
         // - 4 for start height
         // - 1 for relay
 
-        //  // Write the header.
-        //  let mut writer = buffer.writer();
-        //  writer.write_all(&[0xfa, 0x1a, 0xf9, 0xbf])?;
-        //  writer.write_all(b"version\0\0\0\0\0")?;
+        // Write the header.
+        // Last 8 bytes (body length and checksum will be written after the body).
+        let mut header_buf = vec![];
+        let magic = [0xfa, 0x1a, 0xf9, 0xbf];
+        header_buf.write_all(&magic);
+        header_buf.write_all(b"version\0\0\0\0\0");
 
-        //  // Zeroed body length and checksum to be mutated after the body has been written.
-        //  writer.write_u32::<LittleEndian>(0)?;
-        //  writer.write_u32::<LittleEndian>(0)?;
+        // Zeroed body length and checksum to be mutated after the body has been written.
+        // buffer.write_all(&u32::to_le_bytes(0));
+        // buffer.write_all(&u32::to_le_bytes(0));
 
-        //  // Write the body.
-        //  writer.write_u32::<LittleEndian>(self.version)?;
-        //  writer.write_u64::<LittleEndian>(self.services)?;
+        // Write the body, size is unkown at this point.
+        let mut body_buf = vec![];
+        body_buf.write_all(&u32::to_le_bytes(self.version));
+        body_buf.write_all(&u64::to_le_bytes(self.services));
+        body_buf.write_all(&i64::to_le_bytes(self.timestamp.timestamp()));
 
-        //  // Assumes the address is ipv4.
-        //  // TODO: extract and support V6.
-        //  if let (services, SocketAddr::V4(v4)) = self.address_recv {
-        //      writer.write_u64::<LittleEndian>(services)?;
-        //      let v6 = v4.ip().to_ipv6_mapped();
-        //      writer.write_all(&v6.octets())?;
-        //      writer.write_u16::<BigEndian>(v4.port())?;
-        //  } else {
-        //      panic!("Address isn't ipv4");
-        //  }
+        dbg!(&body_buf);
 
-        //  if let (services, SocketAddr::V4(v4)) = self.address_from {
-        //      writer.write_u64::<LittleEndian>(services)?;
-        //      let v6 = v4.ip().to_ipv6_mapped();
-        //      writer.write_all(&v6.octets())?;
-        //      writer.write_u16::<BigEndian>(v4.port())?;
-        //  } else {
-        //      panic!("Address isn't ipv4");
-        //  }
+        write_addr(&mut body_buf, self.addr_recv);
+        write_addr(&mut body_buf, self.addr_from);
 
-        //  writer.write_u64::<LittleEndian>(self.nonce)?;
+        dbg!(&body_buf);
 
-        //  // Bitcoin "CompactSize" encoding.
-        //  let l = self.user_agent.len();
-        //  let mut cs_len: u32 = l as u32;
-        //  match l {
-        //      0x0000_0000..=0x0000_00fc => writer.write_u8(l as u8)?,
-        //      0x0000_00fd..=0x0000_ffff => {
-        //          writer.write_u8(0xfd)?;
-        //          writer.write_u16::<LittleEndian>(l as u16)?;
-        //          cs_len += 3;
-        //      }
-        //      0x0001_0000..=0xffff_ffff => {
-        //          writer.write_u8(0xfe)?;
-        //          writer.write_u32::<LittleEndian>(l as u32)?;
-        //          cs_len += 5;
-        //      }
-        //      _ => {
-        //          writer.write_u8(0xff)?;
-        //          writer.write_u64::<LittleEndian>(l as u64)?;
-        //          cs_len += 9;
-        //      }
-        //  }
+        body_buf.write_all(&u64::to_le_bytes(self.nonce));
+        let len = write_string(&mut body_buf, &self.user_agent)?;
+        body_buf.write_all(&u32::to_le_bytes(self.start_height));
+        body_buf.write_all(&[self.relay as u8]);
 
-        //  writer.write_all(self.user_agent.as_bytes())?;
+        header_buf.write_all(&u32::to_le_bytes((85 + len) as u32));
 
-        //  writer.write_u32::<LittleEndian>(self.start_height)?;
-        //  writer.write_u8(self.relay as u8)?;
+        // Compute the 4 byte checksum and replace it in the previously zeroed portion of the
+        // header.
+        let checksum = checksum(&body_buf);
+        header_buf.write_all(&checksum);
 
-        //  // Set the length in the previously zeroed portion of the header.
-        //  let body_len = 53 + cs_len;
-        //  let mut buf = [0u8; 4];
-        //  LittleEndian::write_u32(&mut buf, body_len);
-        //  buffer[16..][..4].copy_from_slice(&buf);
+        dbg!(&body_buf);
 
-        //  // Compute the 4 byte checksum and replace it in the previously zeroed portion of the
-        //  // header.
-        //  let checksum = checksum(&buffer[24..]);
-        //  buffer[20..][..4].copy_from_slice(&checksum);
+        tokio::io::AsyncWriteExt::write_all(&mut stream, &header_buf).await?;
+        tokio::io::AsyncWriteExt::write_all(&mut stream, &body_buf).await?;
 
         Ok(())
     }
@@ -188,6 +158,48 @@ impl Version {
             relay,
         })
     }
+}
+
+fn write_addr(mut buf: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) {
+    buf.write_all(&u64::to_le_bytes(services));
+
+    let (ip, port) = match addr {
+        SocketAddr::V4(v4) => (v4.ip().to_ipv6_mapped(), v4.port()),
+        SocketAddr::V6(v6) => (*v6.ip(), v6.port()),
+    };
+
+    buf.write_all(&ip.octets());
+    buf.write_all(&u16::to_be_bytes(port));
+}
+
+fn write_string(mut buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
+    // Bitcoin "CompactSize" encoding.
+    let l = s.len();
+    let cs_len = match l {
+        0x0000_0000..=0x0000_00fc => {
+            buf.write_all(&[l as u8])?;
+            1
+        }
+        0x0000_00fd..=0x0000_ffff => {
+            buf.write_all(&[0xfdu8])?;
+            buf.write_all(&u16::to_le_bytes(l as u16))?;
+            3 // bytes written
+        }
+        0x0001_0000..=0xffff_ffff => {
+            buf.write_all(&[0xfeu8])?;
+            buf.write_all(&u32::to_le_bytes(l as u32))?;
+            5
+        }
+        _ => {
+            buf.write_all(&[0xffu8])?;
+            buf.write_all(&u64::to_le_bytes(l as u64))?;
+            9
+        }
+    };
+
+    buf.write_all(s.as_bytes());
+
+    Ok(l + cs_len)
 }
 
 async fn decode_addr(stream: &mut TcpStream) -> io::Result<(u64, SocketAddr)> {
