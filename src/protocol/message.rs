@@ -1,12 +1,13 @@
-use chrono::NaiveDateTime;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncReadExt;
 
-use std::io::Write;
-use std::net::{IpAddr::*, Ipv6Addr};
-use std::{io, net::SocketAddr};
+use std::{
+    io,
+    io::Write,
+    net::{IpAddr::*, Ipv6Addr, SocketAddr},
+};
 use tokio::net::TcpStream;
 
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];

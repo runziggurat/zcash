@@ -1,8 +1,6 @@
-use ziggurat::protocol::message::Message;
-use ziggurat::protocol::message::Version;
+use ziggurat::protocol::message::{Message, Version};
 
-use tokio::net::TcpListener;
-use tokio::net::TcpStream;
+use tokio::net::{TcpListener, TcpStream};
 
 use std::net::SocketAddr;
 
