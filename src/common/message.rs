@@ -26,6 +26,15 @@ pub struct MessageHeader {
 }
 
 impl MessageHeader {
+    pub fn new(command: [u8; 12], body_length: u32, checksum: u32) -> Self {
+        MessageHeader {
+            magic: MAGIC,
+            command,
+            body_length,
+            checksum,
+        }
+    }
+
     pub async fn write_to_stream(&self, mut stream: &mut TcpStream) -> io::Result<()> {
         let mut header_buf = vec![];
 
@@ -62,34 +71,41 @@ async fn read_12_bytes(stream: &mut TcpStream) -> io::Result<([u8; 12])> {
 }
 
 pub enum Message {
+    Version(Version),
     Verack,
 }
 
 impl Message {
     pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
-        let command = match self {
-            Self::Verack => b"verack\0\0\0\0\0\0",
+        // Buffer for the message payload.
+        let mut buffer = vec![];
+
+        let header = match self {
+            Self::Version(version) => version.encode(&mut buffer),
+            Self::Verack => Ok(MessageHeader::new(
+                *b"verack\0\0\0\0\0\0",
+                0,
+                checksum(&buffer),
+            )),
             _ => unimplemented!(),
-        };
+        }?;
 
-        let (body_length, checksum) = self.write_body(stream).await?;
-
-        let header = MessageHeader {
-            magic: MAGIC,
-            command: *command,
-            body_length,
-            checksum: u32::from_le_bytes(checksum),
-        };
         header.write_to_stream(stream).await?;
+        tokio::io::AsyncWriteExt::write_all(stream, &buffer).await?;
 
         Ok(())
     }
 
-    async fn write_body(&self, stream: &mut TcpStream) -> io::Result<(u32, [u8; 4])> {
-        match self {
-            Self::Verack => Ok((0, checksum(&vec![]))),
+    pub async fn read_from_stream(stream: &mut TcpStream) -> io::Result<Self> {
+        let header = MessageHeader::read_from_stream(stream).await?;
+
+        let message = match &header.command {
+            b"version\0\0\0\0\0" => Self::Version(Version::read_from_stream(stream).await?),
+            b"verack\0\0\0\0\0\0" => Self::Verack,
             _ => unimplemented!(),
-        }
+        };
+
+        Ok(message)
     }
 }
 
@@ -122,7 +138,7 @@ impl Version {
         }
     }
 
-    pub async fn encode(&self, mut stream: &mut TcpStream) -> io::Result<()> {
+    pub fn encode(&self, body_buf: &mut Vec<u8>) -> io::Result<MessageHeader> {
         // Composition:
         //
         // Header (24 bytes):
@@ -147,37 +163,30 @@ impl Version {
         // - 1 for relay
 
         // Write the body, size is unkown at this point.
-        let mut body_buf = vec![];
         body_buf.write_all(&u32::to_le_bytes(self.version))?;
         body_buf.write_all(&u64::to_le_bytes(self.services))?;
         body_buf.write_all(&i64::to_le_bytes(self.timestamp.timestamp()))?;
 
-        write_addr(&mut body_buf, self.addr_recv)?;
-        write_addr(&mut body_buf, self.addr_from)?;
+        write_addr(body_buf, self.addr_recv)?;
+        write_addr(body_buf, self.addr_from)?;
 
         body_buf.write_all(&u64::to_le_bytes(self.nonce))?;
-        let len = write_string(&mut body_buf, &self.user_agent)?;
+        let len = write_string(body_buf, &self.user_agent)?;
         body_buf.write_all(&u32::to_le_bytes(self.start_height))?;
         body_buf.write_all(&[self.relay as u8])?;
 
         // Write the header.
         let checksum = checksum(&body_buf);
 
-        let header = MessageHeader {
+        Ok(MessageHeader {
             magic: MAGIC,
             command: *b"version\0\0\0\0\0",
             body_length: (85 + len) as u32,
-            checksum: u32::from_le_bytes(checksum),
-        };
-
-        header.write_to_stream(&mut stream).await?;
-
-        tokio::io::AsyncWriteExt::write_all(&mut stream, &body_buf).await?;
-
-        Ok(())
+            checksum,
+        })
     }
 
-    pub async fn decode(mut stream: &mut TcpStream) -> io::Result<Self> {
+    pub async fn read_from_stream(mut stream: &mut TcpStream) -> io::Result<Self> {
         let version = stream.read_u32_le().await?;
         let services = stream.read_u64_le().await?;
         let timestamp = stream.read_i64_le().await?;
@@ -283,12 +292,12 @@ async fn decode_string(stream: &mut TcpStream) -> io::Result<String> {
     Ok(String::from_utf8(buf).expect("invalid utf-8"))
 }
 
-fn checksum(bytes: &[u8]) -> [u8; 4] {
+fn checksum(bytes: &[u8]) -> u32 {
     let sha2 = Sha256::digest(bytes);
     let sha2d = Sha256::digest(&sha2);
 
     let mut checksum = [0u8; 4];
     checksum[0..4].copy_from_slice(&sha2d[0..4]);
 
-    checksum
+    u32::from_le_bytes(checksum)
 }

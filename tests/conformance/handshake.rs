@@ -39,27 +39,24 @@ async fn handshake_initiator_side() {
 
     match listener.accept().await {
         Ok((mut peer_stream, addr)) => {
-            let h = MessageHeader::read_from_stream(&mut peer_stream).await;
-            dbg!(&h);
+            let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+            assert!(matches!(version, Message::Version(..)));
 
-            // let mut b = vec![0u8; h.body_length as usize];
-            // peer_stream.read_exact(&mut b).await;
-            // let v = Version::decode(&b);
+            //  let h = MessageHeader::read_from_stream(&mut peer_stream).await;
+            //  assert!(Version::read_from_stream(&mut peer_stream).await.is_ok());
 
-            if let Ok(v) = Version::decode(&mut peer_stream).await {
-                // dbg!(v);
-            }
-
-            Version::new(node_addr, listener.local_addr().unwrap())
-                .encode(&mut peer_stream)
+            Message::Version(Version::new(node_addr, listener.local_addr().unwrap()))
+                .write_to_stream(&mut peer_stream)
                 .await;
 
-            let h = MessageHeader::read_from_stream(&mut peer_stream).await;
-            dbg!(h);
+            //  Version::new(node_addr, listener.local_addr().unwrap())
+            //      .write_to_stream(&mut peer_stream)
+            //      .await;
+
+            let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+            assert!(matches!(verack, Message::Verack));
 
             Message::Verack.write_to_stream(&mut peer_stream).await;
-
-            tokio::time::sleep(std::time::Duration::from_secs(30));
         }
         Err(e) => println!("couldn't get client: {:?}", e),
     }
