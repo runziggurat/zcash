@@ -1,4 +1,4 @@
-use ziggurat::protocol::message::{Message, Version};
+use crate::protocol::message::{Message, Version};
 
 use tokio::net::{TcpListener, TcpStream};
 
