@@ -35,8 +35,8 @@ impl MessageHeader {
 
         header_buf.write_all(&self.magic)?;
         header_buf.write_all(&self.command)?;
-        header_buf.write_all(&u32::to_le_bytes(self.body_length))?;
-        header_buf.write_all(&u32::to_le_bytes(self.checksum))?;
+        header_buf.write_all(&self.body_length.to_le_bytes())?;
+        header_buf.write_all(&self.checksum.to_le_bytes())?;
 
         tokio::io::AsyncWriteExt::write_all(&mut stream, &header_buf).await?;
 
@@ -157,16 +157,16 @@ impl Version {
         // - 1 for relay
 
         // Write the body, size is unkown at this point.
-        body_buf.write_all(&u32::to_le_bytes(self.version))?;
-        body_buf.write_all(&u64::to_le_bytes(self.services))?;
-        body_buf.write_all(&i64::to_le_bytes(self.timestamp.timestamp()))?;
+        body_buf.write_all(&self.version.to_le_bytes())?;
+        body_buf.write_all(&self.services.to_le_bytes())?;
+        body_buf.write_all(&self.timestamp.timestamp().to_le_bytes())?;
 
         write_addr(body_buf, self.addr_recv)?;
         write_addr(body_buf, self.addr_from)?;
 
-        body_buf.write_all(&u64::to_le_bytes(self.nonce))?;
+        body_buf.write_all(&self.nonce.to_le_bytes())?;
         write_string(body_buf, &self.user_agent)?;
-        body_buf.write_all(&u32::to_le_bytes(self.start_height))?;
+        body_buf.write_all(&self.start_height.to_le_bytes())?;
         body_buf.write_all(&[self.relay as u8])?;
 
         // Write the header.
@@ -210,7 +210,7 @@ impl Version {
 }
 
 fn write_addr(buf: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) -> io::Result<()> {
-    buf.write_all(&u64::to_le_bytes(services))?;
+    buf.write_all(&services.to_le_bytes())?;
 
     let (ip, port) = match addr {
         SocketAddr::V4(v4) => (v4.ip().to_ipv6_mapped(), v4.port()),
@@ -218,7 +218,7 @@ fn write_addr(buf: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) -> io::Res
     };
 
     buf.write_all(&ip.octets())?;
-    buf.write_all(&u16::to_be_bytes(port))?;
+    buf.write_all(&port.to_be_bytes())?;
 
     Ok(())
 }
@@ -233,17 +233,17 @@ fn write_string(buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
         }
         0x0000_00fd..=0x0000_ffff => {
             buf.write_all(&[0xfdu8])?;
-            buf.write_all(&u16::to_le_bytes(l as u16))?;
+            buf.write_all(&(l as u16).to_le_bytes())?;
             3
         }
         0x0001_0000..=0xffff_ffff => {
             buf.write_all(&[0xfeu8])?;
-            buf.write_all(&u32::to_le_bytes(l as u32))?;
+            buf.write_all(&(l as u32).to_le_bytes())?;
             5
         }
         _ => {
             buf.write_all(&[0xffu8])?;
-            buf.write_all(&u64::to_le_bytes(l as u64))?;
+            buf.write_all(&(l as u64).to_le_bytes())?;
             9
         }
     };
