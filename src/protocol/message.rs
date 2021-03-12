@@ -1,16 +1,18 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncReadExt;
+use tokio::{io::AsyncReadExt, net::TcpStream};
 
 use std::{
     io,
     io::Write,
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
-use tokio::net::TcpStream;
 
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
+
+const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
+const VERACK_COMMAND: [u8; 12] = *b"verack\0\0\0\0\0\0";
 
 #[derive(Debug)]
 pub struct MessageHeader {
@@ -77,11 +79,7 @@ impl Message {
 
         let header = match self {
             Self::Version(version) => version.encode(&mut buffer),
-            Self::Verack => Ok(MessageHeader::new(
-                *b"verack\0\0\0\0\0\0",
-                0,
-                checksum(&buffer),
-            )),
+            Self::Verack => Ok(MessageHeader::new(VERACK_COMMAND, 0, checksum(&buffer))),
         }?;
 
         header.write_to_stream(stream).await?;
@@ -93,9 +91,9 @@ impl Message {
     pub async fn read_from_stream(stream: &mut TcpStream) -> io::Result<Self> {
         let header = MessageHeader::read_from_stream(stream).await?;
 
-        let message = match &header.command {
-            b"version\0\0\0\0\0" => Self::Version(Version::read_from_stream(stream).await?),
-            b"verack\0\0\0\0\0\0" => Self::Verack,
+        let message = match header.command {
+            VERSION_COMMAND => Self::Version(Version::read_from_stream(stream).await?),
+            VERACK_COMMAND => Self::Verack,
             _ => unimplemented!(),
         };
 
@@ -174,7 +172,7 @@ impl Version {
 
         Ok(MessageHeader {
             magic: MAGIC,
-            command: *b"version\0\0\0\0\0",
+            command: VERSION_COMMAND,
             body_length: body_buf.len() as u32,
             checksum,
         })
