@@ -1,18 +1,12 @@
-// use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
-// use bytes::{BufMut, BytesMut};
 use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncReadExt;
-use tokio::net::tcp::OwnedReadHalf;
-use tokio::net::tcp::OwnedWriteHalf;
 
-use std::convert::TryInto;
-use std::fmt;
 use std::io::Write;
 use std::net::{IpAddr::*, Ipv6Addr};
-use std::{io, net::IpAddr, net::SocketAddr};
+use std::{io, net::SocketAddr};
 use tokio::net::TcpStream;
 
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
@@ -21,7 +15,7 @@ const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 pub struct MessageHeader {
     magic: [u8; 4],
     command: [u8; 12],
-    pub body_length: u32,
+    body_length: u32,
     checksum: u32,
 }
 
@@ -87,7 +81,6 @@ impl Message {
                 0,
                 checksum(&buffer),
             )),
-            _ => unimplemented!(),
         }?;
 
         header.write_to_stream(stream).await?;
@@ -171,7 +164,7 @@ impl Version {
         write_addr(body_buf, self.addr_from)?;
 
         body_buf.write_all(&u64::to_le_bytes(self.nonce))?;
-        let len = write_string(body_buf, &self.user_agent)?;
+        write_string(body_buf, &self.user_agent)?;
         body_buf.write_all(&u32::to_le_bytes(self.start_height))?;
         body_buf.write_all(&[self.relay as u8])?;
 
@@ -181,22 +174,22 @@ impl Version {
         Ok(MessageHeader {
             magic: MAGIC,
             command: *b"version\0\0\0\0\0",
-            body_length: (85 + len) as u32,
+            body_length: body_buf.len() as u32,
             checksum,
         })
     }
 
-    pub async fn read_from_stream(mut stream: &mut TcpStream) -> io::Result<Self> {
+    pub async fn read_from_stream(stream: &mut TcpStream) -> io::Result<Self> {
         let version = stream.read_u32_le().await?;
         let services = stream.read_u64_le().await?;
         let timestamp = stream.read_i64_le().await?;
         let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
 
-        let addr_recv = decode_addr(&mut stream).await?;
-        let addr_from = decode_addr(&mut stream).await?;
+        let addr_recv = decode_addr(stream).await?;
+        let addr_from = decode_addr(stream).await?;
 
         let nonce = stream.read_u64_le().await?;
-        let user_agent = decode_string(&mut stream).await?;
+        let user_agent = decode_string(stream).await?;
 
         let start_height = stream.read_u32_le().await?;
         let relay = stream.read_u8().await? != 0;
@@ -235,12 +228,12 @@ fn write_string(buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
     let cs_len = match l {
         0x0000_0000..=0x0000_00fc => {
             buf.write_all(&[l as u8])?;
-            1
+            1 // bytes written
         }
         0x0000_00fd..=0x0000_ffff => {
             buf.write_all(&[0xfdu8])?;
             buf.write_all(&u16::to_le_bytes(l as u16))?;
-            3 // bytes written
+            3
         }
         0x0001_0000..=0xffff_ffff => {
             buf.write_all(&[0xfeu8])?;
