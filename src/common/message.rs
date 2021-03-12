@@ -15,6 +15,8 @@ use std::net::{IpAddr::*, Ipv6Addr};
 use std::{io, net::IpAddr, net::SocketAddr};
 use tokio::net::TcpStream;
 
+const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
+
 #[derive(Debug)]
 pub struct MessageHeader {
     magic: [u8; 4],
@@ -24,12 +26,69 @@ pub struct MessageHeader {
 }
 
 impl MessageHeader {
-    pub fn from(bytes: [u8; 24]) -> Self {
-        Self {
-            magic: bytes[..4].try_into().unwrap(),
-            command: bytes[4..16].try_into().unwrap(),
-            body_length: u32::from_le_bytes(bytes[16..20].try_into().unwrap()),
-            checksum: u32::from_le_bytes(bytes[20..24].try_into().unwrap()),
+    pub async fn write_to_stream(&self, mut stream: &mut TcpStream) -> io::Result<()> {
+        let mut header_buf = vec![];
+
+        header_buf.write_all(&self.magic)?;
+        header_buf.write_all(&self.command)?;
+        header_buf.write_all(&u32::to_le_bytes(self.body_length))?;
+        header_buf.write_all(&u32::to_le_bytes(self.checksum))?;
+
+        tokio::io::AsyncWriteExt::write_all(&mut stream, &header_buf).await?;
+
+        Ok(())
+    }
+
+    pub async fn read_from_stream(stream: &mut TcpStream) -> io::Result<Self> {
+        Ok(Self {
+            magic: read_4_bytes(stream).await?,
+            command: read_12_bytes(stream).await?,
+            body_length: u32::from_le_bytes(read_4_bytes(stream).await?),
+            checksum: u32::from_le_bytes(read_4_bytes(stream).await?),
+        })
+    }
+}
+
+async fn read_4_bytes(stream: &mut TcpStream) -> io::Result<([u8; 4])> {
+    let mut bytes = [0u8; 4];
+    stream.read_exact(&mut bytes).await?;
+    Ok(bytes)
+}
+
+async fn read_12_bytes(stream: &mut TcpStream) -> io::Result<([u8; 12])> {
+    let mut bytes = [0u8; 12];
+    stream.read_exact(&mut bytes).await?;
+    Ok(bytes)
+}
+
+pub enum Message {
+    Verack,
+}
+
+impl Message {
+    pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
+        let command = match self {
+            Self::Verack => b"verack\0\0\0\0\0\0",
+            _ => unimplemented!(),
+        };
+
+        let (body_length, checksum) = self.write_body(stream).await?;
+
+        let header = MessageHeader {
+            magic: MAGIC,
+            command: *command,
+            body_length,
+            checksum: u32::from_le_bytes(checksum),
+        };
+        header.write_to_stream(stream).await?;
+
+        Ok(())
+    }
+
+    async fn write_body(&self, stream: &mut TcpStream) -> io::Result<(u32, [u8; 4])> {
+        match self {
+            Self::Verack => Ok((0, checksum(&vec![]))),
+            _ => unimplemented!(),
         }
     }
 }
@@ -87,45 +146,32 @@ impl Version {
         // - 4 for start height
         // - 1 for relay
 
-        // Write the header.
-        // Last 8 bytes (body length and checksum will be written after the body).
-        let mut header_buf = vec![];
-        let magic = [0xfa, 0x1a, 0xf9, 0xbf];
-        header_buf.write_all(&magic);
-        header_buf.write_all(b"version\0\0\0\0\0");
-
-        // Zeroed body length and checksum to be mutated after the body has been written.
-        // buffer.write_all(&u32::to_le_bytes(0));
-        // buffer.write_all(&u32::to_le_bytes(0));
-
         // Write the body, size is unkown at this point.
         let mut body_buf = vec![];
-        body_buf.write_all(&u32::to_le_bytes(self.version));
-        body_buf.write_all(&u64::to_le_bytes(self.services));
-        body_buf.write_all(&i64::to_le_bytes(self.timestamp.timestamp()));
+        body_buf.write_all(&u32::to_le_bytes(self.version))?;
+        body_buf.write_all(&u64::to_le_bytes(self.services))?;
+        body_buf.write_all(&i64::to_le_bytes(self.timestamp.timestamp()))?;
 
-        dbg!(&body_buf);
+        write_addr(&mut body_buf, self.addr_recv)?;
+        write_addr(&mut body_buf, self.addr_from)?;
 
-        write_addr(&mut body_buf, self.addr_recv);
-        write_addr(&mut body_buf, self.addr_from);
-
-        dbg!(&body_buf);
-
-        body_buf.write_all(&u64::to_le_bytes(self.nonce));
+        body_buf.write_all(&u64::to_le_bytes(self.nonce))?;
         let len = write_string(&mut body_buf, &self.user_agent)?;
-        body_buf.write_all(&u32::to_le_bytes(self.start_height));
-        body_buf.write_all(&[self.relay as u8]);
+        body_buf.write_all(&u32::to_le_bytes(self.start_height))?;
+        body_buf.write_all(&[self.relay as u8])?;
 
-        header_buf.write_all(&u32::to_le_bytes((85 + len) as u32));
-
-        // Compute the 4 byte checksum and replace it in the previously zeroed portion of the
-        // header.
+        // Write the header.
         let checksum = checksum(&body_buf);
-        header_buf.write_all(&checksum);
 
-        dbg!(&body_buf);
+        let header = MessageHeader {
+            magic: MAGIC,
+            command: *b"version\0\0\0\0\0",
+            body_length: (85 + len) as u32,
+            checksum: u32::from_le_bytes(checksum),
+        };
 
-        tokio::io::AsyncWriteExt::write_all(&mut stream, &header_buf).await?;
+        header.write_to_stream(&mut stream).await?;
+
         tokio::io::AsyncWriteExt::write_all(&mut stream, &body_buf).await?;
 
         Ok(())
@@ -160,19 +206,21 @@ impl Version {
     }
 }
 
-fn write_addr(mut buf: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) {
-    buf.write_all(&u64::to_le_bytes(services));
+fn write_addr(buf: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) -> io::Result<()> {
+    buf.write_all(&u64::to_le_bytes(services))?;
 
     let (ip, port) = match addr {
         SocketAddr::V4(v4) => (v4.ip().to_ipv6_mapped(), v4.port()),
         SocketAddr::V6(v6) => (*v6.ip(), v6.port()),
     };
 
-    buf.write_all(&ip.octets());
-    buf.write_all(&u16::to_be_bytes(port));
+    buf.write_all(&ip.octets())?;
+    buf.write_all(&u16::to_be_bytes(port))?;
+
+    Ok(())
 }
 
-fn write_string(mut buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
+fn write_string(buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
     // Bitcoin "CompactSize" encoding.
     let l = s.len();
     let cs_len = match l {
@@ -197,7 +245,7 @@ fn write_string(mut buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
         }
     };
 
-    buf.write_all(s.as_bytes());
+    buf.write_all(s.as_bytes())?;
 
     Ok(l + cs_len)
 }
@@ -231,7 +279,7 @@ async fn decode_string(stream: &mut TcpStream) -> io::Result<String> {
     };
 
     let mut buf = vec![0u8; len as usize];
-    stream.read_exact(&mut buf).await;
+    stream.read_exact(&mut buf).await?;
     Ok(String::from_utf8(buf).expect("invalid utf-8"))
 }
 

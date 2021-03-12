@@ -1,5 +1,6 @@
-use crate::common::message::MessageHeader;
-use crate::common::message::Version;
+use ziggurat::common::message::Message;
+use ziggurat::common::message::MessageHeader;
+use ziggurat::common::message::Version;
 
 use bytes::BytesMut;
 use tokio::io::AsyncReadExt;
@@ -38,9 +39,7 @@ async fn handshake_initiator_side() {
 
     match listener.accept().await {
         Ok((mut peer_stream, addr)) => {
-            let mut b = [0u8; 24];
-            peer_stream.read_exact(&mut b).await;
-            let h = MessageHeader::from(b);
+            let h = MessageHeader::read_from_stream(&mut peer_stream).await;
             dbg!(&h);
 
             // let mut b = vec![0u8; h.body_length as usize];
@@ -51,14 +50,16 @@ async fn handshake_initiator_side() {
                 // dbg!(v);
             }
 
-            let v = Version::new(node_addr, listener.local_addr().unwrap())
+            Version::new(node_addr, listener.local_addr().unwrap())
                 .encode(&mut peer_stream)
                 .await;
 
-            let mut b = [0u8; 24];
-            peer_stream.read_exact(&mut b).await;
-            let h = MessageHeader::from(b);
+            let h = MessageHeader::read_from_stream(&mut peer_stream).await;
             dbg!(h);
+
+            Message::Verack.write_to_stream(&mut peer_stream).await;
+
+            tokio::time::sleep(std::time::Duration::from_secs(30));
         }
         Err(e) => println!("couldn't get client: {:?}", e),
     }
