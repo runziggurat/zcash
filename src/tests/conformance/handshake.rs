@@ -29,18 +29,13 @@ async fn handshake_responder_side() {
 
     let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
     assert!(matches!(verack, Message::Verack));
-
-    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
 }
 
 #[tokio::test]
 #[ignore]
 async fn handshake_initiator_side() {
     // This needs to be 0.0.0.0 as inbound connection from docker container goes through the
-    // machine's IP (duck tapey but good enough for now).
+    // machine's IP (duct-tapey but good enough for now).
     let listener = TcpListener::bind("0.0.0.0:8081").await.unwrap();
 
     match listener.accept().await {

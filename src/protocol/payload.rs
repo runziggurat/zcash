@@ -35,7 +35,7 @@ impl Version {
         }
     }
 
-    pub fn encode(&self, body_buf: &mut Vec<u8>) -> io::Result<()> {
+    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         // Composition:
         //
         // Header (24 bytes):
@@ -60,17 +60,17 @@ impl Version {
         // - 1 for relay
 
         // Write the body, size is unkown at this point.
-        body_buf.write_all(&self.version.to_le_bytes())?;
-        body_buf.write_all(&self.services.to_le_bytes())?;
-        body_buf.write_all(&self.timestamp.timestamp().to_le_bytes())?;
+        buffer.write_all(&self.version.to_le_bytes())?;
+        buffer.write_all(&self.services.to_le_bytes())?;
+        buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
 
-        write_addr(body_buf, self.addr_recv)?;
-        write_addr(body_buf, self.addr_from)?;
+        write_addr(buffer, self.addr_recv)?;
+        write_addr(buffer, self.addr_from)?;
 
-        body_buf.write_all(&self.nonce.to_le_bytes())?;
-        write_string(body_buf, &self.user_agent)?;
-        body_buf.write_all(&self.start_height.to_le_bytes())?;
-        body_buf.write_all(&[self.relay as u8])?;
+        buffer.write_all(&self.nonce.to_le_bytes())?;
+        write_string(buffer, &self.user_agent)?;
+        buffer.write_all(&self.start_height.to_le_bytes())?;
+        buffer.write_all(&[self.relay as u8])?;
 
         Ok(())
     }
@@ -105,46 +105,46 @@ impl Version {
     }
 }
 
-fn write_addr(buf: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) -> io::Result<()> {
-    buf.write_all(&services.to_le_bytes())?;
+fn write_addr(buffer: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) -> io::Result<()> {
+    buffer.write_all(&services.to_le_bytes())?;
 
     let (ip, port) = match addr {
         SocketAddr::V4(v4) => (v4.ip().to_ipv6_mapped(), v4.port()),
         SocketAddr::V6(v6) => (*v6.ip(), v6.port()),
     };
 
-    buf.write_all(&ip.octets())?;
-    buf.write_all(&port.to_be_bytes())?;
+    buffer.write_all(&ip.octets())?;
+    buffer.write_all(&port.to_be_bytes())?;
 
     Ok(())
 }
 
-fn write_string(buf: &mut Vec<u8>, s: &str) -> io::Result<usize> {
+fn write_string(buffer: &mut Vec<u8>, s: &str) -> io::Result<usize> {
     // Bitcoin "CompactSize" encoding.
     let l = s.len();
     let cs_len = match l {
         0x0000_0000..=0x0000_00fc => {
-            buf.write_all(&[l as u8])?;
+            buffer.write_all(&[l as u8])?;
             1 // bytes written
         }
         0x0000_00fd..=0x0000_ffff => {
-            buf.write_all(&[0xfdu8])?;
-            buf.write_all(&(l as u16).to_le_bytes())?;
+            buffer.write_all(&[0xfdu8])?;
+            buffer.write_all(&(l as u16).to_le_bytes())?;
             3
         }
         0x0001_0000..=0xffff_ffff => {
-            buf.write_all(&[0xfeu8])?;
-            buf.write_all(&(l as u32).to_le_bytes())?;
+            buffer.write_all(&[0xfeu8])?;
+            buffer.write_all(&(l as u32).to_le_bytes())?;
             5
         }
         _ => {
-            buf.write_all(&[0xffu8])?;
-            buf.write_all(&(l as u64).to_le_bytes())?;
+            buffer.write_all(&[0xffu8])?;
+            buffer.write_all(&(l as u64).to_le_bytes())?;
             9
         }
     };
 
-    buf.write_all(s.as_bytes())?;
+    buffer.write_all(s.as_bytes())?;
 
     Ok(l + cs_len)
 }
@@ -176,9 +176,9 @@ fn decode_string(bytes: &mut Cursor<&[u8]>) -> io::Result<String> {
         0xff => u64::from_le_bytes(read_n_bytes(bytes)?) as u64,
     };
 
-    let mut buf = vec![0u8; len as usize];
-    bytes.read_exact(&mut buf)?;
-    Ok(String::from_utf8(buf).expect("invalid utf-8"))
+    let mut buffer = vec![0u8; len as usize];
+    bytes.read_exact(&mut buffer)?;
+    Ok(String::from_utf8(buffer).expect("invalid utf-8"))
 }
 
 fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8; N]> {

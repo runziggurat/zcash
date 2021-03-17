@@ -29,14 +29,14 @@ impl MessageHeader {
     }
 
     pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
-        let mut header_buf = vec![];
+        let mut buffer = vec![];
 
-        header_buf.write_all(&self.magic)?;
-        header_buf.write_all(&self.command)?;
-        header_buf.write_all(&self.body_length.to_le_bytes())?;
-        header_buf.write_all(&self.checksum.to_le_bytes())?;
+        buffer.write_all(&self.magic)?;
+        buffer.write_all(&self.command)?;
+        buffer.write_all(&self.body_length.to_le_bytes())?;
+        buffer.write_all(&self.checksum.to_le_bytes())?;
 
-        tokio::io::AsyncWriteExt::write_all(stream, &header_buf).await?;
+        tokio::io::AsyncWriteExt::write_all(stream, &buffer).await?;
 
         Ok(())
     }
