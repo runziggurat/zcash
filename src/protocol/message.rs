@@ -1,9 +1,10 @@
 use crate::protocol::payload::Version;
 
 use sha2::{Digest, Sha256};
-use tokio::{io::AsyncReadExt, net::TcpStream};
-
-use std::{io, io::Write};
+use tokio::{
+    io::{self, AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
@@ -29,14 +30,10 @@ impl MessageHeader {
     }
 
     pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
-        let mut buffer = vec![];
-
-        buffer.write_all(&self.magic)?;
-        buffer.write_all(&self.command)?;
-        buffer.write_all(&self.body_length.to_le_bytes())?;
-        buffer.write_all(&self.checksum.to_le_bytes())?;
-
-        tokio::io::AsyncWriteExt::write_all(stream, &buffer).await?;
+        stream.write_all(&self.magic).await?;
+        stream.write_all(&self.command).await?;
+        stream.write_all(&self.body_length.to_le_bytes()).await?;
+        stream.write_all(&self.checksum.to_le_bytes()).await?;
 
         Ok(())
     }
@@ -72,7 +69,7 @@ impl Message {
         };
 
         header.write_to_stream(stream).await?;
-        tokio::io::AsyncWriteExt::write_all(stream, &buffer).await?;
+        stream.write_all(&buffer).await?;
 
         Ok(())
     }
