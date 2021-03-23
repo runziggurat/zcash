@@ -61,7 +61,7 @@ impl NodeMetaData {
         let mut args: Vec<OsString> = meta_file
             .command
             .split_whitespace()
-            .map(|s| OsString::from(s))
+            .map(OsString::from)
             .collect();
 
         // Extract the command from the vec.
@@ -143,4 +143,26 @@ struct StateConfig {
 #[derive(Serialize)]
 struct TracingConfig {
     filter: Option<String>,
+}
+
+/// Convenience struct for writing a zcashd compatible configuration file.
+pub(super) struct ZcashdConfigFile;
+
+impl ZcashdConfigFile {
+    pub(super) fn generate(config: &NodeConfig) -> String {
+        let mut contents = format!(
+            "testnet=1\nbind={}\nmaxconnections={}\n",
+            config.local_addr, config.max_peers
+        );
+
+        if config.initial_peers.is_empty() {
+            contents.push_str("connect=\n")
+        } else {
+            for peer in &config.initial_peers {
+                contents.push_str(&format!("connect={}\n", peer))
+            }
+        }
+
+        contents
+    }
 }

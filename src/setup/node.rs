@@ -1,4 +1,4 @@
-use crate::setup::config::{NodeConfig, NodeKind, NodeMetaData, ZebraConfigFile};
+use crate::setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile};
 
 use tokio::process::{Child, Command};
 
@@ -56,7 +56,7 @@ impl Node {
 
         // In future maybe ping to check if ready? Maybe in include an explicit build step here as
         // well?
-        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
     }
 
     pub async fn stop(&mut self) {
@@ -69,10 +69,15 @@ impl Node {
     }
 
     fn generate_config_file(&self) {
-        let path = self.meta.path.join("node.toml");
-        let content = match self.meta.kind {
-            NodeKind::Zebra => ZebraConfigFile::generate(&self.config),
-            NodeKind::Zcashd => unimplemented!(),
+        let (path, content) = match self.meta.kind {
+            NodeKind::Zebra => (
+                self.meta.path.join("node.toml"),
+                ZebraConfigFile::generate(&self.config),
+            ),
+            NodeKind::Zcashd => (
+                self.meta.path.join("zcash.conf"),
+                ZcashdConfigFile::generate(&self.config),
+            ),
         };
 
         fs::write(path, content).unwrap();

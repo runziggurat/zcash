@@ -1,3 +1,8 @@
-kind = "Zebra"
-path = "/Users/nkls/dev/eqlabs/zebra"
-command = "cargo +stable r -- --config node.toml --verbose start"
+# kind = "Zebra"
+# path = "/Users/nkls/dev/eqlabs/zebra"
+# command = "cargo +stable r -- --config node.toml --verbose start"
+
+
+kind = "Zcashd"
+path = "/Users/nkls"
+command = "docker start my_zcashd"

@@ -5,8 +5,6 @@ use crate::{
 
 use tokio::net::{TcpListener, TcpStream};
 
-
-
 #[tokio::test]
 async fn handshake_responder_side() {
     // 1. Configure and run node.
@@ -15,6 +13,7 @@ async fn handshake_responder_side() {
     // 4. Expect Verack back.
 
     let config = NodeConfig {
+        local_addr: "0.0.0.0:8080".parse().unwrap(),
         ..Default::default()
     };
     let mut node = Node::new(config);
