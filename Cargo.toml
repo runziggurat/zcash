@@ -10,7 +10,12 @@ edition = "2018"
 chrono = "0.4"
 sha2 = "0.9.3"
 rand = "0.8.3"
+toml = "0.5.8"
 
 [dependencies.tokio]
 version = "1"
 features = [ "full" ]
+
+[dependencies.serde]
+version = "1"
+features = [ "derive" ]
