@@ -1,11 +1,11 @@
 use crate::{
     protocol::{message::Message, payload::Version},
-    setup::config::{start, stop, NodeConfig},
+    setup::{config::NodeConfig, node::Node},
 };
 
 use tokio::net::{TcpListener, TcpStream};
 
-use std::{collections::HashSet, net::SocketAddr};
+
 
 #[tokio::test]
 async fn handshake_responder_side() {
@@ -14,16 +14,21 @@ async fn handshake_responder_side() {
     // 3. Expect a Version back and send Verack.
     // 4. Expect Verack back.
 
-    let config = NodeConfig::new("127.0.0.1:8080".parse().unwrap(), HashSet::new());
-    let node_process = start(config).await;
+    let config = NodeConfig {
+        ..Default::default()
+    };
+    let mut node = Node::new(config);
+    node.start().await;
 
-    let node_addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
-    let mut peer_stream = TcpStream::connect(node_addr).await.unwrap();
+    let mut peer_stream = TcpStream::connect(node.local_addr()).await.unwrap();
 
-    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+    Message::Version(Version::new(
+        node.local_addr(),
+        peer_stream.local_addr().unwrap(),
+    ))
+    .write_to_stream(&mut peer_stream)
+    .await
+    .unwrap();
 
     let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
     assert!(matches!(version, Message::Version(..)));
@@ -36,7 +41,7 @@ async fn handshake_responder_side() {
     let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
     assert!(matches!(verack, Message::Verack));
 
-    stop(node_process).await;
+    node.stop().await;
 }
 
 #[tokio::test]
