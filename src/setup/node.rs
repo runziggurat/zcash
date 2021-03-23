@@ -1,4 +1,4 @@
-use crate::setup::config::{NodeConfig, NodeKind, NodeMeta, ZebraConfigFile};
+use crate::setup::config::{NodeConfig, NodeKind, NodeMetaData, ZebraConfigFile};
 
 use tokio::process::{Child, Command};
 
@@ -8,7 +8,7 @@ pub struct Node {
     /// Configuration definable in tests and written to the node's configuration file on start.
     config: NodeConfig,
     /// Type, path to binary, various commands for starting, stopping, cleanup.
-    meta: NodeMeta,
+    meta: NodeMetaData,
     /// Process of the running node.
     process: Option<Child>,
 }
@@ -18,7 +18,7 @@ impl Node {
         // 1. Configuration file read into NodeMeta.
         // 2. Node instance from Config + Meta, process is None.
 
-        let meta = NodeMeta::new(&env::current_dir().unwrap().join("config.toml"));
+        let meta = NodeMetaData::new(&env::current_dir().unwrap().join("config.toml"));
 
         Self {
             config,

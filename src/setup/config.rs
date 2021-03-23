@@ -42,7 +42,7 @@ pub enum NodeKind {
 }
 
 /// Node metadata read from the `config.toml` configuration file.
-pub struct NodeMeta {
+pub struct NodeMetaData {
     /// The node kind (one of `Zebra` or `Zcashd`).
     pub kind: NodeKind,
     /// The path to run the node's commands in.
@@ -53,10 +53,10 @@ pub struct NodeMeta {
     pub args: Vec<OsString>,
 }
 
-impl NodeMeta {
+impl NodeMetaData {
     pub(super) fn new(path: &Path) -> Self {
         let meta_string = fs::read_to_string(path).unwrap();
-        let meta_file: NodeMetaFile = toml::from_str(&meta_string).unwrap();
+        let meta_file: MetaDataFile = toml::from_str(&meta_string).unwrap();
 
         let mut args: Vec<OsString> = meta_file
             .command
@@ -79,7 +79,7 @@ impl NodeMeta {
 /// Convenience struct for reading the toml configuration file. The data read here is used to
 /// construct a `NodeMeta` instance.
 #[derive(Deserialize, Debug)]
-struct NodeMetaFile {
+struct MetaDataFile {
     kind: NodeKind,
     path: PathBuf,
     command: String,
