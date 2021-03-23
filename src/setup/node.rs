@@ -1,4 +1,4 @@
-use crate::setup::config::{NodeConfig, NodeKind, NodeMeta, ZebraConfig};
+use crate::setup::config::{NodeConfig, NodeKind, NodeMeta, ZebraConfigFile};
 
 use tokio::process::{Child, Command};
 
@@ -28,7 +28,7 @@ impl Node {
     }
 
     pub fn local_addr(&self) -> SocketAddr {
-        self.config.listening_address
+        self.config.local_addr
     }
 
     pub async fn start(&mut self) {
@@ -71,7 +71,7 @@ impl Node {
     fn generate_config_file(&self) {
         let path = self.meta.path.join("node.toml");
         let content = match self.meta.kind {
-            NodeKind::Zebra => ZebraConfig::generate(&self.config),
+            NodeKind::Zebra => ZebraConfigFile::generate(&self.config),
             NodeKind::Zcashd => unimplemented!(),
         };
 

@@ -8,17 +8,25 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Node configuration used for creating a `Node` instance.
+///
+/// The information contained in this struct will be written to a config file read by the node at
+/// start time and as such can only contain options shared by all types of node.
 pub struct NodeConfig {
-    pub listening_address: SocketAddr,
+    /// The node's listening address.
+    pub local_addr: SocketAddr,
+    /// The initial peerset to connect to on node start.
     pub initial_peers: HashSet<SocketAddr>,
+    /// The initial max number of peer connections to allow.
     pub max_peers: usize,
+    /// Setting this option to true will enable node logging to stdout.
     pub log_to_stdout: bool,
 }
 
 impl Default for NodeConfig {
     fn default() -> Self {
         Self {
-            listening_address: "127.0.0.1:8080".parse().unwrap(),
+            local_addr: "127.0.0.1:8080".parse().unwrap(),
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
@@ -26,23 +34,22 @@ impl Default for NodeConfig {
     }
 }
 
+/// Describes the node kind, currently supports the two known variants.
 #[derive(Deserialize, Debug)]
 pub enum NodeKind {
     Zebra,
     Zcashd,
 }
 
-#[derive(Deserialize, Debug)]
-struct NodeMetaFile {
-    kind: NodeKind,
-    path: PathBuf,
-    command: String,
-}
-
+/// Node metadata read from the `config.toml` configuration file.
 pub struct NodeMeta {
+    /// The node kind (one of `Zebra` or `Zcashd`).
     pub kind: NodeKind,
+    /// The path to run the node's commands in.
     pub path: PathBuf,
+    /// The command to run when starting a node.
     pub command: OsString,
+    /// The args to run with the command.
     pub args: Vec<OsString>,
 }
 
@@ -69,7 +76,55 @@ impl NodeMeta {
     }
 }
 
+/// Convenience struct for reading the toml configuration file. The data read here is used to
+/// construct a `NodeMeta` instance.
+#[derive(Deserialize, Debug)]
+struct NodeMetaFile {
+    kind: NodeKind,
+    path: PathBuf,
+    command: String,
+}
+
 // ZEBRA CONFIG FILE
+
+/// Convenience struct for writing a zebra compatible configuration file.
+#[derive(Serialize)]
+pub(super) struct ZebraConfigFile {
+    network: NetworkConfig,
+    state: StateConfig,
+    tracing: TracingConfig,
+}
+
+impl ZebraConfigFile {
+    /// Generate the toml configuration as a string.
+    pub(super) fn generate(config: &NodeConfig) -> String {
+        // Create the structs to prepare for encoding.
+        let initial_testnet_peers: HashSet<String> = config
+            .initial_peers
+            .iter()
+            .map(|addr| addr.to_string())
+            .collect();
+
+        let zebra_config = Self {
+            network: NetworkConfig {
+                listen_addr: config.local_addr,
+                initial_testnet_peers,
+                peerset_initial_target_size: config.max_peers,
+                network: String::from("Testnet"),
+            },
+            state: StateConfig {
+                cache_dir: None,
+                ephemeral: true,
+            },
+            tracing: TracingConfig {
+                filter: Some("zebra_network=trace".to_string()),
+            },
+        };
+
+        // Write the toml to a string.
+        toml::to_string(&zebra_config).unwrap()
+    }
+}
 
 #[derive(Serialize)]
 struct NetworkConfig {
@@ -77,20 +132,6 @@ struct NetworkConfig {
     initial_testnet_peers: HashSet<String>,
     peerset_initial_target_size: usize,
     network: String,
-}
-
-impl NetworkConfig {
-    fn new(listening_address: SocketAddr, initial_peers: &HashSet<SocketAddr>) -> Self {
-        let initial_testnet_peers: HashSet<String> =
-            initial_peers.iter().map(|addr| addr.to_string()).collect();
-
-        Self {
-            listen_addr: listening_address,
-            initial_testnet_peers,
-            peerset_initial_target_size: 50,
-            network: String::from("Testnet"),
-        }
-    }
 }
 
 #[derive(Serialize)]
@@ -102,28 +143,4 @@ struct StateConfig {
 #[derive(Serialize)]
 struct TracingConfig {
     filter: Option<String>,
-}
-
-#[derive(Serialize)]
-pub(super) struct ZebraConfig {
-    network: NetworkConfig,
-    state: StateConfig,
-    tracing: TracingConfig,
-}
-
-impl ZebraConfig {
-    pub(super) fn generate(config: &NodeConfig) -> String {
-        let zebra_config = Self {
-            network: NetworkConfig::new(config.listening_address, &config.initial_peers),
-            state: StateConfig {
-                cache_dir: None,
-                ephemeral: true,
-            },
-            tracing: TracingConfig {
-                filter: Some("zebra_network=trace".to_string()),
-            },
-        };
-
-        toml::to_string(&zebra_config).unwrap()
-    }
 }
