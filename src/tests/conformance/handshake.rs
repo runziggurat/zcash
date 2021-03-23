@@ -1,8 +1,11 @@
-use crate::protocol::{message::Message, payload::Version};
+use crate::{
+    protocol::{message::Message, payload::Version},
+    setup::config::{start, stop, NodeConfig},
+};
 
 use tokio::net::{TcpListener, TcpStream};
 
-use std::net::SocketAddr;
+use std::{collections::HashSet, net::SocketAddr};
 
 #[tokio::test]
 async fn handshake_responder_side() {
@@ -10,6 +13,9 @@ async fn handshake_responder_side() {
     // 2. Send a Version message to the node.
     // 3. Expect a Version back and send Verack.
     // 4. Expect Verack back.
+
+    let config = NodeConfig::new("127.0.0.1:8080".parse().unwrap(), HashSet::new());
+    let node_process = start(config).await;
 
     let node_addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
     let mut peer_stream = TcpStream::connect(node_addr).await.unwrap();
@@ -29,6 +35,8 @@ async fn handshake_responder_side() {
 
     let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
     assert!(matches!(verack, Message::Verack));
+
+    stop(node_process).await;
 }
 
 #[tokio::test]
