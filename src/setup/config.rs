@@ -36,6 +36,7 @@ impl Default for NodeConfig {
 
 /// Describes the node kind, currently supports the two known variants.
 #[derive(Deserialize, Debug)]
+#[serde(rename_all(deserialize = "lowercase"))]
 pub enum NodeKind {
     Zebra,
     Zcashd,

@@ -61,6 +61,10 @@ impl Node {
 
     pub async fn stop(&mut self) {
         let mut child = self.process.take().unwrap();
+        let stdout = match self.config.log_to_stdout {
+            true => Stdio::inherit(),
+            false => Stdio::null(),
+        };
 
         // Simply kill the process if no stop command is provided. If it is, run it under the
         // assumption the process has already exited.
@@ -72,6 +76,8 @@ impl Node {
                 Command::new(stop_command)
                     .current_dir(&self.meta.path)
                     .args(stop_args)
+                    .stdin(Stdio::null())
+                    .stdout(stdout)
                     .status()
                     .await
                     .expect("failed to run stop command");
