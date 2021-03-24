@@ -5,4 +5,5 @@
 
 kind = "Zcashd"
 path = "/Users/nkls"
-command = "docker start my_zcashd"
+start_command = "docker start my_zcashd"
+stop_command = "docker stop my_zcashd"

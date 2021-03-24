@@ -48,9 +48,13 @@ pub struct NodeMetaData {
     /// The path to run the node's commands in.
     pub path: PathBuf,
     /// The command to run when starting a node.
-    pub command: OsString,
-    /// The args to run with the command.
-    pub args: Vec<OsString>,
+    pub start_command: OsString,
+    /// The args to run with the start command.
+    pub start_args: Vec<OsString>,
+    /// The command to run when stopping a node.
+    pub stop_command: Option<OsString>,
+    /// The args to run with the stop command.
+    pub stop_args: Option<Vec<OsString>>,
 }
 
 impl NodeMetaData {
@@ -58,20 +62,30 @@ impl NodeMetaData {
         let meta_string = fs::read_to_string(path).unwrap();
         let meta_file: MetaDataFile = toml::from_str(&meta_string).unwrap();
 
-        let mut args: Vec<OsString> = meta_file
-            .command
-            .split_whitespace()
-            .map(OsString::from)
-            .collect();
+        let args_from = |command: &str| -> Vec<OsString> {
+            command.split_whitespace().map(OsString::from).collect()
+        };
 
-        // Extract the command from the vec.
-        let command = args.remove(0);
+        let mut start_args = args_from(&meta_file.start_command);
+        let start_command = start_args.remove(0);
+
+        // Default to None.
+        let mut stop_args = None;
+        let mut stop_command = None;
+
+        if let Some(command) = meta_file.stop_command {
+            let mut args = args_from(&command);
+            stop_command = Some(args.remove(0));
+            stop_args = Some(args);
+        }
 
         Self {
             kind: meta_file.kind,
             path: meta_file.path,
-            command,
-            args,
+            start_command,
+            start_args,
+            stop_command,
+            stop_args,
         }
     }
 }
@@ -82,7 +96,8 @@ impl NodeMetaData {
 struct MetaDataFile {
     kind: NodeKind,
     path: PathBuf,
-    command: String,
+    start_command: String,
+    stop_command: Option<String>,
 }
 
 // ZEBRA CONFIG FILE

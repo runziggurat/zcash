@@ -43,9 +43,9 @@ impl Node {
             false => Stdio::null(),
         };
 
-        let process = Command::new(&self.meta.command)
+        let process = Command::new(&self.meta.start_command)
             .current_dir(&self.meta.path)
-            .args(&self.meta.args)
+            .args(&self.meta.start_args)
             .stdin(Stdio::null())
             .stdout(stdout)
             .kill_on_drop(true)
@@ -60,12 +60,26 @@ impl Node {
     }
 
     pub async fn stop(&mut self) {
-        // TODO: remove node config file?
-        let mut child = self
-            .process
-            .take()
-            .expect("process isn't currently running");
-        child.kill().await.expect("failed to kill process");
+        let mut child = self.process.take().unwrap();
+
+        // Simply kill the process if no stop command is provided. If it is, run it under the
+        // assumption the process has already exited.
+        match (
+            self.meta.stop_command.as_ref(),
+            self.meta.stop_args.as_ref(),
+        ) {
+            (Some(stop_command), Some(stop_args)) => {
+                Command::new(stop_command)
+                    .current_dir(&self.meta.path)
+                    .args(stop_args)
+                    .status()
+                    .await
+                    .expect("failed to run stop command");
+            }
+            _ => child.kill().await.expect("failed to kill process"),
+        }
+
+        // TODO: Cleanup?
     }
 
     fn generate_config_file(&self) {
