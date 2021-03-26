@@ -4,6 +4,7 @@ use tokio::process::{Child, Command};
 
 use std::{env, fs, net::SocketAddr, process::Stdio};
 
+/// Represents an instance of a node, its configuration and setup/teardown intricacies.
 pub struct Node {
     /// Configuration definable in tests and written to the node's configuration file on start.
     config: NodeConfig,
@@ -14,6 +15,11 @@ pub struct Node {
 }
 
 impl Node {
+    /// Creates a new node instance from a [`NodeConfig`] and [`NodeMetaData`] (with the latter read from
+    /// the `config.toml` file).
+    ///
+    /// [`NodeConfig`]: struct@crate::setup::config::NodeConfig
+    /// [`NodeMetaData`]: struct@crate::setup::config::NodeMetaData
     pub fn new(config: NodeConfig) -> Self {
         // 1. Configuration file read into NodeMeta.
         // 2. Node instance from Config + Meta, process is None.
@@ -27,10 +33,20 @@ impl Node {
         }
     }
 
+    /// Returns the configured local address for this node.
+    ///
+    /// As this is read from the configuration, the socket will not be open if [`start`] hasn't
+    /// yet been called.
+    ///
+    /// [`start`]: method@Node::start
     pub fn local_addr(&self) -> SocketAddr {
         self.config.local_addr
     }
 
+    /// Starts the node instance.
+    ///
+    /// This function will write the appropriate configuration file and run the start command
+    /// provided in `config.toml`.
     pub async fn start(&mut self) {
         // 1. Write necessary config files.
         // 2. Create and run command.
@@ -59,6 +75,10 @@ impl Node {
         tokio::time::sleep(std::time::Duration::from_secs(30)).await;
     }
 
+    /// Stops the node instance.
+    ///
+    /// The stop command will only be run if provided in the `config.toml` file as it may not be
+    /// necessary to shutdown a node (killing the process is sometimes sufficient).
     pub async fn stop(&mut self) {
         let mut child = self.process.take().unwrap();
         let stdout = match self.config.log_to_stdout {

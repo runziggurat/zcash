@@ -8,10 +8,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Node configuration used for creating a `Node` instance.
+/// Node configuration used for creating a [`Node`] instance.
 ///
 /// The information contained in this struct will be written to a config file read by the node at
 /// start time and as such can only contain options shared by all types of node.
+///
+/// [`Node`]: struct@crate::setup::node::Node
 pub struct NodeConfig {
     /// The node's listening address.
     pub local_addr: SocketAddr,
