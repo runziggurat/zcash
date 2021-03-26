@@ -37,6 +37,10 @@ impl Node {
         }
     }
 
+    /// Sets the initial peers ports for the node.
+    ///
+    /// The ip used to construct the addresses can be optionally set in the configuration file and
+    /// otherwise default to localhost.
     pub fn initial_peers(&mut self, peers: Vec<u16>) -> &mut Self {
         self.config.initial_peers = peers
             .iter()
@@ -46,11 +50,13 @@ impl Node {
         self
     }
 
+    /// Sets the maximum connection value for the node.
     pub fn max_peers(&mut self, max_peers: usize) -> &mut Self {
         self.config.max_peers = max_peers;
         self
     }
 
+    /// Sets whether to log the node's output to Ziggurat's output stream.
     pub fn log_to_stdout(&mut self, log_to_stdout: bool) -> &mut Self {
         self.config.log_to_stdout = log_to_stdout;
         self

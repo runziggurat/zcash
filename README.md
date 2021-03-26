@@ -10,7 +10,11 @@ A Ziggurat is a rectangular stepped tower that uses precise measurements to ensu
 
 ## Configuration
 
-Ziggurat is configured with a `config.toml` file in the root which is used to set information about the node to be tested. It must contain:
+Ziggurat is configured with a `config.toml` file in the root. The networking properties of Ziggurat itself can be set with:
+- `local_ip`: the local ip to use with all Ziggurat spawned listeners.
+- `node_ip`: the ip through which Ziggurat will attempt to connect to a node. Note: this may be different to the `[node.local_ip]` when using e.g. a dockerized instance of the node.
+
+Additionally, information about the node to be testet can be set under the `[node]` table:
 
 - `kind`: one of `zebra` or `zcashd`
 - `path`: absolute path in which to run the start and stop commands.
@@ -19,6 +23,9 @@ Ziggurat is configured with a `config.toml` file in the root which is used to se
 and optionally:
 
 - `stop_command`: the command used to stop the node. This may be useful when running e.g. a dockerised instance of the node.
+- `local_ip`: the local ip/dns name of the node.
+- `peer_ip`: the ip/dns name the node can reach the peers through.
+
 
 When starting the node, this information and the configuration provided in the tests will be written to a configuration file compatible with and read by the node under test.
 
