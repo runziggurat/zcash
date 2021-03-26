@@ -2,7 +2,7 @@ use crate::setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile,
 
 use tokio::process::{Child, Command};
 
-use std::{env, fs, net::SocketAddr, process::Stdio};
+use std::{fs, process::Stdio};
 
 /// Represents an instance of a node, its configuration and setup/teardown intricacies.
 pub struct Node {
@@ -15,16 +15,20 @@ pub struct Node {
 }
 
 impl Node {
-    /// Creates a new node instance from a [`NodeConfig`] and [`NodeMetaData`] (with the latter read from
-    /// the `config.toml` file).
+    /// Creates a new [`Node`] instance from [`NodeMetaData`].
     ///
-    /// [`NodeConfig`]: struct@crate::setup::config::NodeConfig
+    /// Once created, it can be configured with calls to [`initial_peers`], [`max_peers`] and [`log_to_stdout`].
+    ///
+    /// [`Node`]: struct@Node
     /// [`NodeMetaData`]: struct@crate::setup::config::NodeMetaData
-    pub fn new(config: NodeConfig) -> Self {
+    /// [`initial_peers`]: methode@Node::initial_peers
+    /// [`max_peers`]: methode@Node::max_peers
+    /// [`log_to_stdout`]: method@Node::log_to_stdout
+    pub fn new(meta: NodeMetaData, port: u16) -> Self {
         // 1. Configuration file read into NodeMeta.
         // 2. Node instance from Config + Meta, process is None.
 
-        let meta = NodeMetaData::new(&env::current_dir().unwrap().join("config.toml"));
+        let config = NodeConfig::new(&meta.local_ip, port);
 
         Self {
             config,
@@ -33,14 +37,23 @@ impl Node {
         }
     }
 
-    /// Returns the configured local address for this node.
-    ///
-    /// As this is read from the configuration, the socket will not be open if [`start`] hasn't
-    /// yet been called.
-    ///
-    /// [`start`]: method@Node::start
-    pub fn local_addr(&self) -> SocketAddr {
-        self.config.local_addr
+    pub fn initial_peers(&mut self, peers: Vec<u16>) -> &mut Self {
+        self.config.initial_peers = peers
+            .iter()
+            .map(|port| format!("{}:{}", self.meta.peer_ip, port))
+            .collect();
+
+        self
+    }
+
+    pub fn max_peers(&mut self, max_peers: usize) -> &mut Self {
+        self.config.max_peers = max_peers;
+        self
+    }
+
+    pub fn log_to_stdout(&mut self, log_to_stdout: bool) -> &mut Self {
+        self.config.log_to_stdout = log_to_stdout;
+        self
     }
 
     /// Starts the node instance.
@@ -54,9 +67,9 @@ impl Node {
         // Generate config files for Zebra or Zcashd node.
         self.generate_config_file();
 
-        let stdout = match self.config.log_to_stdout {
-            true => Stdio::inherit(),
-            false => Stdio::null(),
+        let (stdout, stderr) = match self.config.log_to_stdout {
+            true => (Stdio::inherit(), Stdio::inherit()),
+            false => (Stdio::null(), Stdio::null()),
         };
 
         let process = Command::new(&self.meta.start_command)
@@ -64,6 +77,7 @@ impl Node {
             .args(&self.meta.start_args)
             .stdin(Stdio::null())
             .stdout(stdout)
+            .stderr(stderr)
             .kill_on_drop(true)
             .spawn()
             .expect("node failed to start");

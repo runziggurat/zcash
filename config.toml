@@ -1,9 +1,15 @@
-# kind = "zebra"
-# path = "/Users/nkls/dev/eqlabs/zebra"
-# command = "cargo +stable r -- --config node.toml --verbose start"
+[node]
+kind = "zebra"
+path = "/Users/nkls/dev/eqlabs/zebra"
+start_command = "cargo +stable r -- --config node.toml --verbose start"
 
-
-kind = "zcashd"
-path = "/Users/nkls"
-start_command = "docker start my_zcashd"
-stop_command = "docker stop my_zcashd"
+# local_ip = "0.0.0.0"
+# node_ip = "0.0.0.0"
+#
+# [node]
+# kind = "zcashd"
+# path = "/Users/nkls"
+# start_command = "docker start my_zcashd"
+# stop_command = "docker stop my_zcashd"
+# local_ip = "0.0.0.0"
+# peer_ip = "host.docker.internal"

@@ -1,11 +1,9 @@
 use crate::{
     protocol::{message::Message, payload::Version},
-    setup::{config::NodeConfig, node::Node},
+    setup::{config::read_config_file, node::Node},
 };
 
 use tokio::net::{TcpListener, TcpStream};
-
-use std::collections::HashSet;
 
 #[tokio::test]
 async fn handshake_responder_side() {
@@ -14,17 +12,17 @@ async fn handshake_responder_side() {
     // 3. Expect a Version back and send Verack.
     // 4. Expect Verack back.
 
-    let config = NodeConfig {
-        local_addr: "0.0.0.0:8080".parse().unwrap(),
-        ..Default::default()
-    };
-    let mut node = Node::new(config);
+    let (ziggurat_globals, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta, ziggurat_globals.node_addr.port());
     node.start().await;
 
-    let mut peer_stream = TcpStream::connect(node.local_addr()).await.unwrap();
+    let mut peer_stream = TcpStream::connect(ziggurat_globals.node_addr)
+        .await
+        .unwrap();
 
     Message::Version(Version::new(
-        node.local_addr(),
+        ziggurat_globals.node_addr,
         peer_stream.local_addr().unwrap(),
     ))
     .write_to_stream(&mut peer_stream)
@@ -48,25 +46,17 @@ async fn handshake_responder_side() {
 #[tokio::test]
 #[ignore]
 async fn handshake_initiator_side() {
-    // This needs to be 0.0.0.0 as inbound connection from docker container goes through the
-    // machine's IP (duct-tapey but good enough for now).
-    let listener = TcpListener::bind("0.0.0.0:8081").await.unwrap();
+    let (ziggurat_globals, node_meta) = read_config_file();
 
-    // Start node and bind to the listener port.
-    let mut initial_peers = HashSet::new();
-    initial_peers.insert(
-        format!("192.168.64.1:{}", listener.local_addr().unwrap().port())
-            .parse()
-            .unwrap(),
-    );
+    // Using ephemeral ports.
+    let listener = TcpListener::bind(ziggurat_globals.local_addr)
+        .await
+        .unwrap();
 
-    let config = NodeConfig {
-        local_addr: "0.0.0.0:8080".parse().unwrap(),
-        initial_peers,
-        ..Default::default()
-    };
-    let mut node = Node::new(config);
-    node.start().await;
+    let mut node = Node::new(node_meta, ziggurat_globals.node_addr.port());
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
 
     match listener.accept().await {
         Ok((mut peer_stream, addr)) => {
