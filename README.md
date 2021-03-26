@@ -31,4 +31,4 @@ When starting the node, this information and the configuration provided in the t
 
 ## Running the Tests
 
-Ziggurat currently uses rust's standard test runner, a simple `cargo test` should suffice.
+Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --test-threads=1` should suffice. We use the single threaded executor as spinning up multiple test nodes isn't supported.
