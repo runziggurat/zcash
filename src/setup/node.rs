@@ -2,13 +2,19 @@ use crate::setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile,
 
 use tokio::process::{Child, Command};
 
-use std::{fs, process::Stdio};
+use std::{fs, net::SocketAddr, process::Stdio};
 
 /// Represents an instance of a node, its configuration and setup/teardown intricacies.
 pub struct Node {
+    /// The (external) address of a node.
+    ///
+    /// Nodes can have a local address distinct from the external address at
+    /// which it is reachable (e.g. docker).
+    addr: SocketAddr,
     /// Configuration definable in tests and written to the node's configuration file on start.
     config: NodeConfig,
-    /// Type, path to binary, various commands for starting, stopping, cleanup.
+    /// Type, path to binary, various commands for starting, stopping, cleanup, network
+    /// configuration.
     meta: NodeMetaData,
     /// Process of the running node.
     process: Option<Child>,
@@ -24,23 +30,29 @@ impl Node {
     /// [`initial_peers`]: methode@Node::initial_peers
     /// [`max_peers`]: methode@Node::max_peers
     /// [`log_to_stdout`]: method@Node::log_to_stdout
-    pub fn new(meta: NodeMetaData, port: u16) -> Self {
-        // 1. Configuration file read into NodeMeta.
-        // 2. Node instance from Config + Meta, process is None.
+    pub fn new(meta: NodeMetaData) -> Self {
+        // Config (to be written to node configuration file) sets the configured `local_ip`.
+        let config = NodeConfig::new(meta.local_addr);
 
-        let config = NodeConfig::new(&meta.local_ip, port);
-
+        // The node instance gets a node address which may differ from the `local_ip`.
         Self {
+            // TODO: select random port to support multiple nodes.
+            addr: meta.external_addr,
             config,
             meta,
             process: None,
         }
     }
 
-    /// Sets the initial peers ports for the node.
+    /// Returns the (external) address of the node.
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    /// Sets the initial peers (ports only) for the node.
     ///
     /// The ip used to construct the addresses can be optionally set in the configuration file and
-    /// otherwise default to localhost.
+    /// otherwise defaults to localhost.
     pub fn initial_peers(&mut self, peers: Vec<u16>) -> &mut Self {
         self.config.initial_peers = peers
             .iter()

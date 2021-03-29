@@ -11,8 +11,7 @@ A Ziggurat is a rectangular stepped tower that uses precise measurements to ensu
 ## Configuration
 
 Ziggurat is configured with a `config.toml` file in the root. The networking properties of Ziggurat itself can be set with:
-- `local_ip`: the local ip to use with all Ziggurat spawned listeners.
-- `node_ip`: the ip through which Ziggurat will attempt to connect to a node. Note: this may be different to the `[node.local_ip]` when using e.g. a dockerized instance of the node.
+- `local_ip`: the local ip to use with all Ziggurat spawned listeners. Defaults to localhost.
 
 Additionally, information about the node to be testet can be set under the `[node]` table:
 
@@ -23,7 +22,8 @@ Additionally, information about the node to be testet can be set under the `[nod
 and optionally:
 
 - `stop_command`: the command used to stop the node. This may be useful when running e.g. a dockerised instance of the node.
-- `local_ip`: the local ip/dns name of the node.
+- `local_addr`: the local address of the node. Defaults to localhost, should be set if the node needs distinct local and external addresses.
+- `external_addr`: the external address of the node. Defaults to localhost.
 - `peer_ip`: the ip/dns name the node can reach the peers through.
 
 

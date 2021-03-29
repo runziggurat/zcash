@@ -17,7 +17,7 @@ pub fn read_config_file() -> (Config, NodeMetaData) {
     let config_string = fs::read_to_string(path).unwrap();
     let config_file: ConfigFile = toml::from_str(&config_string).unwrap();
 
-    let config = Config::new(config_file.local_ip, config_file.node_ip);
+    let config = Config::new(config_file.local_ip);
     let node_meta = NodeMetaData::new(config_file.node);
 
     (config, node_meta)
@@ -26,28 +26,21 @@ pub fn read_config_file() -> (Config, NodeMetaData) {
 /// Ziggurat configuration read from the `config.toml` file.
 pub struct Config {
     /// The local address to be used by Ziggurat listeners.
-    ///
-    /// It is constructed with an ephemeral port which makes this address reusable in creating distinct synthetic
-    /// peers on different ports.
-    pub local_addr: SocketAddr,
-    /// The address Ziggurat can expect to reach the node at (assigns port 8080).
-    ///
-    /// TODO: In future we may want to support spinning up multiple test nodes.
-    pub node_addr: SocketAddr,
+    local_ip: IpAddr,
 }
 
 impl Config {
-    fn new(local_ip: Option<String>, node_ip: Option<String>) -> Self {
-        let ip_addr = |ip: Option<String>| -> IpAddr {
-            ip.map_or(IpAddr::V4(Ipv4Addr::LOCALHOST), |ip| {
-                ip.parse().expect("couldn't parse string into ip address")
-            })
-        };
+    fn new(local_ip: Option<String>) -> Self {
+        let ip = local_ip.map_or(IpAddr::V4(Ipv4Addr::LOCALHOST), |ip| {
+            ip.parse().expect("couldn't parse string into ip address")
+        });
 
-        Self {
-            local_addr: SocketAddr::new(ip_addr(local_ip), 0),
-            node_addr: SocketAddr::new(ip_addr(node_ip), NODE_PORT),
-        }
+        Self { local_ip: ip }
+    }
+
+    /// Returns a new address suitable for starting a local listener.
+    pub fn new_local_addr(&self) -> SocketAddr {
+        SocketAddr::new(self.local_ip, 0)
     }
 }
 
@@ -55,7 +48,6 @@ impl Config {
 #[derive(Deserialize)]
 struct ConfigFile {
     local_ip: Option<String>,
-    node_ip: Option<String>,
     node: MetaDataFile,
 }
 
@@ -67,7 +59,7 @@ struct ConfigFile {
 /// [`Node`]: struct@crate::setup::node::Node
 pub(super) struct NodeConfig {
     /// The socket address of the node.
-    pub(super) local_addr: String,
+    pub(super) local_addr: SocketAddr,
     /// The initial peerset to connect to on node start.
     pub(super) initial_peers: HashSet<String>,
     /// The initial max number of peer connections to allow.
@@ -77,9 +69,9 @@ pub(super) struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub(super) fn new(local_ip: &str, port: u16) -> Self {
+    pub(super) fn new(local_addr: SocketAddr) -> Self {
         Self {
-            local_addr: format!("{}:{}", local_ip, port),
+            local_addr,
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
@@ -90,7 +82,7 @@ impl NodeConfig {
 /// Describes the node kind, currently supports the two known variants.
 #[derive(Deserialize, Debug)]
 #[serde(rename_all(deserialize = "lowercase"))]
-pub enum NodeKind {
+pub(super) enum NodeKind {
     Zebra,
     Zcashd,
 }
@@ -98,27 +90,26 @@ pub enum NodeKind {
 /// Node configuration read from the `config.toml` file.
 pub struct NodeMetaData {
     /// The node kind (one of `Zebra` or `Zcashd`).
-    pub kind: NodeKind,
+    pub(super) kind: NodeKind,
     /// The path to run the node's commands in.
-    pub path: PathBuf,
+    pub(super) path: PathBuf,
 
     /// The command to run when starting a node.
-    pub start_command: OsString,
+    pub(super) start_command: OsString,
     /// The args to run with the start command.
-    pub start_args: Vec<OsString>,
+    pub(super) start_args: Vec<OsString>,
     /// The command to run when stopping a node.
-    pub stop_command: Option<OsString>,
+    pub(super) stop_command: Option<OsString>,
     /// The args to run with the stop command.
-    pub stop_args: Option<Vec<OsString>>,
+    pub(super) stop_args: Option<Vec<OsString>>,
 
-    /// The IP to be copied into the node's config file.
-    ///
-    /// The `String` type is used to allow for DNS names (useful for Docker).
-    pub local_ip: String,
-    /// The IP the node should expect peers to be available on.
-    ///
-    /// The `String` type is used to allow for DNS names (useful for Docker).
-    pub peer_ip: String,
+    /// The address the node should be run on.
+    pub(super) local_addr: SocketAddr,
+    /// The address peers can expect the node to be reachable on (this may differ from the
+    /// `local_addr` when using e.g. Docker).
+    pub(super) external_addr: SocketAddr,
+    /// The ip/dns name the node should expect peers to be reachable on.
+    pub(super) peer_ip: String,
 }
 
 impl NodeMetaData {
@@ -141,9 +132,13 @@ impl NodeMetaData {
             stop_args = Some(args);
         }
 
-        let local_ip = meta_file
-            .local_ip
-            .unwrap_or_else(|| Ipv4Addr::LOCALHOST.to_string());
+        // Default to localhost if no value is present in file.
+        let local_addr = meta_file
+            .local_addr
+            .unwrap_or_else(|| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), NODE_PORT));
+        let external_addr = meta_file
+            .external_addr
+            .unwrap_or_else(|| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), NODE_PORT));
         let peer_ip = meta_file
             .peer_ip
             .unwrap_or_else(|| Ipv4Addr::LOCALHOST.to_string());
@@ -155,7 +150,8 @@ impl NodeMetaData {
             start_args,
             stop_command,
             stop_args,
-            local_ip,
+            local_addr,
+            external_addr,
             peer_ip,
         }
     }
@@ -169,7 +165,8 @@ struct MetaDataFile {
     path: PathBuf,
     start_command: String,
     stop_command: Option<String>,
-    local_ip: Option<String>,
+    local_addr: Option<SocketAddr>,
+    external_addr: Option<SocketAddr>,
     peer_ip: Option<String>,
 }
 
@@ -196,7 +193,7 @@ impl ZebraConfigFile {
         let zebra_config = Self {
             network: NetworkConfig {
                 // Set ip from config, port from assigned in `Config`.
-                listen_addr: config.local_addr.clone(),
+                listen_addr: config.local_addr,
                 initial_testnet_peers,
                 peerset_initial_target_size: config.max_peers,
                 network: String::from("Testnet"),
@@ -217,7 +214,7 @@ impl ZebraConfigFile {
 
 #[derive(Serialize)]
 struct NetworkConfig {
-    listen_addr: String,
+    listen_addr: SocketAddr,
     initial_testnet_peers: HashSet<String>,
     peerset_initial_target_size: usize,
     network: String,

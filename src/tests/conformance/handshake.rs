@@ -12,22 +12,17 @@ async fn handshake_responder_side() {
     // 3. Expect a Version back and send Verack.
     // 4. Expect Verack back.
 
-    let (ziggurat_globals, node_meta) = read_config_file();
+    let (_zig, node_meta) = read_config_file();
 
-    let mut node = Node::new(node_meta, ziggurat_globals.node_addr.port());
+    let mut node = Node::new(node_meta);
     node.start().await;
 
-    let mut peer_stream = TcpStream::connect(ziggurat_globals.node_addr)
+    let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+
+    Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
+        .write_to_stream(&mut peer_stream)
         .await
         .unwrap();
-
-    Message::Version(Version::new(
-        ziggurat_globals.node_addr,
-        peer_stream.local_addr().unwrap(),
-    ))
-    .write_to_stream(&mut peer_stream)
-    .await
-    .unwrap();
 
     let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
     assert!(matches!(version, Message::Version(..)));
@@ -44,16 +39,12 @@ async fn handshake_responder_side() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn handshake_initiator_side() {
-    let (ziggurat_globals, node_meta) = read_config_file();
+    let (zig, node_meta) = read_config_file();
 
-    // Using ephemeral ports.
-    let listener = TcpListener::bind(ziggurat_globals.local_addr)
-        .await
-        .unwrap();
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
 
-    let mut node = Node::new(node_meta, ziggurat_globals.node_addr.port());
+    let mut node = Node::new(node_meta);
     node.initial_peers(vec![listener.local_addr().unwrap().port()])
         .start()
         .await;
