@@ -13,7 +13,7 @@ pub struct Version {
     timestamp: DateTime<Utc>,
     addr_recv: (u64, SocketAddr),
     addr_from: (u64, SocketAddr),
-    nonce: u64,
+    nonce: Nonce,
     user_agent: String,
     start_height: u32,
     relay: bool,
@@ -21,14 +21,13 @@ pub struct Version {
 
 impl Version {
     pub fn new(addr_recv: SocketAddr, addr_from: SocketAddr) -> Self {
-        let mut rng = thread_rng();
         Self {
             version: 170_013,
             services: 1,
             timestamp: Utc::now(),
             addr_recv: (1, addr_recv),
             addr_from: (1, addr_from),
-            nonce: rng.gen(),
+            nonce: Nonce::default(),
             user_agent: String::from(""),
             start_height: 0,
             relay: false,
@@ -36,30 +35,6 @@ impl Version {
     }
 
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        // Composition:
-        //
-        // Header (24 bytes):
-        //
-        // - 4 bytes of Magic,
-        // - 12 bytes of command (this is the message name),
-        // - 4 bytes of body length,
-        // - 4 bytes of checksum (0ed initially, then computed after the body has been
-        // written),
-        //
-        // Body (85 + variable bytes):
-        //
-        // - 4 bytes for the version
-        // - 8 bytes for the peer services
-        // - 8 for timestamp
-        // - 8 + 16 + 2 (26) for the address_recv
-        // - 8 + 16 + 2 (26) for the address_from
-        // - 8 for the nonce
-        // - 1, 3, 5 or 9 for compact size (variable)
-        // - user_agent (variable)
-        // - 4 for start height
-        // - 1 for relay
-
-        // Write the body, size is unkown at this point.
         buffer.write_all(&self.version.to_le_bytes())?;
         buffer.write_all(&self.services.to_le_bytes())?;
         buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
@@ -67,7 +42,7 @@ impl Version {
         write_addr(buffer, self.addr_recv)?;
         write_addr(buffer, self.addr_from)?;
 
-        buffer.write_all(&self.nonce.to_le_bytes())?;
+        self.nonce.encode(buffer)?;
         write_string(buffer, &self.user_agent)?;
         buffer.write_all(&self.start_height.to_le_bytes())?;
         buffer.write_all(&[self.relay as u8])?;
@@ -84,7 +59,7 @@ impl Version {
         let addr_recv = decode_addr(bytes)?;
         let addr_from = decode_addr(bytes)?;
 
-        let nonce = u64::from_le_bytes(read_n_bytes(bytes)?);
+        let nonce = Nonce::decode(bytes)?;
         let user_agent = decode_string(bytes)?;
 
         let start_height = u32::from_le_bytes(read_n_bytes(bytes)?);
@@ -104,7 +79,14 @@ impl Version {
     }
 }
 
+#[derive(Debug)]
 pub struct Nonce(u64);
+
+impl Default for Nonce {
+    fn default() -> Self {
+        Self(thread_rng().gen())
+    }
+}
 
 impl Nonce {
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
