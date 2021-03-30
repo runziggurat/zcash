@@ -1,4 +1,4 @@
-use crate::protocol::payload::Version;
+use crate::protocol::payload::{Nonce, Version};
 
 use sha2::{Digest, Sha256};
 use tokio::{
@@ -6,10 +6,14 @@ use tokio::{
     net::TcpStream,
 };
 
+use std::io::Cursor;
+
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
 const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
 const VERACK_COMMAND: [u8; 12] = *b"verack\0\0\0\0\0\0";
+const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
+const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {
@@ -53,6 +57,8 @@ impl MessageHeader {
 pub enum Message {
     Version(Version),
     Verack,
+    Ping(Nonce),
+    Pong(Nonce),
 }
 
 impl Message {
@@ -66,6 +72,14 @@ impl Message {
                 MessageHeader::new(VERSION_COMMAND, &buffer)
             }
             Self::Verack => MessageHeader::new(VERACK_COMMAND, &buffer),
+            Self::Ping(nonce) => {
+                nonce.encode(&mut buffer)?;
+                MessageHeader::new(PING_COMMAND, &buffer)
+            }
+            Self::Pong(nonce) => {
+                nonce.encode(&mut buffer)?;
+                MessageHeader::new(PONG_COMMAND, &buffer)
+            }
         };
 
         header.write_to_stream(stream).await?;
@@ -77,14 +91,18 @@ impl Message {
     pub async fn read_from_stream(stream: &mut TcpStream) -> io::Result<Self> {
         let header = MessageHeader::read_from_stream(stream).await?;
 
-        let mut bytes = vec![0u8; header.body_length as usize];
+        let mut buffer = vec![0u8; header.body_length as usize];
         stream
-            .read_exact(&mut bytes[..header.body_length as usize])
+            .read_exact(&mut buffer[..header.body_length as usize])
             .await?;
 
+        let mut bytes = Cursor::new(&buffer[..]);
+
         let message = match header.command {
-            VERSION_COMMAND => Self::Version(Version::decode(&bytes)?),
+            VERSION_COMMAND => Self::Version(Version::decode(&mut bytes)?),
             VERACK_COMMAND => Self::Verack,
+            PING_COMMAND => Self::Ping(Nonce::decode(&mut bytes)?),
+            PONG_COMMAND => Self::Pong(Nonce::decode(&mut bytes)?),
             _ => unimplemented!(),
         };
 

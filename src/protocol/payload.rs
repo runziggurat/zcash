@@ -75,21 +75,20 @@ impl Version {
         Ok(())
     }
 
-    pub fn decode(bytes: &[u8]) -> io::Result<Self> {
-        let mut bytes = Cursor::new(bytes);
-        let version = u32::from_le_bytes(read_n_bytes(&mut bytes)?);
-        let services = u64::from_le_bytes(read_n_bytes(&mut bytes)?);
-        let timestamp = i64::from_le_bytes(read_n_bytes(&mut bytes)?);
+    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let version = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let services = u64::from_le_bytes(read_n_bytes(bytes)?);
+        let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
         let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
 
-        let addr_recv = decode_addr(&mut bytes)?;
-        let addr_from = decode_addr(&mut bytes)?;
+        let addr_recv = decode_addr(bytes)?;
+        let addr_from = decode_addr(bytes)?;
 
-        let nonce = u64::from_le_bytes(read_n_bytes(&mut bytes)?);
-        let user_agent = decode_string(&mut bytes)?;
+        let nonce = u64::from_le_bytes(read_n_bytes(bytes)?);
+        let user_agent = decode_string(bytes)?;
 
-        let start_height = u32::from_le_bytes(read_n_bytes(&mut bytes)?);
-        let relay = u8::from_le_bytes(read_n_bytes(&mut bytes)?) != 0;
+        let start_height = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let relay = u8::from_le_bytes(read_n_bytes(bytes)?) != 0;
 
         Ok(Self {
             version,
@@ -102,6 +101,22 @@ impl Version {
             start_height,
             relay,
         })
+    }
+}
+
+pub struct Nonce(u64);
+
+impl Nonce {
+    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.0.to_le_bytes())?;
+
+        Ok(())
+    }
+
+    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let nonce = u64::from_le_bytes(read_n_bytes(bytes)?);
+
+        Ok(Self(nonce))
     }
 }
 
