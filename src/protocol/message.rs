@@ -14,6 +14,8 @@ const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
 const VERACK_COMMAND: [u8; 12] = *b"verack\0\0\0\0\0\0";
 const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
 const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
+const GETADDR_COMMAND: [u8; 12] = *b"getaddr\0\0\0\0\0";
+const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {
@@ -59,6 +61,8 @@ pub enum Message {
     Verack,
     Ping(Nonce),
     Pong(Nonce),
+    GetAddr,
+    MemPool,
 }
 
 impl Message {
@@ -80,6 +84,8 @@ impl Message {
                 nonce.encode(&mut buffer)?;
                 MessageHeader::new(PONG_COMMAND, &buffer)
             }
+            Self::GetAddr => MessageHeader::new(GETADDR_COMMAND, &buffer),
+            Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, &buffer),
         };
 
         header.write_to_stream(stream).await?;
@@ -103,6 +109,8 @@ impl Message {
             VERACK_COMMAND => Self::Verack,
             PING_COMMAND => Self::Ping(Nonce::decode(&mut bytes)?),
             PONG_COMMAND => Self::Pong(Nonce::decode(&mut bytes)?),
+            GETADDR_COMMAND => Self::GetAddr,
+            MEMPOOL_COMMAND => Self::MemPool,
             _ => unimplemented!(),
         };
 
