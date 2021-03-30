@@ -79,7 +79,7 @@ impl Version {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
 
 impl Default for Nonce {
