@@ -38,7 +38,7 @@ start_command = "cargo +stable r -- --config node.toml --verbose start"
 # peer_ip = "host.docker.internal"
 ```
 
-The networking properties of Ziggurat itself can be set with:b
+The networking properties of Ziggurat itself can be set with:
 - `local_ip`: the local ip to use with all Ziggurat spawned listeners. Defaults to localhost.
 
 Additionally, information about the node to be tested can be set under the `[node]` table:
