@@ -15,7 +15,7 @@ pub struct Version {
     addr_recv: NetworkAddr,
     addr_from: NetworkAddr,
     nonce: Nonce,
-    user_agent: String,
+    user_agent: VarStr,
     start_height: u32,
     relay: bool,
 }
@@ -37,7 +37,7 @@ impl Version {
                 addr: addr_from,
             },
             nonce: Nonce::default(),
-            user_agent: String::from(""),
+            user_agent: VarStr(String::from("")),
             start_height: 0,
             relay: false,
         }
@@ -52,7 +52,7 @@ impl Version {
         self.addr_from.encode_without_timestamp(buffer)?;
 
         self.nonce.encode(buffer)?;
-        write_string(buffer, &self.user_agent)?;
+        self.user_agent.encode(buffer)?;
         buffer.write_all(&self.start_height.to_le_bytes())?;
         buffer.write_all(&[self.relay as u8])?;
 
@@ -69,7 +69,7 @@ impl Version {
         let addr_from = NetworkAddr::decode_without_timestamp(bytes)?;
 
         let nonce = Nonce::decode(bytes)?;
-        let user_agent = decode_string(bytes)?;
+        let user_agent = VarStr::decode(bytes)?;
 
         let start_height = u32::from_le_bytes(read_n_bytes(bytes)?);
         let relay = u8::from_le_bytes(read_n_bytes(bytes)?) != 0;
