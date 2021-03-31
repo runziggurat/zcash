@@ -1,9 +1,6 @@
 use rand::{thread_rng, Rng};
 
-use std::{
-    io::{self, Cursor, Read, Write},
-    net::{IpAddr::*, Ipv6Addr, SocketAddr},
-};
+use std::io::{self, Cursor, Read, Write};
 
 pub mod addr;
 pub use addr::Addr;
@@ -79,20 +76,6 @@ impl VarInt {
     }
 }
 
-fn write_addr(buffer: &mut Vec<u8>, (services, addr): (u64, SocketAddr)) -> io::Result<()> {
-    buffer.write_all(&services.to_le_bytes())?;
-
-    let (ip, port) = match addr {
-        SocketAddr::V4(v4) => (v4.ip().to_ipv6_mapped(), v4.port()),
-        SocketAddr::V6(v6) => (*v6.ip(), v6.port()),
-    };
-
-    buffer.write_all(&ip.octets())?;
-    buffer.write_all(&port.to_be_bytes())?;
-
-    Ok(())
-}
-
 fn write_string(buffer: &mut Vec<u8>, s: &str) -> io::Result<usize> {
     // Bitcoin "CompactSize" encoding.
     let l = s.len();
@@ -121,23 +104,6 @@ fn write_string(buffer: &mut Vec<u8>, s: &str) -> io::Result<usize> {
     buffer.write_all(s.as_bytes())?;
 
     Ok(l + cs_len)
-}
-
-fn decode_addr(bytes: &mut Cursor<&[u8]>) -> io::Result<(u64, SocketAddr)> {
-    let services = u64::from_le_bytes(read_n_bytes(bytes)?);
-
-    let mut octets = [0u8; 16];
-    bytes.read_exact(&mut octets)?;
-    let v6_addr = Ipv6Addr::from(octets);
-
-    let ip_addr = match v6_addr.to_ipv4() {
-        Some(v4_addr) => V4(v4_addr),
-        None => V6(v6_addr),
-    };
-
-    let port = u16::from_be_bytes(read_n_bytes(bytes)?);
-
-    Ok((services, SocketAddr::new(ip_addr, port)))
 }
 
 fn decode_string(bytes: &mut Cursor<&[u8]>) -> io::Result<String> {

@@ -1,4 +1,4 @@
-use crate::protocol::payload::*;
+use crate::protocol::payload::{addr::NetworkAddr, *};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 
@@ -12,8 +12,8 @@ pub struct Version {
     version: u32,
     services: u64,
     timestamp: DateTime<Utc>,
-    addr_recv: (u64, SocketAddr),
-    addr_from: (u64, SocketAddr),
+    addr_recv: NetworkAddr,
+    addr_from: NetworkAddr,
     nonce: Nonce,
     user_agent: String,
     start_height: u32,
@@ -26,8 +26,16 @@ impl Version {
             version: 170_013,
             services: 1,
             timestamp: Utc::now(),
-            addr_recv: (1, addr_recv),
-            addr_from: (1, addr_from),
+            addr_recv: NetworkAddr {
+                last_seen: None,
+                services: 1,
+                addr: addr_recv,
+            },
+            addr_from: NetworkAddr {
+                last_seen: None,
+                services: 1,
+                addr: addr_from,
+            },
             nonce: Nonce::default(),
             user_agent: String::from(""),
             start_height: 0,
@@ -40,8 +48,8 @@ impl Version {
         buffer.write_all(&self.services.to_le_bytes())?;
         buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
 
-        write_addr(buffer, self.addr_recv)?;
-        write_addr(buffer, self.addr_from)?;
+        self.addr_recv.encode_without_timestamp(buffer)?;
+        self.addr_from.encode_without_timestamp(buffer)?;
 
         self.nonce.encode(buffer)?;
         write_string(buffer, &self.user_agent)?;
@@ -57,8 +65,8 @@ impl Version {
         let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
         let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
 
-        let addr_recv = decode_addr(bytes)?;
-        let addr_from = decode_addr(bytes)?;
+        let addr_recv = NetworkAddr::decode_without_timestamp(bytes)?;
+        let addr_from = NetworkAddr::decode_without_timestamp(bytes)?;
 
         let nonce = Nonce::decode(bytes)?;
         let user_agent = decode_string(bytes)?;

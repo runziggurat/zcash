@@ -35,15 +35,16 @@ impl Addr {
     }
 }
 
-struct NetworkAddr {
+#[derive(Debug)]
+pub(super) struct NetworkAddr {
     // Node: Present only when version is >= 31402
-    last_seen: Option<DateTime<Utc>>,
-    services: u64,
-    addr: SocketAddr,
+    pub(super) last_seen: Option<DateTime<Utc>>,
+    pub(super) services: u64,
+    pub(super) addr: SocketAddr,
 }
 
 impl NetworkAddr {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    pub(super) fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(
             &self
                 .last_seen
@@ -57,7 +58,7 @@ impl NetworkAddr {
         Ok(())
     }
 
-    fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    pub(super) fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.services.to_le_bytes())?;
 
         let (ip, port) = match self.addr {
@@ -71,7 +72,7 @@ impl NetworkAddr {
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    pub(super) fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
         let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
 
@@ -83,7 +84,7 @@ impl NetworkAddr {
         })
     }
 
-    fn decode_without_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    pub(super) fn decode_without_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let services = u64::from_le_bytes(read_n_bytes(bytes)?);
 
         let mut octets = [0u8; 16];
