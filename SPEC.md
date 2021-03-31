@@ -12,9 +12,11 @@ Considering Zebra doesn't yet have an RPC implementation, tests making use of it
 
 As for test data, [zcashd](https://github.com/zcash/zips/blob/master/zip-0243.rst#test-vector-1) and [zebra](https://github.com/ZcashFoundation/zebra/tree/main/zebra-test/src/vectors) vectors should provide ample coverage, including maximum-sized blocks with many transactions (for each pool type: transparent, sprout, sapling, orchard).
 
+For load testing, "reasonable load" and "heavy load" will need to be defined.
+
 ## Usage
 
-Please refer to the code repo for usage instructions. As the specifications are developed we will include user instructions.
+The tests can be run with `cargo test` once Ziggurat is properly configured and dependencies (node instance to be tested) are satisfied. See the [README](README.md) for details.
 
 # Types of Tests
 
@@ -48,7 +50,7 @@ The performance tests aim to verify the node maintains a healthy throughput unde
 
 ### Load testing
 
-These tests are intended to verify the node remains healthy under "reasonable load", see open questions. Additionally these tests will be pushed to the extreme for resistance testing with heavier loads.
+These tests are intended to verify the node remains healthy under "reasonable load". Additionally these tests will be pushed to the extreme for resistance testing with heavier loads.
 
 ### Heavy load testing
 
@@ -117,7 +119,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     4. Assert the node rejected the connection.
 
 - ZG-CONFORMANCE-006
-    
+
     The node rejects connections reusing its `nonce` (usually indicative of self-connection).
 
     1. The node under test initiates a connection (rpc: `addnode`).
@@ -125,7 +127,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     3. Assert the node rejected the connection.
 
 - ZG-CONFORMANCE-007
-    
+
     The node rejects connections with obsolete node versions.
 
     1. Initiator or responder handshake.
@@ -145,7 +147,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     Messages to be tested: `Version`, `Verack`, `FilterLoad`, `FilterAdd`, `FilterClear`, `Inv` with multiple advertised blocks (multiple transactions or single block payloads don’t get rejected).
 
 - ZG-CONFORMANCE-009
-    
+
     The node ignore certain unsolicited messages but doesn’t disconnect.
 
     1. Establish handshaken node and peer.
@@ -156,7 +158,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     Messages to be tested: `Reject`, `NotFound`, `Pong`, `Tx`, `Block`, `Header`, `Addr`.
 
 - ZG-CONFORMANCE-010
-    
+
     The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
 
     1. Establish handshaken node and peer.
@@ -174,7 +176,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     - `GetHeaders` expects `Headers`.
 
 - ZG-CONFORMANCE-011
-    
+
     The node disconnects for trivial (non-fuzz, non-malicious) cases.
 
     - `Ping` timeout.
@@ -250,7 +252,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 ## Resistance
 
 - ZG-RESISTANCE-001
-    
+
     The node rejects various random bytes pre-handshake
 
     1. Connect to node.
@@ -258,7 +260,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     3. Assert connection rejected.
 
 - ZG-RESISTANCE-002
-    
+
     The node rejects various random bytes during handshake responder side.
 
     1. Connect to node and initiate handshake.
@@ -267,14 +269,14 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     4. Assert connection rejected.
 
 - ZG-RESISTANCE-003
-    
+
     The node rejects various random bytes during handshake initiator side (`Version`).
 
     1. Respond to Version with random bytes in place of `Version`.
     2. Assert connection rejected.
 
 - ZG-RESISTANCE-004
-    
+
     The node rejects various random bytes during handshake initiator side (`Verack`).
 
     1. Respond to `Version` with valid `Version`.
@@ -282,16 +284,16 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     3. Assert connection rejected.
 
 - ZG-RESISTANCE-005
-    
+
     The node rejects various random bytes post-handshake.
-    
+
     1. Establish handshaken node and peer.
     2. Send random bytes.
     3. Assert connection rejected.
 
 - ZG-RESISTANCE-006
 
-    This is the sister test to ZG-PERFORMANCE-001 with higher connection numbers. See open questions for "heavy load" definition. As in ZG-PERFORMANCE-002, we also expect to see load shedding and connection rejections when necessary.
+    This is the sister test to ZG-PERFORMANCE-001 with higher connection numbers. As in ZG-PERFORMANCE-002, we also expect to see load shedding and connection rejections when necessary.
 
     Variations on this test include:
 
