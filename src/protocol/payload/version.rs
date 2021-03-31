@@ -1,4 +1,4 @@
-use crate::protocol::payload::{addr::NetworkAddr, *};
+use crate::protocol::payload::{addr::NetworkAddr, read_n_bytes, Nonce, VarStr};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 
