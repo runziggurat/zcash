@@ -1,5 +1,7 @@
 # Ziggurat
 
+This project is a work in progress.
+
 Ziggurat is network test suite that provides zcashd and zebra devs with a reliable foundation of conformance, performance, and resistance.
 
 A Ziggurat is a rectangular stepped tower that uses precise measurements to ensure that each foundation can support the layers above. This metaphor can be applied to network testing by defining three layers:
@@ -13,7 +15,7 @@ A Ziggurat is a rectangular stepped tower that uses precise measurements to ensu
 Ziggurat is configured with a `config.toml` file in the root. The networking properties of Ziggurat itself can be set with:
 - `local_ip`: the local ip to use with all Ziggurat spawned listeners. Defaults to localhost.
 
-Additionally, information about the node to be testet can be set under the `[node]` table:
+Additionally, information about the node to be tested can be set under the `[node]` table:
 
 - `kind`: one of `zebra` or `zcashd`
 - `path`: absolute path in which to run the start and stop commands.
@@ -31,4 +33,4 @@ When starting the node, this information and the configuration provided in the t
 
 ## Running the Tests
 
-Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --test-threads=1` should suffice. We use the single threaded executor as spinning up multiple test nodes isn't supported.
+Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --test-threads=1` should suffice. We use the single threaded executor as spinning up multiple test nodes isn't currently supported.
