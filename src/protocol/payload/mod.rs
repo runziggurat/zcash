@@ -8,6 +8,9 @@ pub use addr::Addr;
 pub mod version;
 pub use version::Version;
 
+pub mod inv;
+pub use inv::Inv;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
 
