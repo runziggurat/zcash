@@ -5,11 +5,14 @@ use std::io::{self, Cursor, Read, Write};
 pub mod addr;
 pub use addr::Addr;
 
-pub mod version;
-pub use version::Version;
-
 pub mod inv;
 pub use inv::Inv;
+
+pub mod locator_hashes;
+pub use locator_hashes::LocatorHashes;
+
+pub mod version;
+pub use version::Version;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
@@ -31,6 +34,23 @@ impl Nonce {
         let nonce = u64::from_le_bytes(read_n_bytes(bytes)?);
 
         Ok(Self(nonce))
+    }
+}
+
+#[derive(Debug)]
+struct ProtocolVersion(u32);
+
+impl ProtocolVersion {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.0.to_le_bytes())?;
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let version = u32::from_le_bytes(read_n_bytes(bytes)?);
+
+        Ok(Self(version))
     }
 }
 
@@ -96,6 +116,23 @@ impl VarStr {
         bytes.read_exact(&mut buffer)?;
 
         Ok(VarStr(String::from_utf8(buffer).expect("invalid utf-8")))
+    }
+}
+
+struct Hash([u8; 32]);
+
+impl Hash {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.0)?;
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let mut hash = Hash([0u8; 32]);
+        bytes.read_exact(&mut hash.0)?;
+
+        Ok(hash)
     }
 }
 
