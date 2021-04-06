@@ -1,4 +1,4 @@
-use crate::protocol::payload::{Addr, Nonce, Version};
+use crate::protocol::payload::{Addr, Inv, Nonce, Version};
 
 use sha2::{Digest, Sha256};
 use tokio::{
@@ -16,6 +16,7 @@ const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
 const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
 const GETADDR_COMMAND: [u8; 12] = *b"getaddr\0\0\0\0\0";
 const ADDR_COMMAND: [u8; 12] = *b"addr\0\0\0\0\0\0\0\0";
+const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
 const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
 
 #[derive(Debug, Default)]
@@ -64,6 +65,7 @@ pub enum Message {
     Pong(Nonce),
     GetAddr,
     Addr(Addr),
+    Inv(Inv),
     MemPool,
 }
 
@@ -91,6 +93,10 @@ impl Message {
                 addr.encode(&mut buffer)?;
                 MessageHeader::new(ADDR_COMMAND, &buffer)
             }
+            Self::Inv(inv) => {
+                inv.encode(&mut buffer)?;
+                MessageHeader::new(INV_COMMAND, &buffer)
+            }
             Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, &buffer),
         };
 
@@ -117,6 +123,7 @@ impl Message {
             PONG_COMMAND => Self::Pong(Nonce::decode(&mut bytes)?),
             GETADDR_COMMAND => Self::GetAddr,
             ADDR_COMMAND => Self::Addr(Addr::decode(&mut bytes)?),
+            INV_COMMAND => Self::Inv(Inv::decode(&mut bytes)?),
             MEMPOOL_COMMAND => Self::MemPool,
             _ => unimplemented!(),
         };
