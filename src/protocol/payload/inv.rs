@@ -1,6 +1,6 @@
-use crate::protocol::payload::{read_n_bytes, VarInt};
+use crate::protocol::payload::{read_n_bytes, Hash, VarInt};
 
-use std::io::{self, Cursor, Read, Write};
+use std::io::{self, Cursor, Write};
 
 pub struct Inv {
     count: VarInt,
@@ -85,22 +85,5 @@ impl ObjectKind {
         };
 
         Ok(kind)
-    }
-}
-
-struct Hash([u8; 32]);
-
-impl Hash {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.0)?;
-
-        Ok(())
-    }
-
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let mut hash = Hash([0u8; 32]);
-        bytes.read_exact(&mut hash.0)?;
-
-        Ok(hash)
     }
 }
