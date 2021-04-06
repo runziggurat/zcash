@@ -28,7 +28,8 @@ impl Addr {
         let mut addrs = vec![];
 
         for _ in 0..count.0 {
-            addrs.push(NetworkAddr::decode(bytes)?)
+            let addr = NetworkAddr::decode(bytes)?;
+            addrs.push(addr);
         }
 
         Ok(Self { count, addrs })
@@ -76,7 +77,7 @@ impl NetworkAddr {
         let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
         let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
 
-        let without_timestamp = NetworkAddr::decode_without_timestamp(bytes)?;
+        let without_timestamp = Self::decode_without_timestamp(bytes)?;
 
         Ok(Self {
             last_seen: Some(dt),
