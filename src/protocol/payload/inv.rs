@@ -20,7 +20,7 @@ impl Inv {
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let count = VarInt::decode(bytes)?;
-        let mut inventory = vec![];
+        let mut inventory = Vec::with_capacity(count.0);
 
         for _ in 0..count.0 {
             let hash = InvHash::decode(bytes)?;
