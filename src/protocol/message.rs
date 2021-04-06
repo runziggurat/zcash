@@ -16,6 +16,7 @@ const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
 const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
 const GETADDR_COMMAND: [u8; 12] = *b"getaddr\0\0\0\0\0";
 const ADDR_COMMAND: [u8; 12] = *b"addr\0\0\0\0\0\0\0\0";
+const GETHEADERS_COMMAND: [u8; 12] = *b"getheaders\0\0";
 const GETBLOCKS_COMMAND: [u8; 12] = *b"getblocks\0\0\0";
 const GETDATA_COMMAND: [u8; 12] = *b"getdata\0\0\0\0\0";
 const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
@@ -68,6 +69,7 @@ pub enum Message {
     Pong(Nonce),
     GetAddr,
     Addr(Addr),
+    GetHeaders(LocatorHashes),
     GetBlocks(LocatorHashes),
     GetData(Inv),
     Inv(Inv),
@@ -98,6 +100,10 @@ impl Message {
             Self::Addr(addr) => {
                 addr.encode(&mut buffer)?;
                 MessageHeader::new(ADDR_COMMAND, &buffer)
+            }
+            Self::GetHeaders(locator_hashes) => {
+                locator_hashes.encode(&mut buffer)?;
+                MessageHeader::new(GETHEADERS_COMMAND, &buffer)
             }
             Self::GetBlocks(locator_hashes) => {
                 locator_hashes.encode(&mut buffer)?;
@@ -141,6 +147,7 @@ impl Message {
             PONG_COMMAND => Self::Pong(Nonce::decode(&mut bytes)?),
             GETADDR_COMMAND => Self::GetAddr,
             ADDR_COMMAND => Self::Addr(Addr::decode(&mut bytes)?),
+            GETHEADERS_COMMAND => Self::GetHeaders(LocatorHashes::decode(&mut bytes)?),
             GETBLOCKS_COMMAND => Self::GetBlocks(LocatorHashes::decode(&mut bytes)?),
             GETDATA_COMMAND => Self::GetData(Inv::decode(&mut bytes)?),
             INV_COMMAND => Self::Inv(Inv::decode(&mut bytes)?),
