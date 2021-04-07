@@ -5,11 +5,10 @@ use std::io::{self, Cursor, Read, Write};
 pub mod addr;
 pub use addr::Addr;
 
+pub mod block;
+
 pub mod inv;
 pub use inv::Inv;
-
-pub mod locator_hashes;
-pub use locator_hashes::LocatorHashes;
 
 pub mod version;
 pub use version::Version;

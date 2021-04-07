@@ -25,7 +25,7 @@ impl Addr {
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let count = VarInt::decode(bytes)?;
-        let mut addrs = vec![];
+        let mut addrs = Vec::with_capacity(count.0);
 
         for _ in 0..count.0 {
             let addr = NetworkAddr::decode(bytes)?;
