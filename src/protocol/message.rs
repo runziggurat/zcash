@@ -1,4 +1,7 @@
-use crate::protocol::payload::{Addr, Inv, LocatorHashes, Nonce, Version};
+use crate::protocol::payload::{
+    block::{Headers, LocatorHashes},
+    Addr, Inv, Nonce, Version,
+};
 
 use sha2::{Digest, Sha256};
 use tokio::{
@@ -17,6 +20,7 @@ const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
 const GETADDR_COMMAND: [u8; 12] = *b"getaddr\0\0\0\0\0";
 const ADDR_COMMAND: [u8; 12] = *b"addr\0\0\0\0\0\0\0\0";
 const GETHEADERS_COMMAND: [u8; 12] = *b"getheaders\0\0";
+const HEADERS_COMMAND: [u8; 12] = *b"headers\0\0\0\0\0";
 const GETBLOCKS_COMMAND: [u8; 12] = *b"getblocks\0\0\0";
 const GETDATA_COMMAND: [u8; 12] = *b"getdata\0\0\0\0\0";
 const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
@@ -70,6 +74,7 @@ pub enum Message {
     GetAddr,
     Addr(Addr),
     GetHeaders(LocatorHashes),
+    Headers(Headers),
     GetBlocks(LocatorHashes),
     GetData(Inv),
     Inv(Inv),
@@ -104,6 +109,10 @@ impl Message {
             Self::GetHeaders(locator_hashes) => {
                 locator_hashes.encode(&mut buffer)?;
                 MessageHeader::new(GETHEADERS_COMMAND, &buffer)
+            }
+            Self::Headers(headers) => {
+                headers.encode(&mut buffer)?;
+                MessageHeader::new(HEADERS_COMMAND, &buffer)
             }
             Self::GetBlocks(locator_hashes) => {
                 locator_hashes.encode(&mut buffer)?;
@@ -148,6 +157,7 @@ impl Message {
             GETADDR_COMMAND => Self::GetAddr,
             ADDR_COMMAND => Self::Addr(Addr::decode(&mut bytes)?),
             GETHEADERS_COMMAND => Self::GetHeaders(LocatorHashes::decode(&mut bytes)?),
+            HEADERS_COMMAND => Self::Headers(Headers::decode(&mut bytes)?),
             GETBLOCKS_COMMAND => Self::GetBlocks(LocatorHashes::decode(&mut bytes)?),
             GETDATA_COMMAND => Self::GetData(Inv::decode(&mut bytes)?),
             INV_COMMAND => Self::Inv(Inv::decode(&mut bytes)?),
