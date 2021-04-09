@@ -66,6 +66,7 @@ impl MessageHeader {
     }
 }
 
+#[derive(Debug)]
 pub enum Message {
     Version(Version),
     Verack,

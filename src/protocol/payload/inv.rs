@@ -2,6 +2,7 @@ use crate::protocol::payload::{read_n_bytes, Hash, VarInt};
 
 use std::io::{self, Cursor, Write};
 
+#[derive(Debug)]
 pub struct Inv {
     count: VarInt,
     inventory: Vec<InvHash>,
@@ -31,6 +32,7 @@ impl Inv {
     }
 }
 
+#[derive(Debug)]
 struct InvHash {
     kind: ObjectKind,
     hash: Hash,
@@ -52,6 +54,7 @@ impl InvHash {
     }
 }
 
+#[derive(Debug)]
 enum ObjectKind {
     Error,
     Tx,

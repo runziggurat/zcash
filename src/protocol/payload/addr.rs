@@ -7,6 +7,7 @@ use std::{
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
 
+#[derive(Debug)]
 pub struct Addr {
     count: VarInt,
     addrs: Vec<NetworkAddr>,
