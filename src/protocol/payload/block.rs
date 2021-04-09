@@ -52,6 +52,13 @@ pub struct Headers {
 }
 
 impl Headers {
+    pub fn empty() -> Self {
+        Headers {
+            count: VarInt(0),
+            headers: Vec::new(),
+        }
+    }
+
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.count.encode(buffer)?;
 
