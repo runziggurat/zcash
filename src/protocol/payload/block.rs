@@ -4,6 +4,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 
 use std::io::{self, Cursor, Write};
 
+#[derive(Debug)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
     count: VarInt,
@@ -46,6 +47,7 @@ impl LocatorHashes {
     }
 }
 
+#[derive(Debug)]
 pub struct Headers {
     count: VarInt,
     headers: Vec<Header>,
@@ -82,6 +84,7 @@ impl Headers {
     }
 }
 
+#[derive(Debug)]
 struct Header {
     version: ProtocolVersion,
     prev_block: Hash,

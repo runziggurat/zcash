@@ -53,6 +53,7 @@ impl ProtocolVersion {
     }
 }
 
+#[derive(Debug)]
 struct VarInt(usize);
 
 impl VarInt {
@@ -118,6 +119,7 @@ impl VarStr {
     }
 }
 
+#[derive(Debug)]
 struct Hash([u8; 32]);
 
 impl Hash {
