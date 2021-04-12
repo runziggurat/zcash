@@ -7,8 +7,8 @@ pub enum Tx {
     V1(TxV1),
     V2(TxV2),
     V3(TxV3),
-    // V4(TxV4),
-    // Not yet stabalised.
+    V4(TxV4),
+    // Not yet stabilised.
     V5,
 }
 
@@ -30,6 +30,11 @@ impl Tx {
                 buffer.write_all(&(3u32 | 1 << 31).to_le_bytes())?;
                 tx.encode(buffer)?;
             }
+            Tx::V4(tx) => {
+                // The overwintered flag IS set.
+                buffer.write_all(&(4u32 | 1 << 31).to_le_bytes())?;
+                tx.encode(buffer)?;
+            }
             _ => unimplemented!(),
         }
 
@@ -49,6 +54,7 @@ impl Tx {
             (1, false) => Self::V1(TxV1::decode(bytes)?),
             (2, false) => Self::V2(TxV2::decode(bytes)?),
             (3, true) => Self::V3(TxV3::decode(bytes)?),
+            (4, true) => Self::V4(TxV4::decode(bytes)?),
             _ => unimplemented!(),
         };
 
@@ -342,6 +348,171 @@ impl TxV3 {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct TxV4 {
+    group_id: u32,
+
+    tx_in_count: VarInt,
+    tx_in: Vec<TxIn>,
+
+    tx_out_count: VarInt,
+    tx_out: Vec<TxOut>,
+
+    lock_time: u32,
+    expiry_height: u32,
+
+    value_balance_sapling: i64,
+    spends_sapling_count: VarInt,
+    spends_sapling: Vec<SpendDescription>,
+    outputs_sapling_count: VarInt,
+    outputs_sapling: Vec<SaplingOutput>,
+
+    // Groth16
+    join_split_count: VarInt,
+    join_split: Vec<JoinSplit>,
+
+    // Only present if the join_split count > 0.
+    join_split_pub_key: Option<[u8; 32]>,
+    join_split_sig: Option<[u8; 32]>,
+
+    // Present if and only if spends_sapling_count + outputs_sapling_count > 0.
+    binding_sig_sapling: Option<[u8; 64]>,
+}
+
+impl TxV4 {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.group_id.to_le_bytes())?;
+
+        self.tx_in_count.encode(buffer)?;
+        for input in &self.tx_in {
+            input.encode(buffer)?;
+        }
+
+        self.tx_out_count.encode(buffer)?;
+        for output in &self.tx_out {
+            output.encode(buffer)?;
+        }
+
+        buffer.write_all(&self.lock_time.to_le_bytes())?;
+        buffer.write_all(&self.expiry_height.to_le_bytes())?;
+
+        buffer.write_all(&self.value_balance_sapling.to_le_bytes())?;
+        self.spends_sapling_count.encode(buffer)?;
+        for spend in &self.spends_sapling {
+            spend.encode(buffer)?;
+        }
+
+        self.outputs_sapling_count.encode(buffer)?;
+        for output in &self.outputs_sapling {
+            output.encode(buffer)?;
+        }
+
+        self.join_split_count.encode(buffer)?;
+        for description in &self.join_split {
+            // Encode join split description.
+            description.encode(buffer)?;
+        }
+
+        if self.join_split_count.0 > 0 {
+            // Must be present.
+            buffer.write_all(&self.join_split_pub_key.unwrap())?;
+            buffer.write_all(&self.join_split_sig.unwrap())?;
+        }
+
+        if self.spends_sapling_count.0 + self.outputs_sapling_count.0 > 0 {
+            // Must be present.
+            buffer.write_all(&self.binding_sig_sapling.unwrap())?
+        }
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
+
+        let tx_in_count = VarInt::decode(bytes)?;
+        let mut tx_in = Vec::with_capacity(tx_in_count.0);
+
+        for _ in 0..tx_in_count.0 {
+            let input = TxIn::decode(bytes)?;
+            tx_in.push(input);
+        }
+
+        let tx_out_count = VarInt::decode(bytes)?;
+        let mut tx_out = Vec::with_capacity(tx_out_count.0);
+
+        for _ in 0..tx_out_count.0 {
+            let output = TxOut::decode(bytes)?;
+            tx_out.push(output);
+        }
+
+        let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
+
+        let value_balance_sapling = i64::from_le_bytes(read_n_bytes(bytes)?);
+        let spends_sapling_count = VarInt::decode(bytes)?;
+        let mut spends_sapling = Vec::with_capacity(spends_sapling_count.0);
+        for _ in 0..spends_sapling_count.0 {
+            let spend = SpendDescription::decode(bytes)?;
+            spends_sapling.push(spend);
+        }
+
+        let outputs_sapling_count = VarInt::decode(bytes)?;
+        let mut outputs_sapling = Vec::with_capacity(outputs_sapling_count.0);
+        for _ in 0..outputs_sapling_count.0 {
+            let output = SaplingOutput::decode(bytes)?;
+            outputs_sapling.push(output);
+        }
+
+        let join_split_count = VarInt::decode(bytes)?;
+        let mut join_split = Vec::with_capacity(join_split_count.0);
+
+        for _ in 0..join_split_count.0 {
+            let description = JoinSplit::decode(bytes)?;
+            join_split.push(description);
+        }
+
+        let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
+            // Todo: consider making these concrete types.
+            let mut pub_key = [0u8; 32];
+            bytes.read_exact(&mut pub_key)?;
+
+            let mut sig = [0u8; 32];
+            bytes.read_exact(&mut sig)?;
+
+            (Some(pub_key), Some(sig))
+        } else {
+            (None, None)
+        };
+
+        let binding_sig_sapling = if spends_sapling_count.0 + outputs_sapling_count.0 > 0 {
+            Some(read_n_bytes(bytes)?)
+        } else {
+            None
+        };
+
+        Ok(Self {
+            group_id,
+            tx_in_count,
+            tx_in,
+            tx_out_count,
+            tx_out,
+            lock_time,
+            expiry_height,
+            value_balance_sapling,
+            spends_sapling_count,
+            spends_sapling,
+            outputs_sapling_count,
+            outputs_sapling,
+            join_split_count,
+            join_split,
+            join_split_pub_key,
+            join_split_sig,
+            binding_sig_sapling,
+        })
+    }
+}
+
 impl TxIn {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.prev_out_hash.encode(buffer)?;
@@ -471,6 +642,7 @@ impl JoinSplit {
     }
 }
 
+// TODO: rethink abstraction.
 #[derive(Debug, PartialEq)]
 enum Zkproof {
     BCTV14([u8; 296]),
@@ -504,37 +676,88 @@ impl Zkproof {
     }
 }
 
-//
-// struct TxV4 {
-//     header: u32,
-//     group_id: u32,
-//
-//     tx_in_count: VarInt,
-//     tx_in: Vec<TxIn>,
-//
-//     tx_out_count: VarInt,
-//     tx_out: Vec<TxOut>,
-//
-//     lock_time: u32,
-//     expiry_height: u32,
-//
-//     value_balance_sapling: i64,
-//     spends_sapling_count: VarInt,
-//     spends_sapling: Vec<SpendDescription>,
-//     outputs_sapling_count: VarInt,
-//     outputs_sapling: Vec<SaplingOutput>,
-//
-//     // Groth16
-//     join_split_count: VarInt,
-//     join_split: Vec<JoinSplit>,
-//
-//     // Only present if the join_split count > 0.
-//     join_split_pub_key: Option<[u8; 32]>,
-//     join_split_sig: Option<[u8; 32]>,
-//
-//     // Present if and only if spends_sapling_count + outputs_sapling_count > 0.
-//     binding_sig_sapling: Option<[u8; 64]>,
-// }
+#[derive(Debug, PartialEq)]
+struct SpendDescription {
+    cv: [u8; 32],
+    anchor: [u8; 32],
+    nullifier: [u8; 32],
+    rk: [u8; 32],
+    // Groth16 only.
+    zkproof: [u8; 192],
+    spend_auth_sig: [u8; 64],
+}
+
+impl SpendDescription {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.cv)?;
+        buffer.write_all(&self.anchor)?;
+        buffer.write_all(&self.nullifier)?;
+        buffer.write_all(&self.rk)?;
+        buffer.write_all(&self.zkproof)?;
+        buffer.write_all(&self.spend_auth_sig)?;
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let cv = read_n_bytes(bytes)?;
+        let anchor = read_n_bytes(bytes)?;
+        let nullifier = read_n_bytes(bytes)?;
+        let rk = read_n_bytes(bytes)?;
+        let zkproof = read_n_bytes(bytes)?;
+        let spend_auth_sig = read_n_bytes(bytes)?;
+
+        Ok(Self {
+            cv,
+            anchor,
+            nullifier,
+            rk,
+            zkproof,
+            spend_auth_sig,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct SaplingOutput {
+    cv: [u8; 32],
+    cmu: [u8; 32],
+    ephemeral_key: [u8; 32],
+    enc_cyphertext: [u8; 580],
+    out_cyphertext: [u8; 80],
+    zkproof: [u8; 192],
+}
+
+impl SaplingOutput {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.cv)?;
+        buffer.write_all(&self.cmu)?;
+        buffer.write_all(&self.ephemeral_key)?;
+        buffer.write_all(&self.enc_cyphertext)?;
+        buffer.write_all(&self.out_cyphertext)?;
+        buffer.write_all(&self.zkproof)?;
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let cv = read_n_bytes(bytes)?;
+        let cmu = read_n_bytes(bytes)?;
+        let ephemeral_key = read_n_bytes(bytes)?;
+        let enc_cyphertext = read_n_bytes(bytes)?;
+        let out_cyphertext = read_n_bytes(bytes)?;
+        let zkproof = read_n_bytes(bytes)?;
+
+        Ok(Self {
+            cv,
+            cmu,
+            ephemeral_key,
+            enc_cyphertext,
+            out_cyphertext,
+            zkproof,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
