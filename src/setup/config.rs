@@ -80,7 +80,7 @@ impl NodeConfig {
 }
 
 /// Describes the node kind, currently supports the two known variants.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all(deserialize = "lowercase"))]
 pub(super) enum NodeKind {
     Zebra,
