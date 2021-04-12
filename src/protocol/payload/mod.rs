@@ -10,6 +10,9 @@ pub mod block;
 pub mod inv;
 pub use inv::Inv;
 
+pub mod tx;
+pub use tx::Tx;
+
 pub mod version;
 pub use version::Version;
 
@@ -53,7 +56,8 @@ impl ProtocolVersion {
     }
 }
 
-#[derive(Debug)]
+// TODO: impl Deref
+#[derive(Debug, PartialEq)]
 struct VarInt(usize);
 
 impl VarInt {
@@ -119,7 +123,7 @@ impl VarStr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Hash([u8; 32]);
 
 impl Hash {
