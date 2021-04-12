@@ -223,19 +223,6 @@ impl TxV2 {
 }
 
 #[derive(Debug, PartialEq)]
-struct TxIn {
-    // Outpoint object (previous output transaction reference).
-    prev_out_hash: Hash,
-    prev_out_index: u32,
-
-    script_len: VarInt,
-    script: Vec<u8>,
-
-    // Is currently unused in bitcoin, not sure about Zcash.
-    sequence: u32,
-}
-
-#[derive(Debug, PartialEq)]
 pub struct TxV3 {
     group_id: u32,
 
@@ -513,6 +500,19 @@ impl TxV4 {
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct TxIn {
+    // Outpoint object (previous output transaction reference).
+    prev_out_hash: Hash,
+    prev_out_index: u32,
+
+    script_len: VarInt,
+    script: Vec<u8>,
+
+    // Is currently unused in bitcoin, not sure about Zcash.
+    sequence: u32,
+}
+
 impl TxIn {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.prev_out_hash.encode(buffer)?;
@@ -778,5 +778,78 @@ mod tests {
         tx_v1.encode(&mut bytes).unwrap();
 
         assert_eq!(tx_v1, Tx::decode(&mut Cursor::new(&bytes)).unwrap());
+    }
+
+    #[test]
+    #[ignore]
+    fn empty_transaction_v2_round_trip() {
+        let tx_v2 = Tx::V2(TxV2 {
+            tx_in_count: VarInt(0),
+            tx_in: Vec::new(),
+            tx_out_count: VarInt(0),
+            tx_out: Vec::new(),
+            lock_time: 500_000_000,
+            join_split_count: VarInt(0),
+            join_split: Vec::new(),
+            join_split_pub_key: None,
+            join_split_sig: None,
+        });
+
+        let mut bytes = Vec::new();
+        tx_v2.encode(&mut bytes).unwrap();
+
+        assert_eq!(tx_v2, Tx::decode(&mut Cursor::new(&bytes)).unwrap());
+    }
+
+    #[test]
+    #[ignore]
+    fn empty_transaction_v3_round_trip() {
+        let tx_v3 = Tx::V3(TxV3 {
+            group_id: 0,
+            tx_in_count: VarInt(0),
+            tx_in: Vec::new(),
+            tx_out_count: VarInt(0),
+            tx_out: Vec::new(),
+            lock_time: 500_000_000,
+            expiry_height: 500_000_000,
+            join_split_count: VarInt(0),
+            join_split: Vec::new(),
+            join_split_pub_key: None,
+            join_split_sig: None,
+        });
+
+        let mut bytes = Vec::new();
+        tx_v3.encode(&mut bytes).unwrap();
+
+        assert_eq!(tx_v3, Tx::decode(&mut Cursor::new(&bytes)).unwrap());
+    }
+
+    #[test]
+    #[ignore]
+    fn empty_transaction_v4_round_trip() {
+        let tx_v4 = Tx::V4(TxV4 {
+            group_id: 0,
+            tx_in_count: VarInt(0),
+            tx_in: Vec::new(),
+            tx_out_count: VarInt(0),
+            tx_out: Vec::new(),
+            lock_time: 500_000_000,
+            expiry_height: 500_000_000,
+            value_balance_sapling: 0,
+            spends_sapling_count: VarInt(0),
+            spends_sapling: Vec::new(),
+            outputs_sapling_count: VarInt(0),
+            outputs_sapling: Vec::new(),
+            join_split_count: VarInt(0),
+            join_split: Vec::new(),
+            join_split_pub_key: None,
+            join_split_sig: None,
+            binding_sig_sapling: None,
+        });
+
+        let mut bytes = Vec::new();
+        tx_v4.encode(&mut bytes).unwrap();
+
+        assert_eq!(tx_v4, Tx::decode(&mut Cursor::new(&bytes)).unwrap());
     }
 }
