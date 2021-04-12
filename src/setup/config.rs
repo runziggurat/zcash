@@ -88,6 +88,7 @@ pub(super) enum NodeKind {
 }
 
 /// Node configuration read from the `config.toml` file.
+#[derive(Clone)]
 pub struct NodeMetaData {
     /// The node kind (one of `Zebra` or `Zcashd`).
     pub(super) kind: NodeKind,
