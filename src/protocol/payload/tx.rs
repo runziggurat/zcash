@@ -6,7 +6,7 @@ use std::io::{self, Cursor, Read, Write};
 pub enum Tx {
     V1(TxV1),
     V2(TxV2),
-    // V3(TxV3),
+    V3(TxV3),
     // V4(TxV4),
     // Not yet stabalised.
     V5,
@@ -23,6 +23,11 @@ impl Tx {
             Tx::V2(tx) => {
                 // The overwintered flag is NOT set.
                 buffer.write_all(&2u32.to_le_bytes())?;
+                tx.encode(buffer)?;
+            }
+            Tx::V3(tx) => {
+                // The overwintered flag IS set.
+                buffer.write_all(&(3u32 | 1 << 31).to_le_bytes())?;
                 tx.encode(buffer)?;
             }
             _ => unimplemented!(),
@@ -43,6 +48,7 @@ impl Tx {
         let tx = match (version, overwinter) {
             (1, false) => Self::V1(TxV1::decode(bytes)?),
             (2, false) => Self::V2(TxV2::decode(bytes)?),
+            (3, true) => Self::V3(TxV3::decode(bytes)?),
             _ => unimplemented!(),
         };
 
@@ -223,6 +229,119 @@ struct TxIn {
     sequence: u32,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct TxV3 {
+    group_id: u32,
+
+    tx_in_count: VarInt,
+    tx_in: Vec<TxIn>,
+
+    tx_out_count: VarInt,
+    tx_out: Vec<TxOut>,
+
+    lock_time: u32,
+    expiry_height: u32,
+
+    // BCTV14
+    join_split_count: VarInt,
+    join_split: Vec<JoinSplit>,
+
+    // Only present if the join_split count > 0.
+    join_split_pub_key: Option<[u8; 32]>,
+    join_split_sig: Option<[u8; 32]>,
+}
+
+impl TxV3 {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.group_id.to_le_bytes())?;
+
+        self.tx_in_count.encode(buffer)?;
+        for input in &self.tx_in {
+            input.encode(buffer)?;
+        }
+
+        self.tx_out_count.encode(buffer)?;
+        for output in &self.tx_out {
+            output.encode(buffer)?;
+        }
+
+        buffer.write_all(&self.lock_time.to_le_bytes())?;
+        buffer.write_all(&self.expiry_height.to_le_bytes())?;
+
+        self.join_split_count.encode(buffer)?;
+        for description in &self.join_split {
+            // Encode join split description.
+            description.encode(buffer)?;
+        }
+
+        if self.join_split_count.0 > 0 {
+            // Must be present.
+            buffer.write_all(&self.join_split_pub_key.unwrap())?;
+            buffer.write_all(&self.join_split_sig.unwrap())?;
+        }
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
+
+        let tx_in_count = VarInt::decode(bytes)?;
+        let mut tx_in = Vec::with_capacity(tx_in_count.0);
+
+        for _ in 0..tx_in_count.0 {
+            let input = TxIn::decode(bytes)?;
+            tx_in.push(input);
+        }
+
+        let tx_out_count = VarInt::decode(bytes)?;
+        let mut tx_out = Vec::with_capacity(tx_out_count.0);
+
+        for _ in 0..tx_out_count.0 {
+            let output = TxOut::decode(bytes)?;
+            tx_out.push(output);
+        }
+
+        let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
+
+        let join_split_count = VarInt::decode(bytes)?;
+        let mut join_split = Vec::with_capacity(join_split_count.0);
+
+        for _ in 0..join_split_count.0 {
+            let description = JoinSplit::decode(bytes)?;
+            join_split.push(description);
+        }
+
+        let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
+            // Todo: consider making these concrete types.
+            let mut pub_key = [0u8; 32];
+            bytes.read_exact(&mut pub_key)?;
+
+            let mut sig = [0u8; 32];
+            bytes.read_exact(&mut sig)?;
+
+            (Some(pub_key), Some(sig))
+        } else {
+            (None, None)
+        };
+
+        Ok(Self {
+            group_id,
+            tx_in_count,
+            tx_in,
+            tx_out_count,
+            tx_out,
+            lock_time,
+            expiry_height,
+            join_split_count,
+            join_split,
+            join_split_pub_key,
+            join_split_sig,
+        })
+    }
+}
+
 impl TxIn {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.prev_out_hash.encode(buffer)?;
@@ -378,35 +497,13 @@ impl Zkproof {
             1498 => Self::BCTV14(read_n_bytes(bytes)?),
             // 192 Groth16 + 1202 cyphertext components.
             1394 => Self::Groth16(read_n_bytes(bytes)?),
-            _ => panic!("Couldn't decode zk-proof into BCTV14 or Groth16."),
+            _ => panic!("Couldn't decode zk-proof into BCTV14 or Groth16"),
         };
 
         Ok(proof)
     }
 }
 
-//
-// struct TxV3 {
-//     header: u32,
-//     group_id: u32,
-//
-//     tx_in_count: VarInt,
-//     tx_in: Vec<TxIn>,
-//
-//     tx_out_count: VarInt,
-//     tx_out: Vec<TxOut>,
-//
-//     lock_time: u32,
-//     expiry_height: u32,
-//
-//     // BCTV14
-//     join_split_count: VarInt,
-//     join_split: Vec<JoinSplit>,
-//
-//     // Only present if the join_split count > 0.
-//     join_split_pub_key: Option<[u8; 32]>,
-//     join_split_sig: Option<[u8; 32]>,
-// }
 //
 // struct TxV4 {
 //     header: u32,
