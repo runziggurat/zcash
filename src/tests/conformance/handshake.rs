@@ -163,33 +163,17 @@ async fn reject_non_version_replies_to_version() {
                 .write_to_stream(&mut stream)
                 .await
             {
-                Ok(_) => {
-                    // (4) receive `verack` in response to our `version`
-                    match Message::read_from_stream(&mut stream).await {
-                        Ok(message) => assert!(matches!(message, Message::Verack)),
+                Ok(_) => {}
+                Err(err) if is_termination_error(&err) => return,
+                Err(err) => panic!("Unexpected error while sending version: {:?}", err),
+            }
 
-                        Err(err) => {
-                            use std::io::ErrorKind::*;
-                            match err.kind() {
-                                // We expect these errors if we tried to receive on a broken connection,
-                                // this indicates the connection was terminated (which is a valid response).
-                                UnexpectedEof | ConnectionReset | ConnectionAborted => {}
-                                _ => panic!("Unexpected error while receiving: {:?}", err),
-                            }
-                        }
-                    }
-                }
-
-                Err(err) => {
-                    use std::io::ErrorKind::*;
-                    match err.kind() {
-                        // We expect these errors if we tried to send on a broken connection,
-                        // this indicates the connection was terminated (which is a valid response).
-                        BrokenPipe | ConnectionReset | ConnectionAborted => {}
-                        _ => panic!("Unexpected error while sending: {:?}", err),
-                    }
-                }
-            };
+            // (4) receive `verack` in response to our `version`
+            match Message::read_from_stream(&mut stream).await {
+                Ok(message) => assert!(matches!(message, Message::Verack)),
+                Err(err) if is_termination_error(&err) => {},
+                Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
+            }
         }));
     }
 
@@ -234,8 +218,6 @@ async fn reject_non_version_before_handshake() {
     //  c) Messages received in (4, 5) will not match (version, verack)
     //  d) steps (3, 4) or (5) cause time out
 
-    use std::io::ErrorKind::*;
-
     // todo: implement rest of the messages
     let test_messages = vec![
         Message::GetAddr,
@@ -261,52 +243,44 @@ async fn reject_non_version_before_handshake() {
     for message in test_messages {
         // (1) connect to node
         let mut stream = TcpStream::connect(node.addr()).await.unwrap();
+
         // (2) send non-version message
         message.write_to_stream(&mut stream).await.unwrap();
+
         // (3) send version message
         match Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
             .write_to_stream(&mut stream)
             .await
         {
-            Ok(_) => {
-                // (4) receive version message
-                match Message::read_from_stream(&mut stream).await {
-                    Ok(message) => {
-                        assert!(matches!(message, Message::Version(..)));
-                        // (5) receive verack message
-                        match Message::read_from_stream(&mut stream).await {
-                            Ok(message) => assert!(matches!(message, Message::Verack)),
-                            Err(err) => {
-                                match err.kind() {
-                                    // We expect these errors if we tried to receive on a broken connection,
-                                    // this indicates the connection was terminated (which is a valid response).
-                                    UnexpectedEof | ConnectionReset | ConnectionAborted => {}
-                                    _ => panic!("Unexpected error while receiving verack: {:?}", err),
-                                }
-                            }
-                        }
-                    },
+            Ok(_) => {}
+            Err(err) if is_termination_error(&err) => continue,
+            Err(err) => panic!("Unexpected error while sending version: {:?}", err),
+        };
 
-                    Err(err) => {
-                        match err.kind() {
-                            // We expect these errors if we tried to receive on a broken connection,
-                            // this indicates the connection was terminated (which is a valid response).
-                            UnexpectedEof | ConnectionReset | ConnectionAborted => {}
-                            _ => panic!("Unexpected error while receiving version: {:?}", err),
-                        }
-                    }
-                }
-            }
-            Err(err) => {
-                match err.kind() {
-                    // We expect these errors if we tried to send on a broken connection,
-                    // this indicates the connection was terminated (which is a valid response).
-                    BrokenPipe | ConnectionReset | ConnectionAborted => {}
-                    _ => panic!("Unexpected error while sending version: {:?}", err),
-                }
-            }
+        // (4) read version
+        match Message::read_from_stream(&mut stream).await {
+            Ok(message) => assert!(matches!(message, Message::Version(..))),
+            Err(err) if is_termination_error(&err) => continue,
+            Err(err) => panic!("Unexpected error while receiving version: {:?}", err),
+        };
+
+        // (5) read verack
+        match Message::read_from_stream(&mut stream).await {
+            Ok(message) => assert!(matches!(message, Message::Verack)),
+            Err(err) if is_termination_error(&err) => continue,
+            Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
         }
     }
 
     node.stop().await;
+}
+
+// Returns true if the error kind is one that indicates that the connection has
+// been terminated.
+fn is_termination_error(err: &std::io::Error) -> bool {
+    use std::io::ErrorKind::*;
+    matches!(
+        err.kind(),
+        ConnectionReset | ConnectionAborted | BrokenPipe | UnexpectedEof
+    )
 }
