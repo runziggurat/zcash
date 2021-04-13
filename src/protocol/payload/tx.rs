@@ -2,7 +2,7 @@ use crate::protocol::payload::{read_n_bytes, Hash, VarInt};
 
 use std::io::{self, Cursor, Read, Write};
 
-/// A Zcash transaction (see: https://zips.z.cash/protocol/canopy.pdf#spendencodingandconsensus).
+/// A Zcash transaction ([spec](https://zips.z.cash/protocol/canopy.pdf#txnencodingandconsensus)).
 ///
 /// Supports V1-V4, V5 isn't yet stable.
 #[derive(Debug, PartialEq)]
