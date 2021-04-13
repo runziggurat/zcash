@@ -171,7 +171,7 @@ async fn reject_non_version_replies_to_version() {
                         Err(err) => {
                             use std::io::ErrorKind::*;
                             match err.kind() {
-                                // We expect these error if we tried to receive on a broken connection,
+                                // We expect these errors if we tried to receive on a broken connection,
                                 // this indicates the connection was terminated (which is a valid response).
                                 UnexpectedEof | ConnectionReset | ConnectionAborted => {}
                                 _ => panic!("Unexpected error while receiving: {:?}", err),
