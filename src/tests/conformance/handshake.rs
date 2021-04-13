@@ -171,7 +171,7 @@ async fn reject_non_version_replies_to_version() {
                         Err(err) => {
                             use std::io::ErrorKind::*;
                             match err.kind() {
-                                // We expect these error if we tried to receive on a broken connection,
+                                // We expect these errors if we tried to receive on a broken connection,
                                 // this indicates the connection was terminated (which is a valid response).
                                 UnexpectedEof | ConnectionReset | ConnectionAborted => {}
                                 _ => panic!("Unexpected error while receiving: {:?}", err),
@@ -197,6 +197,115 @@ async fn reject_non_version_replies_to_version() {
 
     for handle in handles {
         handle.await.unwrap();
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn reject_non_version_before_handshake() {
+    // Conformance test 003.
+    //
+    // The node should reject non-Version messages before the handshake has been performed.
+    //
+    // A node can react in one of the following ways:
+    //
+    //  a) the message is ignored
+    //  b) the connection is terminated
+    //  c) responds to our message
+    //  d) becomes unersponsive to future communications
+    //
+    // of which only (a) and (b) are valid responses. This test operates in the following manner:
+    //
+    // for each non-version message:
+    //
+    //  1. connect to the node
+    //  2. send the message
+    //  3. send the version message
+    //  4. receive version
+    //  5. receive verack
+    //
+    // We expect the following to occur for each of the possible node reactions:
+    //
+    //  a) (2) is ignored so we expect to complete the handshake - (3,4,5) should succeed
+    //  b) The connection should terminate after the node has processed (2), which implies (3) may or may not
+    //      succeed depending on the timing. The node may also already have sent its `version` eagerly, so
+    //      (4) may also succeed or fail. (5) will definitely fail.
+    //  c) Messages received in (4, 5) will not match (version, verack)
+    //  d) steps (3, 4) or (5) cause time out
+
+    use std::io::ErrorKind::*;
+
+    // todo: implement rest of the messages
+    let test_messages = vec![
+        Message::GetAddr,
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let (_zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start().await;
+
+    for message in test_messages {
+        // (1) connect to node
+        let mut stream = TcpStream::connect(node.addr()).await.unwrap();
+        // (2) send non-version message
+        message.write_to_stream(&mut stream).await.unwrap();
+        // (3) send version message
+        match Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
+            .write_to_stream(&mut stream)
+            .await
+        {
+            Ok(_) => {
+                // (4) receive version message
+                match Message::read_from_stream(&mut stream).await {
+                    Ok(message) => {
+                        assert!(matches!(message, Message::Version(..)));
+                        // (5) receive verack message
+                        match Message::read_from_stream(&mut stream).await {
+                            Ok(message) => assert!(matches!(message, Message::Verack)),
+                            Err(err) => {
+                                match err.kind() {
+                                    // We expect these errors if we tried to receive on a broken connection,
+                                    // this indicates the connection was terminated (which is a valid response).
+                                    UnexpectedEof | ConnectionReset | ConnectionAborted => {}
+                                    _ => panic!("Unexpected error while receiving verack: {:?}", err),
+                                }
+                            }
+                        }
+                    },
+
+                    Err(err) => {
+                        match err.kind() {
+                            // We expect these errors if we tried to receive on a broken connection,
+                            // this indicates the connection was terminated (which is a valid response).
+                            UnexpectedEof | ConnectionReset | ConnectionAborted => {}
+                            _ => panic!("Unexpected error while receiving version: {:?}", err),
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                match err.kind() {
+                    // We expect these errors if we tried to send on a broken connection,
+                    // this indicates the connection was terminated (which is a valid response).
+                    BrokenPipe | ConnectionReset | ConnectionAborted => {}
+                    _ => panic!("Unexpected error while sending version: {:?}", err),
+                }
+            }
+        }
     }
 
     node.stop().await;
