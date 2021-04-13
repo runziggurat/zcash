@@ -38,7 +38,7 @@ impl Tx {
                 buffer.write_all(&(4u32 | 1 << 31).to_le_bytes())?;
                 tx.encode(buffer)?;
             }
-            _ => unimplemented!(),
+            Tx::V5 => unimplemented!(),
         }
 
         Ok(())
@@ -60,7 +60,7 @@ impl Tx {
             (2, false) => Self::V2(TxV2::decode(bytes)?),
             (3, true) => Self::V3(TxV3::decode(bytes)?),
             (4, true) => Self::V4(TxV4::decode(bytes)?),
-            (5, true) => Self::V5,
+            (5, true) => unimplemented!(),
             (version, overwinter) => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
