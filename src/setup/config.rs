@@ -80,7 +80,7 @@ impl NodeConfig {
 }
 
 /// Describes the node kind, currently supports the two known variants.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all(deserialize = "lowercase"))]
 pub(super) enum NodeKind {
     Zebra,
@@ -88,6 +88,7 @@ pub(super) enum NodeKind {
 }
 
 /// Node configuration read from the `config.toml` file.
+#[derive(Clone)]
 pub struct NodeMetaData {
     /// The node kind (one of `Zebra` or `Zcashd`).
     pub(super) kind: NodeKind,
