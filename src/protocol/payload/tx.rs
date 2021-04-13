@@ -45,8 +45,10 @@ impl Tx {
     }
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        use std::io::{Error, ErrorKind};
+
         let (version, overwinter) = {
-            const LOW_31_BITS: u32 = (1 << 31) - 1;
+            const LOW_31_BITS: u32 = !(1 << 31);
             let header = u32::from_le_bytes(read_n_bytes(bytes)?);
 
             // Extract transaction version and check if overwinter flag is set.
@@ -58,7 +60,13 @@ impl Tx {
             (2, false) => Self::V2(TxV2::decode(bytes)?),
             (3, true) => Self::V3(TxV3::decode(bytes)?),
             (4, true) => Self::V4(TxV4::decode(bytes)?),
-            _ => unimplemented!(),
+            (5, true) => Self::V5,
+            (version, overwinter) => {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Couldn't decode data with version {} and overwinter {} into a known transaction version", version, overwinter),
+                ))
+            }
         };
 
         Ok(tx)
