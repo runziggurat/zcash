@@ -2,6 +2,9 @@ use crate::protocol::payload::{read_n_bytes, Hash, VarInt};
 
 use std::io::{self, Cursor, Read, Write};
 
+/// A Zcash transaction (see: https://zips.z.cash/protocol/canopy.pdf#spendencodingandconsensus).
+///
+/// Supports V1-V4, V5 isn't yet stable.
 #[derive(Debug, PartialEq)]
 pub enum Tx {
     V1(TxV1),
@@ -70,7 +73,7 @@ pub struct TxV1 {
     tx_out_count: VarInt,
     tx_out: Vec<TxOut>,
 
-    // Newtype?
+    // TODO: newtype?
     lock_time: u32,
 }
 
@@ -191,12 +194,11 @@ impl TxV2 {
         let mut join_split = Vec::with_capacity(join_split_count.0);
 
         for _ in 0..join_split_count.0 {
-            let description = JoinSplit::decode(bytes)?;
+            let description = JoinSplit::decode_bctv14(bytes)?;
             join_split.push(description);
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
-            // Todo: consider making these concrete types.
             let mut pub_key = [0u8; 32];
             bytes.read_exact(&mut pub_key)?;
 
@@ -302,12 +304,11 @@ impl TxV3 {
         let mut join_split = Vec::with_capacity(join_split_count.0);
 
         for _ in 0..join_split_count.0 {
-            let description = JoinSplit::decode(bytes)?;
+            let description = JoinSplit::decode_bctv14(bytes)?;
             join_split.push(description);
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
-            // Todo: consider making these concrete types.
             let mut pub_key = [0u8; 32];
             bytes.read_exact(&mut pub_key)?;
 
@@ -455,12 +456,11 @@ impl TxV4 {
         let mut join_split = Vec::with_capacity(join_split_count.0);
 
         for _ in 0..join_split_count.0 {
-            let description = JoinSplit::decode(bytes)?;
+            let description = JoinSplit::decode_groth16(bytes)?;
             join_split.push(description);
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
-            // Todo: consider making these concrete types.
             let mut pub_key = [0u8; 32];
             bytes.read_exact(&mut pub_key)?;
 
@@ -613,7 +613,8 @@ impl JoinSplit {
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode_bctv14(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        // TODO: deduplicate (might require generics).
         let pub_old = u64::from_le_bytes(read_n_bytes(bytes)?);
         let pub_new = u64::from_le_bytes(read_n_bytes(bytes)?);
 
@@ -624,7 +625,35 @@ impl JoinSplit {
         let random_seed = read_n_bytes(bytes)?;
         let vmacs = read_n_bytes(bytes)?;
 
-        let zkproof = Zkproof::decode(bytes)?;
+        let zkproof = Zkproof::BCTV14(read_n_bytes(bytes)?);
+        let enc_cyphertexts = read_n_bytes(bytes)?;
+
+        Ok(Self {
+            pub_old,
+            pub_new,
+            anchor,
+            nullifiers,
+            commitments,
+            ephemeral_key,
+            random_seed,
+            vmacs,
+            zkproof,
+            enc_cyphertexts,
+        })
+    }
+
+    fn decode_groth16(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let pub_old = u64::from_le_bytes(read_n_bytes(bytes)?);
+        let pub_new = u64::from_le_bytes(read_n_bytes(bytes)?);
+
+        let anchor = read_n_bytes(bytes)?;
+        let nullifiers = read_n_bytes(bytes)?;
+        let commitments = read_n_bytes(bytes)?;
+        let ephemeral_key = read_n_bytes(bytes)?;
+        let random_seed = read_n_bytes(bytes)?;
+        let vmacs = read_n_bytes(bytes)?;
+
+        let zkproof = Zkproof::Groth16(read_n_bytes(bytes)?);
         let enc_cyphertexts = read_n_bytes(bytes)?;
 
         Ok(Self {
@@ -657,22 +686,6 @@ impl Zkproof {
         }
 
         Ok(())
-    }
-
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        // Maybe there's a better way? Didn't want to reach for generics straight away and since
-        // the two last keys in JoinSplit are constant size...
-        let still_to_read = bytes.get_ref().len() - bytes.position() as usize;
-
-        let proof = match still_to_read {
-            // 296 BCTV14 + 1202 cyphertext components.
-            1498 => Self::BCTV14(read_n_bytes(bytes)?),
-            // 192 Groth16 + 1202 cyphertext components.
-            1394 => Self::Groth16(read_n_bytes(bytes)?),
-            _ => panic!("Couldn't decode zk-proof into BCTV14 or Groth16"),
-        };
-
-        Ok(proof)
     }
 }
 
