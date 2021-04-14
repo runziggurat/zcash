@@ -12,10 +12,20 @@ use tokio::net::{TcpListener, TcpStream};
 async fn handshake_responder_side() {
     // ZG-CONFORMANCE-001
 
-    let (_zig, node_meta) = read_config_file();
+    let (zig, node_meta) = read_config_file();
 
+    // Create a listener which will be connected to by the node on startup (better than waiting an
+    // arbitrary amount of time in the hopes the node has started).
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+
+    // Create a node and set the listener as an initial peer.
     let mut node = Node::new(node_meta);
-    node.start().await;
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
+
+    // Yields when a new connection is accepted (signifies the node has started).
+    listener.accept().await.unwrap();
 
     // Connect to the node and initiate handshake.
     let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
@@ -70,6 +80,105 @@ async fn handshake_initiator_side() {
         .write_to_stream(&mut peer_stream)
         .await
         .unwrap();
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn reject_non_version_before_handshake() {
+    // ZG-CONFORMANCE-003
+    //
+    // The node should reject non-Version messages before the handshake has been performed.
+    //
+    // A node can react in one of the following ways:
+    //
+    //  a) the message is ignored
+    //  b) the connection is terminated
+    //  c) responds to our message
+    //  d) becomes unersponsive to future communications
+    //
+    // of which only (a) and (b) are valid responses. This test operates in the following manner:
+    //
+    // for each non-version message:
+    //
+    //  1. connect to the node
+    //  2. send the message
+    //  3. send the version message
+    //  4. receive version
+    //  5. receive verack
+    //
+    // We expect the following to occur for each of the possible node reactions:
+    //
+    //  a) (2) is ignored so we expect to complete the handshake - (3,4,5) should succeed
+    //  b) The connection should terminate after the node has processed (2), which implies (3) may or may not
+    //      succeed depending on the timing. The node may also already have sent its `version` eagerly, so
+    //      (4) may also succeed or fail. (5) will definitely fail.
+    //  c) Messages received in (4, 5) will not match (version, verack)
+    //  d) steps (3, 4) or (5) cause time out
+
+    // todo: implement rest of the messages
+    let test_messages = vec![
+        Message::GetAddr,
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let (zig, node_meta) = read_config_file();
+
+    // Create a listener which will be connected to by the node on startup (better than waiting an
+    // arbitrary amount of time in the hopes the node has started).
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+
+    // Create a node and set the listener as an initial peer.
+    let mut node = Node::new(node_meta);
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
+
+    // Yields when a new connection is accepted (signifies the node has started).
+    listener.accept().await.unwrap();
+
+    for message in test_messages {
+        // (1) connect to node
+        let mut stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        // (2) send non-version message
+        message.write_to_stream(&mut stream).await.unwrap();
+
+        // (3) send version message
+        match Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
+            .write_to_stream(&mut stream)
+            .await
+        {
+            Ok(_) => {}
+            Err(err) if is_termination_error(&err) => continue,
+            Err(err) => panic!("Unexpected error while sending version: {:?}", err),
+        };
+
+        // (4) read version
+        match Message::read_from_stream(&mut stream).await {
+            Ok(message) => assert!(matches!(message, Message::Version(..))),
+            Err(err) if is_termination_error(&err) => continue,
+            Err(err) => panic!("Unexpected error while receiving version: {:?}", err),
+        };
+
+        // (5) read verack
+        match Message::read_from_stream(&mut stream).await {
+            Ok(message) => assert!(matches!(message, Message::Verack)),
+            Err(err) if is_termination_error(&err) => continue,
+            Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
+        }
+    }
 
     node.stop().await;
 }
@@ -169,7 +278,7 @@ async fn reject_non_version_replies_to_version() {
             // (4) receive `verack` in response to our `version`
             match Message::read_from_stream(&mut stream).await {
                 Ok(message) => assert!(matches!(message, Message::Verack)),
-                Err(err) if is_termination_error(&err) => {},
+                Err(err) if is_termination_error(&err) => {}
                 Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
             }
         }));
@@ -179,95 +288,6 @@ async fn reject_non_version_replies_to_version() {
 
     for handle in handles {
         handle.await.unwrap();
-    }
-
-    node.stop().await;
-}
-
-#[tokio::test]
-async fn reject_non_version_before_handshake() {
-    // Conformance test 003.
-    //
-    // The node should reject non-Version messages before the handshake has been performed.
-    //
-    // A node can react in one of the following ways:
-    //
-    //  a) the message is ignored
-    //  b) the connection is terminated
-    //  c) responds to our message
-    //  d) becomes unersponsive to future communications
-    //
-    // of which only (a) and (b) are valid responses. This test operates in the following manner:
-    //
-    // for each non-version message:
-    //
-    //  1. connect to the node
-    //  2. send the message
-    //  3. send the version message
-    //  4. receive version
-    //  5. receive verack
-    //
-    // We expect the following to occur for each of the possible node reactions:
-    //
-    //  a) (2) is ignored so we expect to complete the handshake - (3,4,5) should succeed
-    //  b) The connection should terminate after the node has processed (2), which implies (3) may or may not
-    //      succeed depending on the timing. The node may also already have sent its `version` eagerly, so
-    //      (4) may also succeed or fail. (5) will definitely fail.
-    //  c) Messages received in (4, 5) will not match (version, verack)
-    //  d) steps (3, 4) or (5) cause time out
-
-    // todo: implement rest of the messages
-    let test_messages = vec![
-        Message::GetAddr,
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
-
-    let (_zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.start().await;
-
-    for message in test_messages {
-        // (1) connect to node
-        let mut stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // (2) send non-version message
-        message.write_to_stream(&mut stream).await.unwrap();
-
-        // (3) send version message
-        match Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
-            .write_to_stream(&mut stream)
-            .await
-        {
-            Ok(_) => {}
-            Err(err) if is_termination_error(&err) => continue,
-            Err(err) => panic!("Unexpected error while sending version: {:?}", err),
-        };
-
-        // (4) read version
-        match Message::read_from_stream(&mut stream).await {
-            Ok(message) => assert!(matches!(message, Message::Version(..))),
-            Err(err) if is_termination_error(&err) => continue,
-            Err(err) => panic!("Unexpected error while receiving version: {:?}", err),
-        };
-
-        // (5) read verack
-        match Message::read_from_stream(&mut stream).await {
-            Ok(message) => assert!(matches!(message, Message::Verack)),
-            Err(err) if is_termination_error(&err) => continue,
-            Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
-        }
     }
 
     node.stop().await;
