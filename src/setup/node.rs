@@ -101,10 +101,6 @@ impl Node {
             .expect("node failed to start");
 
         self.process = Some(process);
-
-        // In future maybe ping to check if ready? Maybe in include an explicit build step here as
-        // well?
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     }
 
     /// Stops the node instance.
