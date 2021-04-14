@@ -89,6 +89,7 @@ struct Header {
     version: ProtocolVersion,
     prev_block: Hash,
     merkle_root: Hash,
+    light_client_root: Hash,
     timestamp: DateTime<Utc>,
     bits: u32,
     // The nonce used in the version messages (`Nonce(u64)`) is NOT the same as the nonce the block
@@ -102,6 +103,7 @@ impl Header {
         self.version.encode(buffer)?;
         self.prev_block.encode(buffer)?;
         self.merkle_root.encode(buffer)?;
+        self.light_client_root.encode(buffer)?;
 
         buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
         buffer.write_all(&self.bits.to_le_bytes())?;
@@ -116,6 +118,7 @@ impl Header {
         let version = ProtocolVersion::decode(bytes)?;
         let prev_block = Hash::decode(bytes)?;
         let merkle_root = Hash::decode(bytes)?;
+        let light_client_root = Hash::decode(bytes)?;
 
         let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
         let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
@@ -129,6 +132,7 @@ impl Header {
             version,
             prev_block,
             merkle_root,
+            light_client_root,
             timestamp: dt,
             bits,
             nonce,
