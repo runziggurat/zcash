@@ -1,6 +1,6 @@
 use crate::{
     protocol::{
-        message::Message,
+        message::{Filter, Message, MessageFilter},
         payload::{block::Headers, Addr, Nonce, Version},
     },
     setup::{config::read_config_file, node::Node},
@@ -270,6 +270,55 @@ async fn reject_non_version_before_handshake() {
             Err(err) if is_termination_error(&err) => continue,
             Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
         }
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn reject_version_reusing_nonce() {
+    // Conformance test 006.
+    //
+    // The node rejects connections reusing its nonce (usually indicative of self-connection).
+    //
+    // 1. Wait for node to send version
+    // 2. Send back version with same nonce
+    // 3. Connection should be terminated
+
+    let (zig, node_meta) = read_config_file();
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+
+    let mut node = Node::new(node_meta);
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
+
+    let (mut stream, _) = listener.accept().await.unwrap();
+
+    let version = match Message::read_from_stream(&mut stream).await.unwrap() {
+        Message::Version(version) => version,
+        message => panic!("Expected version but received: {:?}", message),
+    };
+
+    Message::Version(
+        Version::new(node.addr(), stream.local_addr().unwrap()).with_nonce(version.nonce()),
+    )
+    .write_to_stream(&mut stream)
+    .await
+    .unwrap();
+
+    // This is required because the zcashd node eagerly sends `ping` and `getheaders` even though
+    // our version message is broken. TBD if this is desired behaviour or if this should fail the test.
+    let filter = MessageFilter::with_all_disabled()
+        .with_ping_filter(Filter::Enabled)
+        .with_getheaders_filter(Filter::Enabled);
+
+    match filter.read_from_stream(&mut stream).await {
+        Err(err) if is_termination_error(&err) => {}
+        result => panic!(
+            "Expected terminated connection error, but received: {:?}",
+            result
+        ),
     }
 
     node.stop().await;
