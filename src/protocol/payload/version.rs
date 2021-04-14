@@ -87,4 +87,13 @@ impl Version {
             relay,
         })
     }
+
+    pub fn nonce(&self) -> Nonce {
+        self.nonce
+    }
+
+    pub fn with_nonce(mut self, nonce: Nonce) -> Self {
+        self.nonce = nonce;
+        self
+    }
 }
