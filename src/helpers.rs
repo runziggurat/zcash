@@ -31,7 +31,11 @@ macro_rules! wait_until {
     };
 }
 
-pub async fn handshake(listener: TcpListener) -> io::Result<TcpStream> {
+/// Helper to respond to a handshake initiated by the node on connection to the supplied listener,
+/// returns the tcp stream.
+///
+/// Note, the listener's adddress must be set on the node as an initial peer.
+pub async fn respond_to_handshake(listener: TcpListener) -> io::Result<TcpStream> {
     let (mut peer_stream, addr) = listener.accept().await.unwrap();
 
     let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
@@ -53,7 +57,8 @@ pub async fn handshake(listener: TcpListener) -> io::Result<TcpStream> {
     Ok(peer_stream)
 }
 
-pub async fn handshaken_peer(node_addr: SocketAddr) -> io::Result<TcpStream> {
+/// Connects to the node at the given address, handshakes and returns the established stream.
+pub async fn initiate_handshake(node_addr: SocketAddr) -> io::Result<TcpStream> {
     let mut peer_stream = TcpStream::connect(node_addr).await?;
 
     Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))

@@ -1,5 +1,5 @@
 use crate::{
-    helpers::{handshake, handshaken_peer},
+    helpers::{initiate_handshake, respond_to_handshake},
     protocol::{
         message::{Message, MessageFilter},
         payload::Nonce,
@@ -26,25 +26,28 @@ async fn ping_pong() {
         .await;
 
     // Receive the connection and perform the handshake once the node is started.
-    let mut peer_stream = handshake(listener).await.unwrap();
+    let mut peer_stream = respond_to_handshake(listener).await.unwrap();
 
-    Message::Ping(Nonce::default())
+    let nonce = Nonce::default();
+    Message::Ping(nonce)
         .write_to_stream(&mut peer_stream)
         .await
         .unwrap();
 
-    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-    wait_until!(
-        10,
-        matches!(
-            auto_responder
-                .read_from_stream(&mut peer_stream)
-                .await
-                .unwrap(),
-            Message::Pong(..)
-        )
-    );
+    wait_until!(10, {
+        // Ignore queries from the node.
+        let auto_responder = MessageFilter::with_all_auto_reply();
+        if let Ok(Message::Pong(returned_nonce)) =
+            auto_responder.read_from_stream(&mut peer_stream).await
+        {
+            // We received a pong and the nonce matches.
+            assert_eq!(nonce, returned_nonce);
+            true
+        } else {
+            // We didn't receive a pong.
+            false
+        }
+    });
 
     node.stop().await;
 }
@@ -57,7 +60,7 @@ async fn unsolicitation_listener() {
     let mut node = Node::new(node_meta);
     node.start().await;
 
-    let mut peer_stream = handshaken_peer(node.addr()).await.unwrap();
+    let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
 
     let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
 
