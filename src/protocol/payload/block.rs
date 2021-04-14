@@ -1,4 +1,4 @@
-use crate::protocol::payload::{read_n_bytes, Hash, ProtocolVersion, VarInt};
+use crate::protocol::payload::{read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 
@@ -44,6 +44,36 @@ impl LocatorHashes {
             block_locator_hashes,
             hash_stop,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct Block {
+    header: Header,
+    txs: Vec<Tx>,
+}
+
+impl Block {
+    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.header.encode(buffer)?;
+
+        for tx in &self.txs {
+            tx.encode(buffer)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let header = Header::decode(bytes)?;
+        let mut txs = Vec::with_capacity(header.tx_count.0);
+
+        for _ in 0..header.tx_count.0 {
+            let tx = Tx::decode(bytes)?;
+            txs.push(tx);
+        }
+
+        Ok(Self { header, txs })
     }
 }
 
@@ -95,7 +125,7 @@ struct Header {
     // The nonce used in the version messages (`Nonce(u64)`) is NOT the same as the nonce the block
     // was generated with as it uses a `u32`.
     nonce: u32,
-    txn_count: VarInt,
+    tx_count: VarInt,
 }
 
 impl Header {
@@ -109,7 +139,7 @@ impl Header {
         buffer.write_all(&self.bits.to_le_bytes())?;
         buffer.write_all(&self.nonce.to_le_bytes())?;
 
-        self.txn_count.encode(buffer)?;
+        self.tx_count.encode(buffer)?;
 
         Ok(())
     }
@@ -126,7 +156,7 @@ impl Header {
         let bits = u32::from_le_bytes(read_n_bytes(bytes)?);
         let nonce = u32::from_le_bytes(read_n_bytes(bytes)?);
 
-        let txn_count = VarInt::decode(bytes)?;
+        let tx_count = VarInt::decode(bytes)?;
 
         Ok(Self {
             version,
@@ -136,7 +166,7 @@ impl Header {
             timestamp: dt,
             bits,
             nonce,
-            txn_count,
+            tx_count,
         })
     }
 }
