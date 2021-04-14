@@ -14,7 +14,7 @@ pub struct Version {
     timestamp: DateTime<Utc>,
     addr_recv: NetworkAddr,
     addr_from: NetworkAddr,
-    nonce: Nonce,
+    pub nonce: Nonce,
     user_agent: VarStr,
     start_height: u32,
     relay: bool,
