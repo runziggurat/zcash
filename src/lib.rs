@@ -1,3 +1,4 @@
+pub mod helpers;
 pub mod protocol;
 pub mod setup;
 
