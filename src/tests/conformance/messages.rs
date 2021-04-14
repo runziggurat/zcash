@@ -1,55 +1,52 @@
 use crate::{
+    helpers::{handshake, handshaken_peer},
     protocol::{
         message::{Message, MessageFilter},
-        payload::{Nonce, Version},
+        payload::Nonce,
     },
     setup::{config::read_config_file, node::Node},
+    wait_until,
 };
 
-use tokio::{io, net::TcpStream, time::timeout, time::Duration};
-
-use std::net::SocketAddr;
+use tokio::{
+    net::TcpListener,
+    time::{timeout, Duration},
+};
 
 #[tokio::test]
 async fn ping_pong() {
-    let (_zig, node_meta) = read_config_file();
+    let (zig, node_meta) = read_config_file();
 
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+
+    // Create a node and set the listener as an initial peer.
     let mut node = Node::new(node_meta);
-    node.start().await;
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
 
-    let mut peer_stream = handshake(node.addr()).await.unwrap();
+    // Receive the connection and perform the handshake once the node is started.
+    let mut peer_stream = handshake(listener).await.unwrap();
 
     Message::Ping(Nonce::default())
         .write_to_stream(&mut peer_stream)
         .await
         .unwrap();
 
-    let pong = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert!(matches!(pong, Message::Pong(..)));
+    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
+
+    wait_until!(
+        10,
+        matches!(
+            auto_responder
+                .read_from_stream(&mut peer_stream)
+                .await
+                .unwrap(),
+            Message::Pong(..)
+        )
+    );
 
     node.stop().await;
-}
-
-async fn handshake(node_addr: SocketAddr) -> io::Result<TcpStream> {
-    let mut peer_stream = TcpStream::connect(node_addr).await?;
-
-    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
-
-    let version = Message::read_from_stream(&mut peer_stream).await?;
-    assert!(matches!(version, Message::Version(..)));
-
-    Message::Verack
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
-
-    let verack = Message::read_from_stream(&mut peer_stream).await?;
-    assert!(matches!(verack, Message::Verack));
-
-    Ok(peer_stream)
 }
 
 #[tokio::test]
@@ -60,10 +57,9 @@ async fn unsolicitation_listener() {
     let mut node = Node::new(node_meta);
     node.start().await;
 
-    let mut peer_stream = handshake(node.addr()).await.unwrap();
+    let mut peer_stream = handshaken_peer(node.addr()).await.unwrap();
 
-    let auto_responder = MessageFilter::with_all_auto_reply()
-        .enable_logging();
+    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
 
     for _ in 0usize..10 {
         let result = timeout(
