@@ -1,6 +1,6 @@
 use crate::protocol::payload::{
-    block::{Headers, LocatorHashes},
-    Addr, Inv, Nonce, Version,
+    block::{Block, Headers, LocatorHashes},
+    Addr, Inv, Nonce, Tx, Version,
 };
 
 use sha2::{Digest, Sha256};
@@ -22,10 +22,12 @@ const ADDR_COMMAND: [u8; 12] = *b"addr\0\0\0\0\0\0\0\0";
 const GETHEADERS_COMMAND: [u8; 12] = *b"getheaders\0\0";
 const HEADERS_COMMAND: [u8; 12] = *b"headers\0\0\0\0\0";
 const GETBLOCKS_COMMAND: [u8; 12] = *b"getblocks\0\0\0";
+const BLOCK_COMMAND: [u8; 12] = *b"block\0\0\0\0\0\0\0";
 const GETDATA_COMMAND: [u8; 12] = *b"getdata\0\0\0\0\0";
 const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
 const NOTFOUND_COMMAND: [u8; 12] = *b"notfound\0\0\0\0";
 const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
+const TX_COMMAND: [u8; 12] = *b"tx\0\0\0\0\0\0\0\0\0\0";
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {
@@ -77,10 +79,12 @@ pub enum Message {
     GetHeaders(LocatorHashes),
     Headers(Headers),
     GetBlocks(LocatorHashes),
+    Block(Block),
     GetData(Inv),
     Inv(Inv),
     NotFound(Inv),
     MemPool,
+    Tx(Tx),
 }
 
 impl Message {
@@ -119,6 +123,10 @@ impl Message {
                 locator_hashes.encode(&mut buffer)?;
                 MessageHeader::new(GETBLOCKS_COMMAND, &buffer)
             }
+            Self::Block(block) => {
+                block.encode(&mut buffer)?;
+                MessageHeader::new(BLOCK_COMMAND, &buffer)
+            }
             Self::GetData(inv) => {
                 inv.encode(&mut buffer)?;
                 MessageHeader::new(GETDATA_COMMAND, &buffer)
@@ -132,6 +140,10 @@ impl Message {
                 MessageHeader::new(NOTFOUND_COMMAND, &buffer)
             }
             Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, &buffer),
+            Self::Tx(tx) => {
+                tx.encode(&mut buffer)?;
+                MessageHeader::new(TX_COMMAND, &buffer)
+            }
         };
 
         header.write_to_stream(stream).await?;
@@ -160,10 +172,12 @@ impl Message {
             GETHEADERS_COMMAND => Self::GetHeaders(LocatorHashes::decode(&mut bytes)?),
             HEADERS_COMMAND => Self::Headers(Headers::decode(&mut bytes)?),
             GETBLOCKS_COMMAND => Self::GetBlocks(LocatorHashes::decode(&mut bytes)?),
+            BLOCK_COMMAND => Self::Block(Block::decode(&mut bytes)?),
             GETDATA_COMMAND => Self::GetData(Inv::decode(&mut bytes)?),
             INV_COMMAND => Self::Inv(Inv::decode(&mut bytes)?),
             NOTFOUND_COMMAND => Self::NotFound(Inv::decode(&mut bytes)?),
             MEMPOOL_COMMAND => Self::MemPool,
+            TX_COMMAND => Self::Tx(Tx::decode(&mut bytes)?),
             _ => unimplemented!(),
         };
 
