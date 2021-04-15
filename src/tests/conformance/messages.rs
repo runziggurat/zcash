@@ -111,8 +111,7 @@ async fn ignores_unsolicited_responses() {
     node.stop().await;
 }
 
-#[tokio::test]
-#[ignore]
+#[allow(dead_code)]
 async fn unsolicitation_listener() {
     let (_zig, node_meta) = read_config_file();
 
