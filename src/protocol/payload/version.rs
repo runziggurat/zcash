@@ -44,6 +44,11 @@ impl Version {
         }
     }
 
+    pub fn with_version(mut self, version: u32) -> Self {
+        self.version = ProtocolVersion(version);
+        self
+    }
+
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
         buffer.write_all(&self.services.to_le_bytes())?;
