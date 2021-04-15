@@ -16,6 +16,9 @@ pub use tx::Tx;
 pub mod version;
 pub use version::Version;
 
+pub mod reject;
+pub use reject::Reject;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
 
