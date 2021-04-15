@@ -45,7 +45,7 @@ impl LocatorHashes {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Block {
     header: Header,
     txs: Vec<Tx>,
@@ -112,7 +112,7 @@ impl Headers {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Header {
     version: ProtocolVersion,
     prev_block: Hash,
@@ -201,7 +201,88 @@ mod tests {
     #[test]
     #[ignore]
     fn testnet_1_round_trip() {
+        // Pre-overwinter.
         let block_bytes = &BLOCK_TESTNET_1_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_207500_round_trip() {
+        // Overwinter.
+        let block_bytes = &BLOCK_TESTNET_207500_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes.len(), buffer.len());
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_280000_round_trip() {
+        // Sapling.
+        let block_bytes = &BLOCK_TESTNET_280000_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_584000_round_trip() {
+        // Blossom.
+        let block_bytes = &BLOCK_TESTNET_584000_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_903800_round_trip() {
+        // Heartwood.
+        let block_bytes = &BLOCK_TESTNET_903800_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_1028500_round_trip() {
+        // Canopy.
+        let block_bytes = &BLOCK_TESTNET_1028500_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();
