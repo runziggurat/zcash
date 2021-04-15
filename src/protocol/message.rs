@@ -1,6 +1,6 @@
 use crate::protocol::payload::{
     block::{Block, Headers, LocatorHashes},
-    Addr, Inv, Nonce, Tx, Version, Reject
+    Addr, Inv, Nonce, Reject, Tx, Version,
 };
 
 use sha2::{Digest, Sha256};
@@ -145,7 +145,7 @@ impl Message {
             Self::Tx(tx) => {
                 tx.encode(&mut buffer)?;
                 MessageHeader::new(TX_COMMAND, &buffer)
-            },
+            }
             Self::Reject(reject) => {
                 reject.encode(&mut buffer)?;
                 MessageHeader::new(REJECT_COMMAND, &buffer)
