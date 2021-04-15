@@ -2,7 +2,7 @@ use crate::{
     helpers::{initiate_handshake, respond_to_handshake},
     protocol::{
         message::{Message, MessageFilter},
-        payload::Nonce,
+        payload::{block::Headers, Addr, Nonce},
     },
     setup::{config::read_config_file, node::Node},
     wait_until,
@@ -48,6 +48,65 @@ async fn ping_pong() {
             false
         }
     });
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn ignores_unsolicited_responses() {
+    // ZG-CONFORMANCE-009
+    //
+    // The node ignore certain unsolicited messages but doesn’t disconnect.
+    //
+    // Messages to be tested: Reject, NotFound, Pong, Tx, Block, Header, Addr.
+    //
+    // Test procedure:
+    //      Complete handshake, and then for each test message:
+    //
+    //      1. Send the message
+    //      2. Send a ping request
+    //      3. Receive a pong response
+
+    let (zig, node_meta) = read_config_file();
+
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+
+    // Create a node and set the listener as an initial peer.
+    let mut node = Node::new(node_meta);
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
+
+    let mut stream = crate::helpers::respond_to_handshake(listener)
+        .await
+        .unwrap();
+
+    // TODO: rest of the message types
+    let test_messages = vec![
+        Message::Pong(Nonce::default()),
+        Message::Headers(Headers::empty()),
+        Message::Addr(Addr::empty()),
+        // Block(Block),
+        // NotFound(Inv),
+        // Tx(Tx),
+    ];
+
+    let filter = MessageFilter::with_all_auto_reply().enable_logging();
+
+    for message in test_messages {
+        message.write_to_stream(&mut stream).await.unwrap();
+
+        let nonce = Nonce::default();
+        Message::Ping(nonce)
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap();
+
+        match filter.read_from_stream(&mut stream).await.unwrap() {
+            Message::Pong(returned_nonce) => assert_eq!(nonce, returned_nonce),
+            msg => panic!("Expected pong: {:?}", msg),
+        }
+    }
 
     node.stop().await;
 }
