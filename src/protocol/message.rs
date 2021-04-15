@@ -1,6 +1,6 @@
 use crate::protocol::payload::{
     block::{Block, Headers, LocatorHashes},
-    Addr, Inv, Nonce, Tx, Version,
+    Addr, Inv, Nonce, Tx, Version, Reject
 };
 
 use sha2::{Digest, Sha256};
@@ -28,6 +28,7 @@ const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
 const NOTFOUND_COMMAND: [u8; 12] = *b"notfound\0\0\0\0";
 const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
 const TX_COMMAND: [u8; 12] = *b"tx\0\0\0\0\0\0\0\0\0\0";
+const REJECT_COMMAND: [u8; 12] = *b"reject\0\0\0\0\0\0";
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {
@@ -85,6 +86,7 @@ pub enum Message {
     NotFound(Inv),
     MemPool,
     Tx(Tx),
+    Reject(Reject),
 }
 
 impl Message {
@@ -143,6 +145,10 @@ impl Message {
             Self::Tx(tx) => {
                 tx.encode(&mut buffer)?;
                 MessageHeader::new(TX_COMMAND, &buffer)
+            },
+            Self::Reject(reject) => {
+                reject.encode(&mut buffer)?;
+                MessageHeader::new(REJECT_COMMAND, &buffer)
             }
         };
 
@@ -178,6 +184,7 @@ impl Message {
             NOTFOUND_COMMAND => Self::NotFound(Inv::decode(&mut bytes)?),
             MEMPOOL_COMMAND => Self::MemPool,
             TX_COMMAND => Self::Tx(Tx::decode(&mut bytes)?),
+            REJECT_COMMAND => Self::Reject(Reject::decode(&mut bytes)?),
             _ => unimplemented!(),
         };
 
