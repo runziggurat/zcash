@@ -15,7 +15,10 @@ pub struct Addr {
 
 impl Addr {
     pub fn empty() -> Self {
-        Self { count: VarInt(0), addrs: Vec::new() }
+        Self {
+            count: VarInt(0),
+            addrs: Vec::new(),
+        }
     }
 
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
