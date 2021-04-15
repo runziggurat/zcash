@@ -1,7 +1,5 @@
 use crate::protocol::payload::{read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
 
-use chrono::{DateTime, NaiveDateTime, Utc};
-
 use std::io::{self, Cursor, Write};
 
 #[derive(Debug)]
@@ -120,11 +118,13 @@ struct Header {
     prev_block: Hash,
     merkle_root: Hash,
     light_client_root: Hash,
-    timestamp: DateTime<Utc>,
+    timestamp: u32,
     bits: u32,
     // The nonce used in the version messages (`Nonce(u64)`) is NOT the same as the nonce the block
     // was generated with as it uses a `u32`.
-    nonce: u32,
+    nonce: [u8; 32],
+    solution_size: VarInt,
+    solution: [u8; 1344],
     tx_count: VarInt,
 }
 
@@ -135,9 +135,12 @@ impl Header {
         self.merkle_root.encode(buffer)?;
         self.light_client_root.encode(buffer)?;
 
-        buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
+        buffer.write_all(&self.timestamp.to_le_bytes())?;
         buffer.write_all(&self.bits.to_le_bytes())?;
-        buffer.write_all(&self.nonce.to_le_bytes())?;
+        buffer.write_all(&self.nonce)?;
+
+        self.solution_size.encode(buffer)?;
+        buffer.write_all(&self.solution)?;
 
         self.tx_count.encode(buffer)?;
 
@@ -150,11 +153,13 @@ impl Header {
         let merkle_root = Hash::decode(bytes)?;
         let light_client_root = Hash::decode(bytes)?;
 
-        let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let bits = u32::from_le_bytes(read_n_bytes(bytes)?);
-        let nonce = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let nonce = read_n_bytes(bytes)?;
+
+        let solution_size = VarInt::decode(bytes)?;
+        let solution = read_n_bytes(bytes)?;
 
         let tx_count = VarInt::decode(bytes)?;
 
@@ -163,10 +168,48 @@ impl Header {
             prev_block,
             merkle_root,
             light_client_root,
-            timestamp: dt,
+            timestamp,
             bits,
             nonce,
+            solution_size,
+            solution,
             tx_count,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vectors::*;
+
+    #[test]
+    #[ignore]
+    fn testnet_genesis_round_trip() {
+        let block_bytes = &BLOCK_TESTNET_GENESIS_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_1_round_trip() {
+        let block_bytes = &BLOCK_TESTNET_1_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
     }
 }
