@@ -66,6 +66,9 @@ pub(super) struct NodeConfig {
     pub(super) max_peers: usize,
     /// Setting this option to true will enable node logging to stdout.
     pub(super) log_to_stdout: bool,
+    /// Setting this option will configure the node to signal it has started through a peer
+    /// connection at the supplied address.
+    pub(super) signal_when_started: Option<SocketAddr>,
 }
 
 impl NodeConfig {
@@ -75,6 +78,7 @@ impl NodeConfig {
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
+            signal_when_started: None,
         }
     }
 }
