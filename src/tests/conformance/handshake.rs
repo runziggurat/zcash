@@ -343,6 +343,81 @@ async fn reject_version_reusing_nonce() {
     node.stop().await;
 }
 
+#[tokio::test]
+async fn reject_obsolete_versions() {
+    // ZG-CONFORMANCE-007
+    //
+    // The node rejects connections with obsolete node versions.
+    //
+    // We expect the following behaviour, regardless of who initiates the connection:
+    //
+    //  1. We send `version` with an obsolete version number
+    //  2. The node responds with `Reject(Obsolete)`
+    //  3. The node terminates the connection
+    //
+    // This test currently fails as neither Zebra nor ZCashd currently fully comply
+    // with this behaviour, so we may need to revise our expectations.
+    //
+    // TODO: confirm expected behaviour.
+    //
+    // Current behaviour (if we initiate the connection):
+    //  ZCashd:
+    //      1. We send `version` with an obsolete version number
+    //      2. Node sends `Reject(Obsolete)`
+    //      3. Node sends `Ping`
+    //      4. Node sends `GetHeaders`
+    //      5. Node terminates the connection
+    //
+    //  Zebra:
+    //      1. We send `version` with an obsolete version number
+    //      2. Node sends `version`
+    //      3. Node sends `verack`
+    //      4. Node terminates the connection
+
+    let (zig, node_meta) = read_config_file();
+    let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
+
+    // Create a listener which will be connected to by the node on startup (better than waiting an
+    // arbitrary amount of time in the hopes the node has started).
+    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+
+    // Create a node and set the listener as an initial peer.
+    let mut node = Node::new(node_meta);
+    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+        .start()
+        .await;
+
+    // Yields when a new connection is accepted (signifies the node has started).
+    listener.accept().await.unwrap();
+
+    for obsolete_version_number in obsolete_version_numbers {
+        // open connection
+        let mut stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        // send obsolete version
+        let obsolete_version = Version::new(node.addr(), stream.local_addr().unwrap())
+            .with_version(obsolete_version_number);
+        Message::Version(obsolete_version)
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap();
+
+        // expect Reject(Obsolete)
+        match Message::read_from_stream(&mut stream).await.unwrap() {
+            Message::Reject(reject) => assert!(reject.ccode.is_obsolete()),
+            message => panic!("Expected Message::Reject(Obsolete), but got {:?}", message),
+        }
+
+        // check that connection has been terminated
+        match Message::read_from_stream(&mut stream).await {
+            Err(err) if is_termination_error(&err) => {}
+            result => panic!("Expected terminated connection but got: {:?}", result),
+        }
+    }
+
+    node.stop().await;
+}
+
 // Returns true if the error kind is one that indicates that the connection has
 // been terminated.
 fn is_termination_error(err: &std::io::Error) -> bool {
