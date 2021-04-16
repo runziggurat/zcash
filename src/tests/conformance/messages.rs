@@ -2,7 +2,7 @@ use crate::{
     helpers::{initiate_handshake, respond_to_handshake},
     protocol::{
         message::{Message, MessageFilter},
-        payload::{block::Headers, Addr, Nonce},
+        payload::{block::Headers, reject::CCode, Addr, Nonce, Version},
     },
     setup::{config::read_config_file, node::Node},
     wait_until,
@@ -50,6 +50,79 @@ async fn ping_pong() {
     });
 
     node.stop().await;
+}
+
+#[tokio::test]
+async fn reject_invalid_messages() {
+    // ZG-CONFORMANCE-008
+    //
+    // The node rejects handshake and bloom filter messages post-handshake.
+    //
+    // The following messages should be rejected post-handshake:
+    //
+    //      Version     (Duplicate)
+    //      Verack      (Duplicate)
+    //      Inv         (Invalid -- with multiple advertised blocks)
+    //      FilterLoad  (Obsolete)
+    //      FilterAdd   (Obsolete)
+    //      FilterClear (Obsolete)
+    //
+    // Test procedure:
+    //      For each test message:
+    //
+    //      1. Connect and complete the handshake
+    //      2. Send the test message
+    //      3. Filter out all node queries
+    //      4. Receive `Reject(kind)`
+    //      5. Assert that `kind` is appropriate for the test message
+    //
+    // This test currently fails as neither Zebra nor ZCashd currently fully comply
+    // with this behaviour, so we may need to revise our expectations.
+    //
+    // TODO: confirm expected behaviour.
+    //
+    // Current behaviour (if we initiate the connection):
+    //  ZCashd:
+    //      Version: works as expected
+    //      Verack:  message is completely ignored
+    //
+    //  Zebra:
+    //      Both Version and Verack result in a terminated connection
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    // list of test messages and their expected Reject kind
+    let cases = vec![
+        (
+            Message::Version(Version::new(node.addr(), zig.new_local_addr())),
+            CCode::Duplicate,
+        ),
+        (Message::Verack, CCode::Duplicate),
+        // TODO: rest of the message types once available
+        // (Message::Inv(inv), CCode::Invalid),
+        // (Message::FilterLoad, CCode::Obsolete),
+        // (Message::FilterAdd, CCode::Obsolete),
+        // (Message::FilterClear, CCode::Obsolete),
+    ];
+
+    let filter = MessageFilter::with_all_auto_reply().enable_logging();
+
+    for (test_message, expected_ccode) in cases {
+        let mut stream = initiate_handshake(node.addr()).await.unwrap();
+
+        test_message.write_to_stream(&mut stream).await.unwrap();
+
+        // Expect a Reject(Invalid) message
+        match filter.read_from_stream(&mut stream).await.unwrap() {
+            Message::Reject(reject) if reject.ccode == expected_ccode => {}
+            message => panic!("Expected Reject(Invalid), but got: {:?}", message),
+        }
+    }
 }
 
 #[tokio::test]
