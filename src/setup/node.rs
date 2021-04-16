@@ -84,8 +84,8 @@ impl Node {
     /// scenarios in which the node initates the connections.
     ///
     /// [`start`]: methode@Node::start
-    pub fn signal_when_started(&mut self, addr: SocketAddr) -> &mut Self {
-        self.config.signal_when_started = Some(addr);
+    pub fn start_waits_for_connection(&mut self, addr: SocketAddr) -> &mut Self {
+        self.config.start_listener_addr = Some(addr);
         self
     }
 
@@ -96,7 +96,7 @@ impl Node {
     pub async fn start(&mut self) {
         // Set the listener if start signalling is enabled.
         let mut listener: Option<TcpListener> = None;
-        if let Some(addr) = self.config.signal_when_started {
+        if let Some(addr) = self.config.start_listener_addr {
             let bound_listener = TcpListener::bind(addr).await.unwrap();
 
             self.config.initial_peers.insert(format!(

@@ -15,7 +15,9 @@ async fn handshake_responder_side() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.signal_when_started(zig.new_local_addr()).start().await;
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
 
     // Connect to the node and initiate handshake.
     let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
@@ -126,7 +128,9 @@ async fn reject_non_version_before_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.signal_when_started(zig.new_local_addr()).start().await;
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
 
     for message in test_messages {
         // (1) connect to node
@@ -358,7 +362,9 @@ async fn reject_obsolete_versions() {
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
     let mut node = Node::new(node_meta);
-    node.signal_when_started(zig.new_local_addr()).start().await;
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
 
     for obsolete_version_number in obsolete_version_numbers {
         // open connection
