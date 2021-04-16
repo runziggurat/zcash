@@ -68,7 +68,7 @@ pub(super) struct NodeConfig {
     pub(super) log_to_stdout: bool,
     /// Setting this option will configure the node to signal it has started through a peer
     /// connection at the supplied address.
-    pub(super) signal_when_started: Option<SocketAddr>,
+    pub(super) start_listener_addr: Option<SocketAddr>,
 }
 
 impl NodeConfig {
@@ -78,7 +78,7 @@ impl NodeConfig {
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
-            signal_when_started: None,
+            start_listener_addr: None,
         }
     }
 }
