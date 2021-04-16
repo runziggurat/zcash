@@ -14,18 +14,8 @@ async fn handshake_responder_side() {
 
     let (zig, node_meta) = read_config_file();
 
-    // Create a listener which will be connected to by the node on startup (better than waiting an
-    // arbitrary amount of time in the hopes the node has started).
-    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
-
-    // Create a node and set the listener as an initial peer.
     let mut node = Node::new(node_meta);
-    node.initial_peers(vec![listener.local_addr().unwrap().port()])
-        .start()
-        .await;
-
-    // Yields when a new connection is accepted (signifies the node has started).
-    listener.accept().await.unwrap();
+    node.signal_when_started(zig.new_local_addr()).start().await;
 
     // Connect to the node and initiate handshake.
     let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
@@ -135,18 +125,8 @@ async fn reject_non_version_before_handshake() {
 
     let (zig, node_meta) = read_config_file();
 
-    // Create a listener which will be connected to by the node on startup (better than waiting an
-    // arbitrary amount of time in the hopes the node has started).
-    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
-
-    // Create a node and set the listener as an initial peer.
     let mut node = Node::new(node_meta);
-    node.initial_peers(vec![listener.local_addr().unwrap().port()])
-        .start()
-        .await;
-
-    // Yields when a new connection is accepted (signifies the node has started).
-    listener.accept().await.unwrap();
+    node.signal_when_started(zig.new_local_addr()).start().await;
 
     for message in test_messages {
         // (1) connect to node
