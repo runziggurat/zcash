@@ -102,4 +102,8 @@ impl CCode {
             )),
         }
     }
+
+    pub fn is_obsolete(&self) -> bool {
+        *self == Self::Obselete
+    }
 }
