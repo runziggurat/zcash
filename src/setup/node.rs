@@ -1,6 +1,9 @@
 use crate::setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile};
 
-use tokio::process::{Child, Command};
+use tokio::{
+    net::TcpListener,
+    process::{Child, Command},
+};
 
 use std::{fs, net::SocketAddr, process::Stdio};
 
@@ -74,13 +77,36 @@ impl Node {
         self
     }
 
+    /// Sets whether to signal the node has started through a peer connection.
+    ///
+    /// If set to true, the call to [`start`] will initiate a listener set as a peer on the node and
+    /// will only return once it has received a connection request. This isn't necessary in
+    /// scenarios in which the node initates the connections.
+    ///
+    /// [`start`]: methode@Node::start
+    pub fn signal_when_started(&mut self, addr: SocketAddr) -> &mut Self {
+        self.config.signal_when_started = Some(addr);
+        self
+    }
+
     /// Starts the node instance.
     ///
     /// This function will write the appropriate configuration file and run the start command
     /// provided in `config.toml`.
     pub async fn start(&mut self) {
-        // 1. Write necessary config files.
-        // 2. Create and run command.
+        // Set the listener if start signalling is enabled.
+        let mut listener: Option<TcpListener> = None;
+        if let Some(addr) = self.config.signal_when_started {
+            let bound_listener = TcpListener::bind(addr).await.unwrap();
+
+            self.config.initial_peers.insert(format!(
+                "{}:{}",
+                self.meta.peer_ip,
+                bound_listener.local_addr().unwrap().port()
+            ));
+
+            listener = Some(bound_listener);
+        }
 
         // Generate config files for Zebra or Zcashd node.
         self.generate_config_file();
@@ -101,6 +127,11 @@ impl Node {
             .expect("node failed to start");
 
         self.process = Some(process);
+
+        // if start signal is expected, await connection before returning.
+        if let Some(listener) = listener {
+            listener.accept().await.unwrap();
+        }
     }
 
     /// Stops the node instance.
