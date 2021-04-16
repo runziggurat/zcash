@@ -5,7 +5,7 @@ use std::io::{self, Cursor, Read, Write};
 #[derive(Debug)]
 pub struct Reject {
     message: VarStr,
-    ccode: CCode,
+    pub ccode: CCode,
     reason: VarStr,
     // Optional extra data provided by some errors.
     // Currently, all errors which provide this field fill it with
@@ -54,7 +54,7 @@ const CHECKPOINT_CODE: u8 = 0x43;
 const OTHER_CODE: u8 = 0x50;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum CCode {
+pub enum CCode {
     Malformed,
     Invalid,
     Obselete,
