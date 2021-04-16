@@ -79,7 +79,7 @@ impl Node {
 
     /// Sets whether to signal the node has started through a peer connection.
     ///
-    /// If set to true, the call to [`start`] will initiate a listener set as a peer on the node and
+    /// If set the call to [`start`] will initiate a listener set as a peer on the node and
     /// will only return once it has received a connection request. This isn't necessary in
     /// scenarios in which the node initates the connections.
     ///
