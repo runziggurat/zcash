@@ -278,6 +278,110 @@ async fn reject_non_version_replies_to_version() {
 }
 
 #[tokio::test]
+async fn reject_non_verack_replies_to_verack() {
+    // Conformance test 005.
+    //
+    // The node rejects non-Verack message as a response to initial Verack it sent.
+    //
+    // Test procedure:
+    //  For each non-verack message,
+    //
+    //  1. Expect `Version`
+    //  2. Send `Version`
+    //  3. Expect `Verack`
+    //  4. Send test message
+    //  5. Expect `Reject(Invalid)`
+    //  6. Expect connection to be terminated
+    //
+    // This test currently fails as neither Zebra nor ZCashd currently fully comply
+    // with this behaviour, so we may need to revise our expectations.
+    //
+    // ZCashd node eagerly sends messages before handshake has been concluded.
+    // Zebra node does not send Reject, but terminates the connection.
+    //
+    // TODO: confirm expected behaviour
+
+    let mut test_messages = vec![
+        Message::GetAddr,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::MemPool,
+        Message::Headers(Headers::empty()),
+        Message::Addr(Addr::empty()),
+        //Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv)),
+        // Message::Inv(Inv)),
+        // Message::NotFound(Inv)),
+    ];
+
+    let (zig, node_meta) = read_config_file();
+
+    // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
+    let mut listeners = Vec::with_capacity(test_messages.len());
+    for _ in test_messages.iter() {
+        listeners.push(TcpListener::bind(zig.new_local_addr()).await.unwrap());
+    }
+
+    let ports = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap().port())
+        .collect();
+    let mut node = Node::new(node_meta);
+    node.initial_peers(ports);
+
+    let mut handles = Vec::with_capacity(test_messages.len());
+
+    // create and start a future for each test message
+    for _ in 0..test_messages.len() {
+        let listener = listeners.pop().unwrap();
+        let message = test_messages.pop().unwrap();
+
+        handles.push(tokio::spawn(async move {
+            let (mut stream, addr) = listener.accept().await.unwrap();
+
+            // (1) receive incoming `version`
+            let version = Message::read_from_stream(&mut stream).await.unwrap();
+            assert!(matches!(version, Message::Version(..)));
+
+            // (2) send `version`
+            Message::Version(Version::new(addr, listener.local_addr().unwrap()))
+                .write_to_stream(&mut stream)
+                .await
+                .unwrap();
+
+            // (3) receive `verack`
+            let verack = Message::read_from_stream(&mut stream).await.unwrap();
+            assert!(matches!(verack, Message::Verack));
+
+            // (4) send test message
+            message.write_to_stream(&mut stream).await.unwrap();
+
+            // (5) receive Reject(Invalid)
+            let reject = Message::read_from_stream(&mut stream).await.unwrap();
+            match reject {
+                Message::Reject(reject) if reject.ccode.is_invalid() => {}
+                reply => panic!("Expected Reject(Invalid), but got {:?}", reply),
+            }
+
+            // (6) check that connection has been terminated
+            match Message::read_from_stream(&mut stream).await {
+                Err(err) if is_termination_error(&err) => {}
+                result => panic!("Expected terminated connection but got: {:?}", result),
+            }
+        }));
+    }
+
+    node.start().await;
+
+    for handle in handles {
+        handle.await.unwrap();
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn reject_version_reusing_nonce() {
     // ZG-CONFORMANCE-006
     //
