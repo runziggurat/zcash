@@ -184,6 +184,79 @@ async fn ignores_unsolicited_responses() {
     node.stop().await;
 }
 
+#[tokio::test]
+async fn responds_to_queries() {
+    // ZG-CONFORMANCE-010
+    //
+    // The node responds with the correct messages.
+    //
+    //      Ping       -> Pong
+    //      GetAddr    -> Addr
+    //      Mempool    -> Inv
+    //      Getblocks  -> Inv
+    //      GetData    -> Tx
+    //      GetData    -> Blocks
+    //      GetHeaders -> Headers
+    //
+    // Test procedure:
+    //      Complete handshake, and then for each test message:
+    //
+    //      1. Send the message
+    //      2. Filter out any queries messages from the node
+    //      3. Receive the expected response
+    //
+    // Current behaviour:
+    //      We have a very limited subset of messages implemented
+    //          (Ping and GetAddr).
+    //
+    //  ZCashd:
+    //      1. Correctly responds to Ping
+    //      2. Does not respond to GetAddr
+    //
+    //  Zebra:
+    //      1. Correctly responds to Ping
+    //      2. Does not respond to GetAddr
+    //
+    // This may be our fault, due to our current auto-response
+    // behaviour.
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+
+    let filter = MessageFilter::with_all_enabled().enable_logging();
+
+    // Ping
+    let nonce = Nonce::default();
+    Message::Ping(nonce)
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert!(matches!(reply, Message::Pong(n) if n == nonce));
+    dbg!(reply);
+
+    // GetAddr
+    Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert!(matches!(reply, Message::Addr(..)));
+    dbg!(reply);
+
+    // TODO:
+    //  Mempool    -> Inv
+    //  Getblocks  -> Inv
+    //  GetData    -> Tx
+    //  GetData    -> Blocks
+    //  GetHeaders -> Headers
+
+    node.stop().await;
+}
+
 #[allow(dead_code)]
 async fn unsolicitation_listener() {
     let (_zig, node_meta) = read_config_file();
