@@ -106,4 +106,8 @@ impl CCode {
     pub fn is_obsolete(&self) -> bool {
         *self == Self::Obselete
     }
+
+    pub fn is_invalid(&self) -> bool {
+        *self == Self::Invalid
+    }
 }
