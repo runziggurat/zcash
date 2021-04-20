@@ -1,5 +1,7 @@
 use crate::protocol::payload::{read_n_bytes, VarInt};
 
+use std::convert::TryInto;
+
 use chrono::{DateTime, NaiveDateTime, Utc};
 
 use std::{
@@ -54,13 +56,13 @@ pub(super) struct NetworkAddr {
 
 impl NetworkAddr {
     pub(super) fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(
-            &self
-                .last_seen
-                .expect("missing timestamp")
-                .timestamp()
-                .to_le_bytes(),
-        )?;
+        let timestamp: u32 = self
+            .last_seen
+            .expect("missing timestamp")
+            .timestamp()
+            .try_into()
+            .unwrap();
+        buffer.write_all(&timestamp.to_le_bytes())?;
 
         self.encode_without_timestamp(buffer)?;
 
@@ -82,8 +84,8 @@ impl NetworkAddr {
     }
 
     pub(super) fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp.into(), 0), Utc);
 
         let without_timestamp = Self::decode_without_timestamp(bytes)?;
 
