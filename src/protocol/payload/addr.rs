@@ -23,6 +23,11 @@ impl Addr {
         }
     }
 
+    pub fn new(addrs: Vec<NetworkAddr>) -> Self {
+        let count = VarInt(addrs.len());
+        Addr { count, addrs }
+    }
+
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.count.encode(buffer)?;
 
@@ -47,14 +52,24 @@ impl Addr {
 }
 
 #[derive(Debug)]
-pub(super) struct NetworkAddr {
-    // Node: Present only when version is >= 31402
+pub struct NetworkAddr {
+    // Note: Present only when version is >= 31402
     pub(super) last_seen: Option<DateTime<Utc>>,
     pub(super) services: u64,
     pub(super) addr: SocketAddr,
 }
 
 impl NetworkAddr {
+    /// Creates a new NetworkAddr with the given socket address, `last_seen=chrono::Utc::now()`,
+    /// and `services=1` (only NODE_NETWORK is enabled)
+    pub fn new(addr: SocketAddr) -> Self {
+        Self {
+            last_seen: Some(chrono::Utc::now()),
+            services: 1,
+            addr,
+        }
+    }
+
     pub(super) fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         let timestamp: u32 = self
             .last_seen
