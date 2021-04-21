@@ -183,6 +183,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     - `Pong` with wrong nonce.
     - `GetData` with mixed types in inventory list.
     - `Inv` with mixed types in inventory list.
+    - `Addr` with `NetworkAddr` with no timestamp.
 
 ### ZG-CONFORMANCE-012
     The node crawls the network for new peers and eagerly connects.
