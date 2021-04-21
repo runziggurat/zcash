@@ -2,7 +2,7 @@ use crate::{
     helpers::{initiate_handshake, respond_to_handshake},
     protocol::{
         message::{Message, MessageFilter},
-        payload::{block::Headers, reject::CCode, Addr, Nonce, Version},
+        payload::{addr::NetworkAddr, block::Headers, reject::CCode, Addr, Nonce, Version},
     },
     setup::{config::read_config_file, node::Node},
     wait_until,
@@ -179,6 +179,123 @@ async fn ignores_unsolicited_responses() {
             Message::Pong(returned_nonce) => assert_eq!(nonce, returned_nonce),
             msg => panic!("Expected pong: {:?}", msg),
         }
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn eagerly_crawls_network_for_peers() {
+    // ZG-CONFORMANCE-012
+    //
+    // The node crawls the network for new peers and eagerly connects.
+    //
+    // Test procedure:
+    //
+    //  1. Create a set of peer nodes, listening concurrently
+    //  2. Connect to node with another main peer node
+    //  3. Wait for `GetAddr`
+    //  4. Send set of peer listener node addresses
+    //  5. Expect the node to connect to each peer in the set
+    //
+    // This test currently fails for zcashd; zebra passes (with a caveat).
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Has different behaviour depending on connection direction.
+    //          If we initiate the main connection it sends Ping, GetHeaders,
+    //          but never GetAddr.
+    //          If the node initiates then it does send GetAddr, but it never connects
+    //          to the peers.
+    //
+    // zebra:   Passes with flying colors, so long as we keep responding on the main connection.
+    //          If we do not keep responding, then the peer connections take really long to establish,
+    //          sometimes even spuriously failing the test completely.
+
+    let (zig, node_meta) = read_config_file();
+
+    // create tcp listeners for peer set (port is only assigned on tcp bind)
+    let mut listeners = Vec::new();
+    for _ in 0u8..5 {
+        listeners.push(TcpListener::bind(zig.new_local_addr()).await.unwrap());
+    }
+
+    // get list of peer addresses
+    let peer_addresses = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect::<Vec<_>>();
+
+    // start the node
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    // start peer listeners which "pass" once they've accepted a connection, and
+    // "fail" if the timeout expires. Timeout must be quite long, seems to take around
+    // 20-60 seconds for zebra.
+    let mut peer_handles = Vec::with_capacity(listeners.len());
+    for listener in listeners {
+        peer_handles.push(tokio::time::timeout(
+            tokio::time::Duration::from_secs(120),
+            tokio::spawn(async move {
+                respond_to_handshake(listener).await.unwrap();
+            }),
+        ));
+    }
+
+    // connect to the node main
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+
+    // wait for the `GetAddr`, filter out all other queries.
+    let filter = MessageFilter::with_all_auto_reply()
+        .enable_logging()
+        .with_getaddr_filter(crate::protocol::message::Filter::Disabled);
+
+    // reply with list of peer addresses
+    match filter.read_from_stream(&mut stream).await.unwrap() {
+        Message::GetAddr => {
+            let peers = peer_addresses
+                .iter()
+                .map(|addr| NetworkAddr::new(*addr))
+                .collect::<Vec<_>>();
+
+            Message::Addr(Addr::new(peers))
+                .write_to_stream(&mut stream)
+                .await
+                .unwrap();
+        }
+        message => panic!("Expected Message::GetAddr, but got {:?}", message),
+    }
+
+    // turn waiting for peer futures into a single future
+    let wait_for_peers = tokio::spawn(async move {
+        for handle in peer_handles {
+            handle.await.unwrap().unwrap();
+        }
+    });
+
+    // We need to keep responding to ping requests on the main connection,
+    // otherwise it may get marked as unreliable (and the peer list gets ignored).
+    //
+    // Without this, zebra takes forever to connect and spuriously fails as well.
+    // TBC - this is all speculation.
+    let main_responder = tokio::spawn(async move {
+        let filter = MessageFilter::with_all_auto_reply().enable_logging();
+
+        // we don't expect to receive any messages
+        let message = filter.read_from_stream(&mut stream).await.unwrap();
+        panic!(
+            "Unexpected message received by main connection: {:?}",
+            message
+        );
+    });
+
+    // wait for peer connections to complete, or main connection to break
+    tokio::select! {
+        result = main_responder => result.unwrap(),
+        result = wait_for_peers => result.unwrap(),
     }
 
     node.stop().await;
