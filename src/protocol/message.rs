@@ -13,7 +13,7 @@ use std::io::Cursor;
 
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
-const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
+pub const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
 const VERACK_COMMAND: [u8; 12] = *b"verack\0\0\0\0\0\0";
 const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
 const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
