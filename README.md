@@ -82,7 +82,7 @@ Quick overview of the current status, providing implementation progress and test
 | [![conf_010](https://img.shields.io/badge/010-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-010)|
 | [![conf_011](https://img.shields.io/badge/011-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-011)|
 | [![conf_012](https://img.shields.io/badge/012-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-012)| :warning: Zcashd node config requires investigation.
-| [![conf_013](https://img.shields.io/badge/013-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-013)|
+| [![conf_013](https://img.shields.io/badge/013-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-013)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_014](https://img.shields.io/badge/014-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-014)|
 | [![conf_015](https://img.shields.io/badge/015-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-015)|
 | [![conf_016](https://img.shields.io/badge/016-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-016)|
