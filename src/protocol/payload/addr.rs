@@ -49,14 +49,19 @@ impl Addr {
 
         Ok(Self { count, addrs })
     }
+
+    /// Returns an iterator over its list of [NetworkAddr]'s
+    pub fn iter(&self) -> std::slice::Iter<NetworkAddr> {
+        self.addrs.iter()
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NetworkAddr {
     // Note: Present only when version is >= 31402
     pub(super) last_seen: Option<DateTime<Utc>>,
     pub(super) services: u64,
-    pub(super) addr: SocketAddr,
+    pub addr: SocketAddr,
 }
 
 impl NetworkAddr {
