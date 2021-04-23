@@ -301,6 +301,74 @@ async fn eagerly_crawls_network_for_peers() {
     node.stop().await;
 }
 
+#[tokio::test]
+async fn correctly_lists_peers() {
+    // ZG-CONFORMANCE-013
+    //
+    // The node responds to a `GetAddr` with a list of peers it’s connected to. This command
+    // should only be sent once, and by the node initiating the connection.
+    //
+    // Test procedure
+    //  Start a node, and sequentially for each peer `i` of `N`:
+    //      1. Initiate a connection and complete the handshake
+    //      2. Send `GetAddr` request
+    //      3. Receive `Addr` response
+    //      4. Verify `Addr` contains list of previous `i-1` peers
+    //
+    // This test currently fails for zcashd and zebra passes.
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Never responds. Logs indicate `Unknown command "getaddr" from peer=1` if we initiate
+    //          the connection. If the node initiates the connection then the command is recoginized,
+    //          but likely ignored (because only the initiating node is supposed to send it).
+    //
+    //  zebra:  Infinitely spams `GetAddr` and `GetData`. Can be coaxed into responding correctly if
+    //          all its peer connections have responded to `GetAddr` with a non-empty list.
+
+    let (zig, node_meta) = read_config_file();
+
+    // Create a node and main connection
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    let mut peers = Vec::new();
+
+    for i in 0u8..5 {
+        let mut new_peer = initiate_handshake(node.addr()).await.unwrap();
+        let filter = MessageFilter::with_all_auto_reply().enable_logging();
+
+        Message::GetAddr
+            .write_to_stream(&mut new_peer)
+            .await
+            .unwrap();
+
+        match filter.read_from_stream(&mut new_peer).await {
+            Ok(Message::Addr(addresses)) => {
+                // We need to sort the lists so we can compare them
+                let mut expected = peers
+                    .iter()
+                    .map(|p: &tokio::net::TcpStream| p.local_addr().unwrap())
+                    .collect::<Vec<_>>();
+                expected.sort_unstable();
+
+                let mut node_peers = addresses.iter().map(|net| net.addr).collect::<Vec<_>>();
+                node_peers.sort_unstable();
+
+                assert_eq!(expected, node_peers, "Testing node {}", i);
+            }
+            result => panic!("Peer {}: expected Ok(Addr), but got {:?}", i, result),
+        }
+
+        // list updated after check since current peer is not expecting to be part of the node's peer list
+        peers.push(new_peer);
+    }
+
+    node.stop().await;
+}
+
 #[allow(dead_code)]
 async fn unsolicitation_listener() {
     let (_zig, node_meta) = read_config_file();
