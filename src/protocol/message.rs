@@ -15,21 +15,21 @@ use std::io::Cursor;
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
 pub const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
-const VERACK_COMMAND: [u8; 12] = *b"verack\0\0\0\0\0\0";
-const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
-const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
-const GETADDR_COMMAND: [u8; 12] = *b"getaddr\0\0\0\0\0";
-const ADDR_COMMAND: [u8; 12] = *b"addr\0\0\0\0\0\0\0\0";
-const GETHEADERS_COMMAND: [u8; 12] = *b"getheaders\0\0";
-const HEADERS_COMMAND: [u8; 12] = *b"headers\0\0\0\0\0";
-const GETBLOCKS_COMMAND: [u8; 12] = *b"getblocks\0\0\0";
-const BLOCK_COMMAND: [u8; 12] = *b"block\0\0\0\0\0\0\0";
-const GETDATA_COMMAND: [u8; 12] = *b"getdata\0\0\0\0\0";
-const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
-const NOTFOUND_COMMAND: [u8; 12] = *b"notfound\0\0\0\0";
-const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
-const TX_COMMAND: [u8; 12] = *b"tx\0\0\0\0\0\0\0\0\0\0";
-const REJECT_COMMAND: [u8; 12] = *b"reject\0\0\0\0\0\0";
+pub const VERACK_COMMAND: [u8; 12] = *b"verack\0\0\0\0\0\0";
+pub const PING_COMMAND: [u8; 12] = *b"ping\0\0\0\0\0\0\0\0";
+pub const PONG_COMMAND: [u8; 12] = *b"pong\0\0\0\0\0\0\0\0";
+pub const GETADDR_COMMAND: [u8; 12] = *b"getaddr\0\0\0\0\0";
+pub const ADDR_COMMAND: [u8; 12] = *b"addr\0\0\0\0\0\0\0\0";
+pub const GETHEADERS_COMMAND: [u8; 12] = *b"getheaders\0\0";
+pub const HEADERS_COMMAND: [u8; 12] = *b"headers\0\0\0\0\0";
+pub const GETBLOCKS_COMMAND: [u8; 12] = *b"getblocks\0\0\0";
+pub const BLOCK_COMMAND: [u8; 12] = *b"block\0\0\0\0\0\0\0";
+pub const GETDATA_COMMAND: [u8; 12] = *b"getdata\0\0\0\0\0";
+pub const INV_COMMAND: [u8; 12] = *b"inv\0\0\0\0\0\0\0\0\0";
+pub const NOTFOUND_COMMAND: [u8; 12] = *b"notfound\0\0\0\0";
+pub const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
+pub const TX_COMMAND: [u8; 12] = *b"tx\0\0\0\0\0\0\0\0\0\0";
+pub const REJECT_COMMAND: [u8; 12] = *b"reject\0\0\0\0\0\0";
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {
