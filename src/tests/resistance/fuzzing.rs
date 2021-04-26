@@ -31,7 +31,7 @@ async fn fuzzing_zeroes_pre_handshake() {
     // ZG-RESISTANCE-001
     //
     // zebra: sends a version before disconnecting.
-    // zcashd: tbd.
+    // zcashd: .
 
     let payloads = zeroes(ITERATIONS);
 
@@ -71,7 +71,7 @@ async fn fuzzing_random_bytes_pre_handshake() {
     // ZG-RESISTANCE-001 (part 2)
     //
     // zebra: sends a version before disconnecting.
-    // zcashd: tbd.
+    // zcashd: ignores the bytes and disconnects.
 
     let payloads = random_bytes(ITERATIONS);
 
@@ -110,8 +110,8 @@ async fn fuzzing_random_bytes_pre_handshake() {
 async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     // ZG-RESISTANCE-001 (part 3)
     //
-    // zebra: sends a version before disconnecting.
-    // zcashd: tbd.
+    // zebra: breaks with a version command in header.
+    // zcashd: just ignores the message and doesn't disconnect.
 
     let payloads = metadata_compliant_random_bytes(ITERATIONS);
 
@@ -194,25 +194,44 @@ fn random_bytes(n: usize) -> Vec<Vec<u8>> {
 }
 
 fn metadata_compliant_random_bytes(n: usize) -> Vec<(MessageHeader, Vec<u8>)> {
-    // TODO: messages with other commands.
-    use crate::protocol::message::VERSION_COMMAND;
+    use crate::protocol::message::*;
+    use rand::prelude::SliceRandom;
+
+    let mut rng = thread_rng();
 
     (0..n)
         .map(|_| {
-            let random_len: usize = thread_rng().gen_range(1..(64 * 1024));
-            let random_payload: Vec<u8> = (&mut thread_rng())
-                .sample_iter(Standard)
-                .take(random_len)
-                .collect();
+            let random_len: usize = rng.gen_range(1..(64 * 1024));
+            let random_payload: Vec<u8> =
+                (&mut rng).sample_iter(Standard).take(random_len).collect();
 
-            let header = MessageHeader::new(VERSION_COMMAND, &random_payload);
+            let commands = [
+                VERSION_COMMAND,
+                VERACK_COMMAND,
+                PING_COMMAND,
+                PONG_COMMAND,
+                GETADDR_COMMAND,
+                ADDR_COMMAND,
+                GETHEADERS_COMMAND,
+                HEADERS_COMMAND,
+                GETBLOCKS_COMMAND,
+                BLOCK_COMMAND,
+                GETDATA_COMMAND,
+                INV_COMMAND,
+                NOTFOUND_COMMAND,
+                MEMPOOL_COMMAND,
+                TX_COMMAND,
+                REJECT_COMMAND,
+            ];
+            let command = commands.choose(&mut rng).unwrap();
+            let header = MessageHeader::new(*command, &random_payload);
 
             (header, random_payload)
         })
         .collect()
 }
 
-// Testing connection rejection (full on closed or just ignored messages think:
+// Testing connection rejection (closed or just ignored messages):
 //
 // Verifying closed connections is easy: keep reading the stream until connection is closed while ignoring all other messages.
 // Verifying messages are just ignored is harder?
