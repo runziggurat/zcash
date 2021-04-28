@@ -11,7 +11,7 @@ network testing by defining three layers:
 2. Performance - healthy throughput under pressure
 3. Resistance - avoiding malicious behavior
 
-Ziggurat is network test suite that provides [zcashd](https://github.com/ZcashFoundation/zcashd)
+Ziggurat is network test suite that provides [zcashd](https://github.com/zcash/zcash)
 and [zebra](https://github.com/ZcashFoundation/zebra) devs with this reliable foundation.
 
 *Note:* This project is a work in progress.
