@@ -127,7 +127,7 @@ impl VarStr {
 }
 
 #[derive(Debug, PartialEq)]
-struct Hash([u8; 32]);
+pub struct Hash([u8; 32]);
 
 impl Hash {
     pub fn new(hash: [u8; 32]) -> Self {
