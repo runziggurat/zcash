@@ -65,7 +65,7 @@ impl LocatorHashes {
 
 #[derive(Debug, PartialEq)]
 pub struct Block {
-    header: Header,
+    pub header: Header,
     txs: Vec<Tx>,
 }
 
