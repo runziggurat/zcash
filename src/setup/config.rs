@@ -247,10 +247,10 @@ impl ZcashdConfigFile {
         );
 
         if config.initial_peers.is_empty() {
-            contents.push_str("connect=\n")
+            contents.push_str("addnode=\n")
         } else {
             for peer in &config.initial_peers {
-                contents.push_str(&format!("connect={}\n", peer))
+                contents.push_str(&format!("addnode={}\n", peer))
             }
         }
 
