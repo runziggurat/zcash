@@ -146,6 +146,10 @@ impl Hash {
 
         Ok(hash)
     }
+
+    pub fn zeroed() -> Self {
+        Self([0; 32])
+    }
 }
 
 fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8; N]> {
