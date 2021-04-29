@@ -42,10 +42,14 @@ impl Nonce {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 struct ProtocolVersion(u32);
 
 impl ProtocolVersion {
+    fn current() -> Self {
+        Self(170_013)
+    }
+
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.0.to_le_bytes())?;
 
@@ -59,9 +63,16 @@ impl ProtocolVersion {
     }
 }
 
-// TODO: impl Deref
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 struct VarInt(usize);
+
+impl std::ops::Deref for VarInt {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl VarInt {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<usize> {
@@ -145,6 +156,10 @@ impl Hash {
         bytes.read_exact(&mut hash.0)?;
 
         Ok(hash)
+    }
+
+    pub fn zeroed() -> Self {
+        Self([0; 32])
     }
 }
 
