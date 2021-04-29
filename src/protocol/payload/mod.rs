@@ -63,9 +63,16 @@ impl ProtocolVersion {
     }
 }
 
-// TODO: impl Deref
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct VarInt(usize);
+
+impl std::ops::Deref for VarInt {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl VarInt {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<usize> {
