@@ -46,6 +46,10 @@ impl Nonce {
 struct ProtocolVersion(u32);
 
 impl ProtocolVersion {
+    fn current() -> Self {
+        Self(170_013)
+    }
+
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.0.to_le_bytes())?;
 
