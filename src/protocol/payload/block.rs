@@ -105,6 +105,13 @@ pub struct Headers {
 }
 
 impl Headers {
+    pub fn new(headers: Vec<Header>) -> Self {
+        Self {
+            count: VarInt(headers.len()),
+            headers,
+        }
+    }
+
     pub fn empty() -> Self {
         Headers {
             count: VarInt(0),
