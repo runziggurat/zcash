@@ -136,7 +136,7 @@ impl Headers {
 }
 
 #[derive(Debug, PartialEq)]
-struct Header {
+pub struct Header {
     version: ProtocolVersion,
     prev_block: Hash,
     merkle_root: Hash,
