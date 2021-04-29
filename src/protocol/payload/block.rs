@@ -1,6 +1,11 @@
 use crate::protocol::payload::{read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
 
-use std::io::{self, Cursor, Write};
+use std::{
+    convert::TryInto,
+    io::{self, Cursor, Write},
+};
+
+use sha2::Digest;
 
 #[derive(Debug)]
 pub struct LocatorHashes {
@@ -73,6 +78,11 @@ impl Block {
 
         Ok(Self { header, txs })
     }
+
+    /// Calculates the double Sha256 hash for this [Block]
+    pub fn double_sha256(&self) -> std::io::Result<Hash> {
+        self.header.double_sha256()
+    }
 }
 
 #[derive(Debug)]
@@ -130,18 +140,7 @@ struct Header {
 
 impl Header {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.version.encode(buffer)?;
-        self.prev_block.encode(buffer)?;
-        self.merkle_root.encode(buffer)?;
-        self.light_client_root.encode(buffer)?;
-
-        buffer.write_all(&self.timestamp.to_le_bytes())?;
-        buffer.write_all(&self.bits.to_le_bytes())?;
-        buffer.write_all(&self.nonce)?;
-
-        self.solution_size.encode(buffer)?;
-        buffer.write_all(&self.solution)?;
-
+        self.encode_without_tx_count(buffer)?;
         self.tx_count.encode(buffer)?;
 
         Ok(())
@@ -176,10 +175,42 @@ impl Header {
             tx_count,
         })
     }
+
+    fn encode_without_tx_count(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.version.encode(buffer)?;
+        self.prev_block.encode(buffer)?;
+        self.merkle_root.encode(buffer)?;
+        self.light_client_root.encode(buffer)?;
+
+        buffer.write_all(&self.timestamp.to_le_bytes())?;
+        buffer.write_all(&self.bits.to_le_bytes())?;
+        buffer.write_all(&self.nonce)?;
+
+        self.solution_size.encode(buffer)?;
+        buffer.write_all(&self.solution)?;
+
+        Ok(())
+    }
+
+    /// Calculates the double Sha256 hash for [Header]
+    fn double_sha256(&self) -> std::io::Result<Hash> {
+        let mut buffer = Vec::new();
+
+        self.encode_without_tx_count(&mut buffer)?;
+
+        let hash_bytes_1 = sha2::Sha256::digest(&buffer);
+        let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);
+
+        let hash = Hash::new(hash_bytes_2.try_into().unwrap());
+
+        Ok(hash)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use hex::FromHex;
+
     use super::*;
     use crate::vectors::*;
 
@@ -292,5 +323,21 @@ mod tests {
             .unwrap();
 
         assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_genesis_block_hash() {
+        let mut bytes = Cursor::new(&BLOCK_TESTNET_GENESIS_BYTES[..]);
+        let hash = Block::decode(&mut bytes).unwrap().double_sha256().unwrap();
+
+        let mut expected_bytes =
+            Vec::<u8>::from_hex("05a60a92d99d85997cce3b87616c089f6124d7342af37106edc76126334a2c38")
+                .unwrap();
+        expected_bytes.reverse();
+
+        let expected = Hash::new(expected_bytes.try_into().unwrap());
+
+        assert_eq!(expected, hash);
     }
 }
