@@ -208,7 +208,7 @@ impl ZebraConfigFile {
                 ephemeral: true,
             },
             tracing: TracingConfig {
-                filter: Some("zebra_network=trace".to_string()),
+                filter: Some("zebra_network=trace,zebrad=trace".to_string()),
             },
         };
 
