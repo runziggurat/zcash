@@ -42,7 +42,7 @@ impl Nonce {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 struct ProtocolVersion(u32);
 
 impl ProtocolVersion {
