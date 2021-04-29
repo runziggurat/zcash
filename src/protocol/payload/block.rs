@@ -16,6 +16,19 @@ pub struct LocatorHashes {
 }
 
 impl LocatorHashes {
+    pub fn new(block_locator_hashes: Vec<Hash>, hash_stop: Hash) -> Self {
+        Self {
+            version: ProtocolVersion::current(),
+            count: VarInt(block_locator_hashes.len()),
+            block_locator_hashes,
+            hash_stop,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self::new(Vec::new(), Hash::zeroed())
+    }
+
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
         self.count.encode(buffer)?;
