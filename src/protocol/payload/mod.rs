@@ -64,7 +64,7 @@ impl ProtocolVersion {
 }
 
 // TODO: impl Deref
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 struct VarInt(usize);
 
 impl VarInt {
