@@ -38,7 +38,7 @@ pub const REJECT_COMMAND: [u8; 12] = *b"reject\0\0\0\0\0\0";
 pub struct MessageHeader {
     magic: [u8; 4],
     command: [u8; 12],
-    body_length: u32,
+    pub body_length: u32,
     pub checksum: u32,
 }
 
