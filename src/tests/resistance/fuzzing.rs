@@ -24,14 +24,14 @@ use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
 
 use std::time::Duration;
 
-const ITERATIONS: usize = 1000;
+const ITERATIONS: usize = 100;
 
 #[tokio::test]
 async fn fuzzing_zeroes_pre_handshake() {
     // ZG-RESISTANCE-001
     //
     // zebra: sends a version before disconnecting.
-    // zcashd: .
+    // zcashd: disconnects immediately (log: `INFO main: PROCESSMESSAGE: INVALID MESSAGESTART peer=1`).
 
     let payloads = zeroes(ITERATIONS);
 
@@ -148,14 +148,78 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
 }
 
 #[tokio::test]
+async fn fuzzing_slightly_corrupted_version_pre_handshake() {
+    // ZG-RESISTANCE-001 (part 4)
+    //
+    // This particular case is considered alone because it is at particular risk of causing
+    // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
+    //
+    // zebra: disconnects as expected.
+    // zcashd: ignores message but doesn't disconnect.
+    // (log ex:
+    // `INFO main: PROCESSMESSAGE: INVALID MESSAGESTART ;ersion peer=3`
+    // `INFO main: ProcessMessages(version, 86 bytes): CHECKSUM ERROR nChecksum=67412de1 hdr.nChecksum=ddca6880`
+    // which indicates the message was recognised as invalid).
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let message =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+
+        let mut message_buffer = vec![];
+        let header = message.encode(&mut message_buffer).unwrap();
+        let mut header_buffer = vec![];
+        header.encode(&mut header_buffer).unwrap();
+
+        let mut corrupted_header = corrupt_bytes(&header_buffer);
+        let mut corrupted_message = corrupt_bytes(&message_buffer);
+
+        corrupted_header.append(&mut corrupted_message);
+
+        // Contains header + message.
+        let _ = peer_stream.write_all(&corrupted_header).await;
+
+        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
+
+        for _ in 0usize..10 {
+            let result = timeout(
+                Duration::from_secs(5),
+                auto_responder.read_from_stream(&mut peer_stream),
+            )
+            .await;
+
+            // Expect a disconnect.
+            match result {
+                Err(elapsed) => panic!("Timeout after {}", elapsed),
+                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
+                Ok(Err(err)) => assert!(is_termination_error(&err)),
+            }
+        }
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
+    // ZG-RESISTANCE-001 (part 4)
+    //
+    // zebra: rejects messages and disconnects (however, quite slow running).
+    // zcashd: just ignores the message and doesn't disconnect.
+
     let payloads = slightly_corrupted_messages(ITERATIONS);
 
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.start_waits_for_connection(zig.new_local_addr())
-        .log_to_stdout(true)
         .start()
         .await;
 
