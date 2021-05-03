@@ -20,7 +20,7 @@ use tokio::{
     time::timeout,
 };
 
-use rand::{distributions::Standard, thread_rng, Rng};
+use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
 
 use std::time::Duration;
 
@@ -147,6 +147,42 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     node.stop().await;
 }
 
+#[tokio::test]
+async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
+    let payloads = slightly_corrupted_messages(ITERATIONS);
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .log_to_stdout(true)
+        .start()
+        .await;
+
+    for payload in payloads {
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let _ = peer_stream.write_all(&payload).await;
+
+        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
+
+        for _ in 0usize..10 {
+            let result = timeout(
+                Duration::from_secs(5),
+                auto_responder.read_from_stream(&mut peer_stream),
+            )
+            .await;
+
+            match result {
+                Err(elapsed) => panic!("Timeout after {}", elapsed),
+                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
+                Ok(Err(err)) => assert!(is_termination_error(&err)),
+            }
+        }
+    }
+
+    node.stop().await;
+}
+
 // Returns true if the error kind is one that indicates that the connection has
 // been terminated.
 // TODO: dedup
@@ -166,10 +202,8 @@ fn is_termination_error(err: &std::io::Error) -> bool {
 // - Messages with an incorrect checksum.
 // - Messages with differing announced and actual lengths.
 
-pub const MAX_MESSAGE_LEN: usize = 2 * 1024 * 1024;
-pub const HEADER_LEN: usize = 24;
-
 fn zeroes(n: usize) -> Vec<Vec<u8>> {
+    use crate::protocol::message::MAX_MESSAGE_LEN;
     // Random length zeroes.
     (0..n)
         .map(|_| {
@@ -195,7 +229,6 @@ fn random_bytes(n: usize) -> Vec<Vec<u8>> {
 
 fn metadata_compliant_random_bytes(n: usize) -> Vec<(MessageHeader, Vec<u8>)> {
     use crate::protocol::message::*;
-    use rand::prelude::SliceRandom;
 
     let mut rng = thread_rng();
 
@@ -227,6 +260,61 @@ fn metadata_compliant_random_bytes(n: usize) -> Vec<(MessageHeader, Vec<u8>)> {
             let header = MessageHeader::new(*command, &random_payload);
 
             (header, random_payload)
+        })
+        .collect()
+}
+
+fn slightly_corrupted_messages(n: usize) -> Vec<Vec<u8>> {
+    let mut rng = thread_rng();
+
+    let test_messages = vec![
+        Message::GetAddr,
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    (0..n)
+        .map(|_| {
+            let message = test_messages.choose(&mut rng).unwrap();
+            let mut message_buffer = vec![];
+            let header = message.encode(&mut message_buffer).unwrap();
+            let mut header_buffer = vec![];
+            header.encode(&mut header_buffer).unwrap();
+
+            let mut corrupted_header = corrupt_bytes(&header_buffer);
+            let mut corrupted_message = corrupt_bytes(&message_buffer);
+
+            corrupted_header.append(&mut corrupted_message);
+
+            // Contains header + message.
+            corrupted_header
+        })
+        .collect()
+}
+
+pub const CORRUPTION_PROBABILITY: f64 = 0.1;
+
+fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
+    let mut rng = thread_rng();
+
+    serialized
+        .iter()
+        .map(|byte| {
+            if rng.gen_bool(CORRUPTION_PROBABILITY) {
+                rng.gen()
+            } else {
+                *byte
+            }
         })
         .collect()
 }

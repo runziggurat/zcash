@@ -5,11 +5,14 @@ use crate::protocol::payload::{
 
 use sha2::{Digest, Sha256};
 use tokio::{
-    io::{self, AsyncReadExt, AsyncWriteExt},
+    io::{self, AsyncReadExt},
     net::TcpStream,
 };
 
-use std::io::Cursor;
+use std::io::{Cursor, Write};
+
+pub const HEADER_LEN: usize = 24;
+pub const MAX_MESSAGE_LEN: usize = 2 * 1024 * 1024;
 
 const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
@@ -48,11 +51,22 @@ impl MessageHeader {
         }
     }
 
+    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        buffer.write_all(&self.magic)?;
+        buffer.write_all(&self.command)?;
+        buffer.write_all(&self.body_length.to_le_bytes())?;
+        buffer.write_all(&self.checksum.to_le_bytes())?;
+
+        Ok(())
+    }
+
     pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
-        stream.write_all(&self.magic).await?;
-        stream.write_all(&self.command).await?;
-        stream.write_all(&self.body_length.to_le_bytes()).await?;
-        stream.write_all(&self.checksum.to_le_bytes()).await?;
+        use tokio::io::AsyncWriteExt;
+
+        let mut buffer = Vec::with_capacity(24);
+        self.encode(&mut buffer)?;
+
+        stream.write_all(&buffer).await?;
 
         Ok(())
     }
@@ -90,67 +104,74 @@ pub enum Message {
 }
 
 impl Message {
-    pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
-        // Buffer for the message payload.
-        let mut buffer = vec![];
-
+    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<MessageHeader> {
         let header = match self {
             Self::Version(version) => {
-                version.encode(&mut buffer)?;
+                version.encode(buffer)?;
                 MessageHeader::new(VERSION_COMMAND, &buffer)
             }
             Self::Verack => MessageHeader::new(VERACK_COMMAND, &buffer),
             Self::Ping(nonce) => {
-                nonce.encode(&mut buffer)?;
+                nonce.encode(buffer)?;
                 MessageHeader::new(PING_COMMAND, &buffer)
             }
             Self::Pong(nonce) => {
-                nonce.encode(&mut buffer)?;
+                nonce.encode(buffer)?;
                 MessageHeader::new(PONG_COMMAND, &buffer)
             }
             Self::GetAddr => MessageHeader::new(GETADDR_COMMAND, &buffer),
             Self::Addr(addr) => {
-                addr.encode(&mut buffer)?;
+                addr.encode(buffer)?;
                 MessageHeader::new(ADDR_COMMAND, &buffer)
             }
             Self::GetHeaders(locator_hashes) => {
-                locator_hashes.encode(&mut buffer)?;
+                locator_hashes.encode(buffer)?;
                 MessageHeader::new(GETHEADERS_COMMAND, &buffer)
             }
             Self::Headers(headers) => {
-                headers.encode(&mut buffer)?;
+                headers.encode(buffer)?;
                 MessageHeader::new(HEADERS_COMMAND, &buffer)
             }
             Self::GetBlocks(locator_hashes) => {
-                locator_hashes.encode(&mut buffer)?;
+                locator_hashes.encode(buffer)?;
                 MessageHeader::new(GETBLOCKS_COMMAND, &buffer)
             }
             Self::Block(block) => {
-                block.encode(&mut buffer)?;
+                block.encode(buffer)?;
                 MessageHeader::new(BLOCK_COMMAND, &buffer)
             }
             Self::GetData(inv) => {
-                inv.encode(&mut buffer)?;
+                inv.encode(buffer)?;
                 MessageHeader::new(GETDATA_COMMAND, &buffer)
             }
             Self::Inv(inv) => {
-                inv.encode(&mut buffer)?;
+                inv.encode(buffer)?;
                 MessageHeader::new(INV_COMMAND, &buffer)
             }
             Self::NotFound(inv) => {
-                inv.encode(&mut buffer)?;
+                inv.encode(buffer)?;
                 MessageHeader::new(NOTFOUND_COMMAND, &buffer)
             }
             Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, &buffer),
             Self::Tx(tx) => {
-                tx.encode(&mut buffer)?;
+                tx.encode(buffer)?;
                 MessageHeader::new(TX_COMMAND, &buffer)
             }
             Self::Reject(reject) => {
-                reject.encode(&mut buffer)?;
+                reject.encode(buffer)?;
                 MessageHeader::new(REJECT_COMMAND, &buffer)
             }
         };
+
+        Ok(header)
+    }
+
+    pub async fn write_to_stream(&self, stream: &mut TcpStream) -> io::Result<()> {
+        use tokio::io::AsyncWriteExt;
+
+        // Buffer for the message payload.
+        let mut buffer = vec![];
+        let header = self.encode(&mut buffer)?;
 
         header.write_to_stream(stream).await?;
         stream.write_all(&buffer).await?;
