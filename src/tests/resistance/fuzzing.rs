@@ -56,21 +56,7 @@ async fn fuzzing_zeroes_pre_handshake() {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = peer_stream.write_all(&payload).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -96,21 +82,7 @@ async fn fuzzing_random_bytes_pre_handshake() {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = peer_stream.write_all(&payload).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -137,21 +109,7 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&payload).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -196,22 +154,7 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
         // Contains header + message.
         let _ = peer_stream.write_all(&corrupted_header).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            // Expect a disconnect.
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -237,21 +180,7 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = peer_stream.write_all(&payload).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -307,21 +236,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -377,21 +292,7 @@ async fn fuzzing_incorrect_length_pre_handshake() {
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
-        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-        for _ in 0usize..10 {
-            let result = timeout(
-                Duration::from_secs(5),
-                auto_responder.read_from_stream(&mut peer_stream),
-            )
-            .await;
-
-            match result {
-                Err(elapsed) => panic!("Timeout after {}", elapsed),
-                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-                Ok(Err(err)) => assert!(is_termination_error(&err)),
-            }
-        }
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
 
     node.stop().await;
@@ -523,4 +424,22 @@ fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
             }
         })
         .collect()
+}
+
+async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
+    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
+
+    for _ in 0usize..10 {
+        let result = timeout(
+            Duration::from_secs(5),
+            auto_responder.read_from_stream(stream),
+        )
+        .await;
+
+        match result {
+            Err(elapsed) => panic!("Timeout after {}", elapsed),
+            Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
+            Ok(Err(err)) => assert!(is_termination_error(&err)),
+        }
+    }
 }
