@@ -38,7 +38,7 @@ pub struct MessageHeader {
     magic: [u8; 4],
     command: [u8; 12],
     body_length: u32,
-    checksum: u32,
+    pub checksum: u32,
 }
 
 impl MessageHeader {

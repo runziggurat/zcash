@@ -6,6 +6,16 @@
 // - Messages with an incorrect checksum.
 // - Messages with differing announced and actual lengths.
 
+// Testing connection rejection (closed or just ignored messages):
+//
+// Verifying closed connections is easy: keep reading the stream until connection is closed while ignoring all other messages.
+// Verifying messages are just ignored is harder?
+//
+// Cases:
+// - Closed stream -> read.
+// - Ignored messages leading to closed stream -> read.
+// - Ignored messages, stream stays open -> write ping/pong or try handshake.
+
 use crate::{
     protocol::{
         message::{Filter, Message, MessageFilter, MessageHeader},
@@ -247,6 +257,76 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     node.stop().await;
 }
 
+#[tokio::test]
+async fn fuzzing_incorrect_checksum_pre_handshake() {
+    // ZG-RESISTANCE-001 (part 5)
+    //
+    // zebra: rejects messages and disconnects.
+    // zcashd: ignores the messages but doesn't disconnect (logs show a `CHECKSUM ERROR`).
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    let mut rng = thread_rng();
+
+    let test_messages = vec![
+        Message::GetAddr,
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    for _ in 0..ITERATIONS {
+        let message = test_messages.choose(&mut rng).unwrap();
+        let mut message_buffer = vec![];
+        let mut header = message.encode(&mut message_buffer).unwrap();
+
+        // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
+        // generated checksum isn't the same as the valid one.
+        let random_checksum = rng.gen();
+        if header.checksum != random_checksum {
+            header.checksum = random_checksum
+        } else {
+            header.checksum += 1;
+        }
+
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&message_buffer).await;
+
+        let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
+
+        for _ in 0usize..10 {
+            let result = timeout(
+                Duration::from_secs(5),
+                auto_responder.read_from_stream(&mut peer_stream),
+            )
+            .await;
+
+            match result {
+                Err(elapsed) => panic!("Timeout after {}", elapsed),
+                Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
+                Ok(Err(err)) => assert!(is_termination_error(&err)),
+            }
+        }
+    }
+
+    node.stop().await;
+}
+
 // Returns true if the error kind is one that indicates that the connection has
 // been terminated.
 // TODO: dedup
@@ -257,14 +337,6 @@ fn is_termination_error(err: &std::io::Error) -> bool {
         ConnectionReset | ConnectionAborted | BrokenPipe | UnexpectedEof
     )
 }
-
-// Messages to be tested:
-// - Messages with any length and any content (random bytes).
-// - Messages with plausible lengths, e.g. 24 bytes for header and within the expected range for the body.
-// - Metadata-compliant messages, e.g. correct header, random body.
-// - Slightly corrupted but otherwise valid messages, e.g. N% of body replaced with random bytes.
-// - Messages with an incorrect checksum.
-// - Messages with differing announced and actual lengths.
 
 fn zeroes(n: usize) -> Vec<Vec<u8>> {
     use crate::protocol::message::MAX_MESSAGE_LEN;
@@ -382,13 +454,3 @@ fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
         })
         .collect()
 }
-
-// Testing connection rejection (closed or just ignored messages):
-//
-// Verifying closed connections is easy: keep reading the stream until connection is closed while ignoring all other messages.
-// Verifying messages are just ignored is harder?
-//
-// Cases:
-// - Closed stream -> read.
-// - Ignored messages leading to closed stream -> read.
-// - Ignored messages, stream stays open -> write ping/pong or try handshake.
