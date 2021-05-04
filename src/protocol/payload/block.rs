@@ -72,6 +72,7 @@ pub struct Block {
 impl Block {
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.header.encode(buffer)?;
+        VarInt(self.txs.len()).encode(buffer)?;
 
         for tx in &self.txs {
             tx.encode(buffer)?;
@@ -82,9 +83,10 @@ impl Block {
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let header = Header::decode(bytes)?;
-        let mut txs = Vec::with_capacity(header.tx_count.0);
+        let tx_count = VarInt::decode(bytes)?.0;
+        let mut txs = Vec::with_capacity(tx_count);
 
-        for _ in 0..header.tx_count.0 {
+        for _ in 0..tx_count {
             let tx = Tx::decode(bytes)?;
             txs.push(tx);
         }
@@ -123,7 +125,8 @@ impl Headers {
         self.count.encode(buffer)?;
 
         for header in &self.headers {
-            header.encode(buffer)?
+            header.encode(buffer)?;
+            VarInt(0).encode(buffer)?;
         }
 
         Ok(())
@@ -135,6 +138,7 @@ impl Headers {
 
         for _ in 0..count.0 {
             let header = Header::decode(bytes)?;
+            assert_eq!(VarInt::decode(bytes)?, VarInt(0));
             headers.push(header);
         }
 
@@ -155,13 +159,21 @@ pub struct Header {
     nonce: [u8; 32],
     solution_size: VarInt,
     solution: [u8; 1344],
-    tx_count: VarInt,
 }
 
 impl Header {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.encode_without_tx_count(buffer)?;
-        self.tx_count.encode(buffer)?;
+        self.version.encode(buffer)?;
+        self.prev_block.encode(buffer)?;
+        self.merkle_root.encode(buffer)?;
+        self.light_client_root.encode(buffer)?;
+
+        buffer.write_all(&self.timestamp.to_le_bytes())?;
+        buffer.write_all(&self.bits.to_le_bytes())?;
+        buffer.write_all(&self.nonce)?;
+
+        self.solution_size.encode(buffer)?;
+        buffer.write_all(&self.solution)?;
 
         Ok(())
     }
@@ -180,8 +192,6 @@ impl Header {
         let solution_size = VarInt::decode(bytes)?;
         let solution = read_n_bytes(bytes)?;
 
-        let tx_count = VarInt::decode(bytes)?;
-
         Ok(Self {
             version,
             prev_block,
@@ -192,31 +202,14 @@ impl Header {
             nonce,
             solution_size,
             solution,
-            tx_count,
         })
-    }
-
-    fn encode_without_tx_count(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.version.encode(buffer)?;
-        self.prev_block.encode(buffer)?;
-        self.merkle_root.encode(buffer)?;
-        self.light_client_root.encode(buffer)?;
-
-        buffer.write_all(&self.timestamp.to_le_bytes())?;
-        buffer.write_all(&self.bits.to_le_bytes())?;
-        buffer.write_all(&self.nonce)?;
-
-        self.solution_size.encode(buffer)?;
-        buffer.write_all(&self.solution)?;
-
-        Ok(())
     }
 
     /// Calculates the double Sha256 hash for [Header]
     fn double_sha256(&self) -> std::io::Result<Hash> {
         let mut buffer = Vec::new();
 
-        self.encode_without_tx_count(&mut buffer)?;
+        self.encode(&mut buffer)?;
 
         let hash_bytes_1 = sha2::Sha256::digest(&buffer);
         let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);
