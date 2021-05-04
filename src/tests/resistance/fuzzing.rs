@@ -35,7 +35,7 @@ use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
 use std::time::Duration;
 
 const ITERATIONS: usize = 100;
-const CORRUPTION_PROBABILITY: f64 = 0.1;
+const CORRUPTION_PROBABILITY: f64 = 0.5;
 
 #[tokio::test]
 async fn fuzzing_zeroes_pre_handshake() {
@@ -471,7 +471,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        set_random_checksum(&mut header);
+        header.checksum = random_non_valid_value(header.checksum);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -520,7 +520,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        set_random_checksum(&mut header);
+        header.checksum = random_non_valid_value(header.checksum);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
 
@@ -580,14 +580,8 @@ async fn fuzzing_incorrect_length_pre_handshake() {
         let mut message_buffer = vec![];
         let mut header = message.encode(&mut message_buffer).unwrap();
 
-        // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
-        // generated checksum isn't the same as the valid one.
-        let random_len = rng.gen();
-        if header.body_length != random_len {
-            header.body_length = random_len
-        } else {
-            header.body_length += 1;
-        }
+        // Set the length to a random value which isn't the current value.
+        header.body_length = random_non_valid_value(header.body_length);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -635,14 +629,8 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
         let mut message_buffer = vec![];
         let mut header = message.encode(&mut message_buffer).unwrap();
 
-        // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
-        // generated checksum isn't the same as the valid one.
-        let random_len = rng.gen();
-        if header.body_length != random_len {
-            header.body_length = random_len
-        } else {
-            header.body_length += 1;
-        }
+        // Set the length to a random value which isn't the current value.
+        header.body_length = random_non_valid_value(header.body_length);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
 
@@ -789,16 +777,15 @@ async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
     assert!(is_disconnect);
 }
 
-fn set_random_checksum(header: &mut MessageHeader) {
+fn random_non_valid_value(value: u32) -> u32 {
     let mut rng = thread_rng();
 
-    // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
-    // generated checksum isn't the same as the valid one.
-    let random_checksum = rng.gen();
-    if header.checksum != random_checksum {
-        header.checksum = random_checksum
+    // Make sure the generated value isn't the same.
+    let random_value = rng.gen();
+    if value != random_value {
+        random_value
     } else {
-        header.checksum += 1;
+        random_value + 1
     }
 }
 
