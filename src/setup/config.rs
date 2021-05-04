@@ -242,7 +242,7 @@ pub(super) struct ZcashdConfigFile;
 impl ZcashdConfigFile {
     pub(super) fn generate(config: &NodeConfig) -> String {
         let mut contents = format!(
-            "testnet=1\nbind={}\nmaxconnections={}\n",
+            "testnet=1\nwhitebind={}\nmaxconnections={}\n",
             config.local_addr, config.max_peers
         );
 
