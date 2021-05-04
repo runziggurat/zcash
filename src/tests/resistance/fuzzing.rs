@@ -35,6 +35,7 @@ use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
 use std::time::Duration;
 
 const ITERATIONS: usize = 100;
+const CORRUPTION_PROBABILITY: f64 = 0.1;
 
 #[tokio::test]
 async fn fuzzing_zeroes_pre_handshake() {
@@ -170,12 +171,11 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     // connection.
     // zcashd: just ignores the message and doesn't disconnect.
 
+    // Payloadless messages are omitted.
     let commands = vec![
         VERSION_COMMAND,
-        VERACK_COMMAND,
         PING_COMMAND,
         PONG_COMMAND,
-        GETADDR_COMMAND,
         ADDR_COMMAND,
         GETHEADERS_COMMAND,
         HEADERS_COMMAND,
@@ -184,7 +184,6 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
         GETDATA_COMMAND,
         INV_COMMAND,
         NOTFOUND_COMMAND,
-        MEMPOOL_COMMAND,
         TX_COMMAND,
         REJECT_COMMAND,
     ];
@@ -216,12 +215,11 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
     // connection.
     // zcashd: responds with reject, ccode malformed and doesn't disconnect.
 
-    // Verack isn't included as that's the message we're replacing with random bytes.
+    // Payloadless messages are omitted.
     let commands = vec![
         VERSION_COMMAND,
         PING_COMMAND,
         PONG_COMMAND,
-        GETADDR_COMMAND,
         ADDR_COMMAND,
         GETHEADERS_COMMAND,
         HEADERS_COMMAND,
@@ -230,7 +228,6 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
         GETDATA_COMMAND,
         INV_COMMAND,
         NOTFOUND_COMMAND,
-        MEMPOOL_COMMAND,
         TX_COMMAND,
         REJECT_COMMAND,
     ];
@@ -288,21 +285,55 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
 
     for _ in 0..ITERATIONS {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-        let message =
+        let version =
             Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let corrupted_version = corrupt_message(&version);
 
-        let mut message_buffer = vec![];
-        let header = message.encode(&mut message_buffer).unwrap();
-        let mut header_buffer = vec![];
-        header.encode(&mut header_buffer).unwrap();
-
-        let mut corrupted_header = corrupt_bytes(&header_buffer);
-        let mut corrupted_message = corrupt_bytes(&message_buffer);
-
-        corrupted_header.append(&mut corrupted_message);
-
+        // Send corrupt Version in place of Verack.
         // Contains header + message.
-        let _ = peer_stream.write_all(&corrupted_header).await;
+        let _ = peer_stream.write_all(&corrupted_version).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
+    // ZG-RESISTANCE-002 (part 4)
+    //
+    // This particular case is considered alone because it is at particular risk of causing
+    // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
+    //
+    // zebra: sends a verack before disconnecting (though somewhat slow running).
+    // zcashd: logs suggest the message was ignored but the node doesn't disconnect.
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        // Send and receive Version.
+        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
+            .write_to_stream(&mut peer_stream)
+            .await
+            .unwrap();
+
+        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+        assert!(matches!(version, Message::Version(..)));
+
+        let version_to_corrupt =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let corrupted_version = corrupt_message(&version_to_corrupt);
+
+        // Send corrupt Version in place of Verack.
+        // Contains header + message.
+        let _ = peer_stream.write_all(&corrupted_version).await;
 
         autorespond_and_expect_disconnect(&mut peer_stream).await;
     }
@@ -318,7 +349,6 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     // zcashd: just ignores the message and doesn't disconnect.
 
     let test_messages = vec![
-        Message::GetAddr,
         Message::MemPool,
         Message::Verack,
         Message::Ping(Nonce::default()),
@@ -353,6 +383,58 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
 }
 
 #[tokio::test]
+async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
+    // ZG-RESISTANCE-002 (part 4)
+    //
+    // zebra: responds with verack before disconnecting (however, quite slow running).
+    // zcashd: logs suggest the messages were ignored, doesn't disconnect.
+
+    let test_messages = vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let payloads = slightly_corrupted_messages(ITERATIONS, test_messages);
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for payload in payloads {
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        // Send and receive Version.
+        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
+            .write_to_stream(&mut peer_stream)
+            .await
+            .unwrap();
+
+        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+        assert!(matches!(version, Message::Version(..)));
+
+        // Write the corrupted message in place of Verack.
+        let _ = peer_stream.write_all(&payload).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_incorrect_checksum_pre_handshake() {
     // ZG-RESISTANCE-001 (part 5)
     //
@@ -369,7 +451,6 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
     let mut rng = thread_rng();
 
     let test_messages = vec![
-        Message::GetAddr,
         Message::MemPool,
         Message::Verack,
         Message::Ping(Nonce::default()),
@@ -399,6 +480,72 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         }
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&message_buffer).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
+    // ZG-RESISTANCE-002 (part 5)
+    //
+    // zebra: sends a verack before disconnecting.
+    // zcashd:
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    let mut rng = thread_rng();
+
+    let test_messages = vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    for _ in 0..ITERATIONS {
+        let message = test_messages.choose(&mut rng).unwrap();
+        let mut message_buffer = vec![];
+        let mut header = message.encode(&mut message_buffer).unwrap();
+
+        // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
+        // generated checksum isn't the same as the valid one.
+        let random_checksum = rng.gen();
+        if header.checksum != random_checksum {
+            header.checksum = random_checksum
+        } else {
+            header.checksum += 1;
+        }
+
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        // Send and receive Version.
+        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
+            .write_to_stream(&mut peer_stream)
+            .await
+            .unwrap();
+
+        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+        assert!(matches!(version, Message::Version(..)));
+
+        // Write messages with wrong checksum.
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
@@ -525,23 +672,25 @@ fn slightly_corrupted_messages(n: usize, messages: Vec<Message>) -> Vec<Vec<u8>>
     (0..n)
         .map(|_| {
             let message = messages.choose(&mut rng).unwrap();
-            let mut message_buffer = vec![];
-            let header = message.encode(&mut message_buffer).unwrap();
-            let mut header_buffer = vec![];
-            header.encode(&mut header_buffer).unwrap();
-
-            let mut corrupted_header = corrupt_bytes(&header_buffer);
-            let mut corrupted_message = corrupt_bytes(&message_buffer);
-
-            corrupted_header.append(&mut corrupted_message);
-
-            // Contains header + message.
-            corrupted_header
+            corrupt_message(&message)
         })
         .collect()
 }
 
-pub const CORRUPTION_PROBABILITY: f64 = 0.1;
+fn corrupt_message(message: &Message) -> Vec<u8> {
+    let mut message_buffer = vec![];
+    let header = message.encode(&mut message_buffer).unwrap();
+    let mut header_buffer = vec![];
+    header.encode(&mut header_buffer).unwrap();
+
+    let mut corrupted_header = corrupt_bytes(&header_buffer);
+    let mut corrupted_message = corrupt_bytes(&message_buffer);
+
+    corrupted_header.append(&mut corrupted_message);
+
+    // Contains header + message.
+    corrupted_header
+}
 
 fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
     let mut rng = thread_rng();
@@ -585,3 +734,14 @@ async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
 
     assert!(is_disconnect);
 }
+
+// async fn version_exchange(stream: &mut TcpStream) {
+//     // Send and receive Version.
+//     Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
+//         .write_to_stream(stream)
+//         .await
+//         .unwrap();
+//
+//     let version = Message::read_from_stream(stream).await.unwrap();
+//     assert!(matches!(version, Message::Version(..)));
+// }
