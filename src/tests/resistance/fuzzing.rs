@@ -429,6 +429,9 @@ fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
 async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
     let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
 
+    let mut is_disconnect = false;
+
+    // Read a maximum of 10 messages before exiting.
     for _ in 0usize..10 {
         let result = timeout(
             Duration::from_secs(5),
@@ -439,7 +442,14 @@ async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
         match result {
             Err(elapsed) => panic!("Timeout after {}", elapsed),
             Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-            Ok(Err(err)) => assert!(is_termination_error(&err)),
+            Ok(Err(err)) => {
+                if is_termination_error(&err) {
+                    is_disconnect = true;
+                    break;
+                }
+            }
         }
     }
+
+    assert!(is_disconnect);
 }
