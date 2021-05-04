@@ -470,14 +470,8 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         let mut message_buffer = vec![];
         let mut header = message.encode(&mut message_buffer).unwrap();
 
-        // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
-        // generated checksum isn't the same as the valid one.
-        let random_checksum = rng.gen();
-        if header.checksum != random_checksum {
-            header.checksum = random_checksum
-        } else {
-            header.checksum += 1;
-        }
+        // Set the checksum to a random value which isn't the current value.
+        set_random_checksum(&mut header);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -494,7 +488,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 5)
     //
     // zebra: sends a verack before disconnecting.
-    // zcashd:
+    // zcashd: logs indicate message was ignored, doesn't disconnect.
 
     let (zig, node_meta) = read_config_file();
 
@@ -525,14 +519,8 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         let mut message_buffer = vec![];
         let mut header = message.encode(&mut message_buffer).unwrap();
 
-        // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
-        // generated checksum isn't the same as the valid one.
-        let random_checksum = rng.gen();
-        if header.checksum != random_checksum {
-            header.checksum = random_checksum
-        } else {
-            header.checksum += 1;
-        }
+        // Set the checksum to a random value which isn't the current value.
+        set_random_checksum(&mut header);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
 
@@ -799,6 +787,19 @@ async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
     }
 
     assert!(is_disconnect);
+}
+
+fn set_random_checksum(header: &mut MessageHeader) {
+    let mut rng = thread_rng();
+
+    // Change the checksum advertised in the header (last 4 bytes), make sure the randomly
+    // generated checksum isn't the same as the valid one.
+    let random_checksum = rng.gen();
+    if header.checksum != random_checksum {
+        header.checksum = random_checksum
+    } else {
+        header.checksum += 1;
+    }
 }
 
 // async fn version_exchange(stream: &mut TcpStream) {
