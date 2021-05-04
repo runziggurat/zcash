@@ -216,6 +216,7 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
     // connection.
     // zcashd: responds with reject, ccode malformed and doesn't disconnect.
 
+    // Verack isn't included as that's the message we're replacing with random bytes.
     let commands = vec![
         VERSION_COMMAND,
         PING_COMMAND,
@@ -316,7 +317,23 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     // zebra: responds with a version before disconnecting (however, quite slow running).
     // zcashd: just ignores the message and doesn't disconnect.
 
-    let payloads = slightly_corrupted_messages(ITERATIONS);
+    let test_messages = vec![
+        Message::GetAddr,
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let payloads = slightly_corrupted_messages(ITERATIONS, test_messages);
 
     let (zig, node_meta) = read_config_file();
 
@@ -502,28 +519,12 @@ fn metadata_compliant_random_bytes(
         .collect()
 }
 
-fn slightly_corrupted_messages(n: usize) -> Vec<Vec<u8>> {
+fn slightly_corrupted_messages(n: usize, messages: Vec<Message>) -> Vec<Vec<u8>> {
     let mut rng = thread_rng();
-
-    let test_messages = vec![
-        Message::GetAddr,
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
 
     (0..n)
         .map(|_| {
-            let message = test_messages.choose(&mut rng).unwrap();
+            let message = messages.choose(&mut rng).unwrap();
             let mut message_buffer = vec![];
             let header = message.encode(&mut message_buffer).unwrap();
             let mut header_buffer = vec![];
