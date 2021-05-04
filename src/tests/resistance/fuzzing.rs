@@ -25,14 +25,14 @@ use crate::{
 };
 
 use tokio::{
-    io::AsyncWriteExt,
+    io::{self, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     time::timeout,
 };
 
 use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
 
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
 const ITERATIONS: usize = 100;
 const CORRUPTION_PROBABILITY: f64 = 0.5;
@@ -80,16 +80,7 @@ async fn fuzzing_zeroes_during_handshake_responder_side() {
         .await;
 
     for payload in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         // Write zeroes in place of Verack.
         let _ = peer_stream.write_all(&payload).await;
@@ -143,16 +134,7 @@ async fn fuzzing_random_bytes_during_handshake_responder_side() {
         .await;
 
     for payload in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         // Write random bytes in place of Verack.
         let _ = peer_stream.write_all(&payload).await;
@@ -241,16 +223,7 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
         .await;
 
     for (header, payload) in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         // Write random bytes in place of Verack.
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -316,16 +289,7 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
         .await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         let version_to_corrupt =
             Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
@@ -414,16 +378,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
         .await;
 
     for payload in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         // Write the corrupted message in place of Verack.
         let _ = peer_stream.write_all(&payload).await;
@@ -522,16 +477,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_value(header.checksum);
 
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         // Write messages with wrong checksum.
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -632,16 +578,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
         // Set the length to a random value which isn't the current value.
         header.body_length = random_non_valid_value(header.body_length);
 
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-
-        // Send and receive Version.
-        Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-            .write_to_stream(&mut peer_stream)
-            .await
-            .unwrap();
-
-        let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-        assert!(matches!(version, Message::Version(..)));
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
         // Send message with wrong lenght in place of valid Verack.
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -789,13 +726,17 @@ fn random_non_valid_value(value: u32) -> u32 {
     }
 }
 
-// async fn version_exchange(stream: &mut TcpStream) {
-//     // Send and receive Version.
-//     Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-//         .write_to_stream(stream)
-//         .await
-//         .unwrap();
-//
-//     let version = Message::read_from_stream(stream).await.unwrap();
-//     assert!(matches!(version, Message::Version(..)));
-// }
+async fn initiate_version_exchange(node_addr: SocketAddr) -> io::Result<TcpStream> {
+    let mut peer_stream = TcpStream::connect(node_addr).await?;
+
+    // Send and receive Version.
+    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
+        .write_to_stream(&mut peer_stream)
+        .await
+        .unwrap();
+
+    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+    assert!(matches!(version, Message::Version(..)));
+
+    Ok(peer_stream)
+}
