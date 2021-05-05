@@ -301,7 +301,7 @@ async fn eagerly_crawls_network_for_peers() {
     node.stop().await;
 }
 
-#[tokio::test]
+// #[tokio::test]
 async fn correctly_lists_peers() {
     // ZG-CONFORMANCE-013
     //
