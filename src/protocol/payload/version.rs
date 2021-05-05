@@ -23,8 +23,7 @@ pub struct Version {
 impl Version {
     pub fn new(addr_recv: SocketAddr, addr_from: SocketAddr) -> Self {
         Self {
-            // TODO: make constants.
-            version: ProtocolVersion(170_013),
+            version: ProtocolVersion::current(),
             services: 1,
             timestamp: Utc::now(),
             addr_recv: NetworkAddr {
