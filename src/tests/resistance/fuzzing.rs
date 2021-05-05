@@ -15,15 +15,8 @@ use crate::{
     setup::{config::read_config_file, node::Node},
 };
 
-use tokio::{
-    io::{self, AsyncWriteExt},
-    net::TcpStream,
-    time::timeout,
-};
-
 use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
-
-use std::{net::SocketAddr, time::Duration};
+use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 const ITERATIONS: usize = 100;
 const CORRUPTION_PROBABILITY: f64 = 0.5;
