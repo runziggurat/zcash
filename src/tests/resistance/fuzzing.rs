@@ -7,6 +7,7 @@
 // - Messages with differing announced and actual lengths.
 
 use crate::{
+    helpers::{autorespond_and_expect_disconnect, initiate_version_exchange},
     protocol::{
         message::*,
         payload::{block::Headers, Addr, Nonce, Version},
@@ -717,17 +718,6 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
     node.stop().await;
 }
 
-// Returns true if the error kind is one that indicates that the connection has
-// been terminated.
-// TODO: dedup
-fn is_termination_error(err: &std::io::Error) -> bool {
-    use std::io::ErrorKind::*;
-    matches!(
-        err.kind(),
-        ConnectionReset | ConnectionAborted | BrokenPipe | UnexpectedEof
-    )
-}
-
 fn zeroes(n: usize) -> Vec<Vec<u8>> {
     // Random length zeroes.
     (0..n)
@@ -813,34 +803,6 @@ fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
-    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-    let mut is_disconnect = false;
-
-    // Read a maximum of 10 messages before exiting.
-    for _ in 0usize..10 {
-        let result = timeout(
-            Duration::from_secs(5),
-            auto_responder.read_from_stream(stream),
-        )
-        .await;
-
-        match result {
-            Err(elapsed) => panic!("Timeout after {}", elapsed),
-            Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-            Ok(Err(err)) => {
-                if is_termination_error(&err) {
-                    is_disconnect = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    assert!(is_disconnect);
-}
-
 fn random_non_valid_value(value: u32) -> u32 {
     let mut rng = thread_rng();
 
@@ -851,19 +813,4 @@ fn random_non_valid_value(value: u32) -> u32 {
     } else {
         random_value + 1
     }
-}
-
-async fn initiate_version_exchange(node_addr: SocketAddr) -> io::Result<TcpStream> {
-    let mut peer_stream = TcpStream::connect(node_addr).await?;
-
-    // Send and receive Version.
-    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
-
-    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert!(matches!(version, Message::Version(..)));
-
-    Ok(peer_stream)
 }
