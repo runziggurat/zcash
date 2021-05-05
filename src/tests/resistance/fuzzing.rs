@@ -390,6 +390,40 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
 }
 
 #[tokio::test]
+async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
+    // ZG-RESISTANCE-001 (part 5)
+    //
+    // zebra: sends version before disconnecting.
+    // zcashd: log suggests messages was ignored, doesn't disconnect.
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        let version =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let mut message_buffer = vec![];
+        let mut header = version.encode(&mut message_buffer).unwrap();
+
+        // Set the checksum to a random value which isn't the current value.
+        header.checksum = random_non_valid_value(header.checksum);
+
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&message_buffer).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_incorrect_checksum_pre_handshake() {
     // ZG-RESISTANCE-001 (part 5)
     //
@@ -429,6 +463,41 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         header.checksum = random_non_valid_value(header.checksum);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&message_buffer).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side() {
+    // ZG-RESISTANCE-002 (part 5)
+    //
+    // zebra: sends verack before disconnecting.
+    // zcashd: log suggests messages was ignored, sends verack, ping, getheaders but doesn't
+    // disconnect.
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+
+        let version =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let mut message_buffer = vec![];
+        let mut header = version.encode(&mut message_buffer).unwrap();
+
+        // Set the checksum to a random value which isn't the current value.
+        header.checksum = random_non_valid_value(header.checksum);
+
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
@@ -490,6 +559,40 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
 }
 
 #[tokio::test]
+async fn fuzzing_version_with_incorrect_length_pre_handshake() {
+    // ZG-RESISTANCE-001 (part 6)
+    //
+    // zebra: sends version before disconnecting.
+    // zcashd: disconnects.
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+
+        let version =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let mut message_buffer = vec![];
+        let mut header = version.encode(&mut message_buffer).unwrap();
+
+        // Set the length to a random value which isn't the current value.
+        header.body_length = random_non_valid_value(header.body_length);
+
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&message_buffer).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_incorrect_length_pre_handshake() {
     // ZG-RESISTANCE-001 (part 6)
     //
@@ -530,6 +633,40 @@ async fn fuzzing_incorrect_length_pre_handshake() {
         header.body_length = random_non_valid_value(header.body_length);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&message_buffer).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side() {
+    // ZG-RESISTANCE-002 (part 6)
+    //
+    // zebra: sends verack before disconnecting.
+    // zcashd: disconnects (after sending verack, ping, getheaders).
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+
+        let version =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let mut message_buffer = vec![];
+        let mut header = version.encode(&mut message_buffer).unwrap();
+
+        // Set the length to a random value which isn't the current value.
+        header.body_length = random_non_valid_value(header.body_length);
+
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
