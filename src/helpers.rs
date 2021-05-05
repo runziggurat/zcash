@@ -87,7 +87,6 @@ pub async fn initiate_version_exchange(node_addr: SocketAddr) -> io::Result<TcpS
 
 // Returns true if the error kind is one that indicates that the connection has
 // been terminated.
-// TODO: dedup
 pub fn is_termination_error(err: &std::io::Error) -> bool {
     use std::io::ErrorKind::*;
     matches!(
