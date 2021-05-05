@@ -10,7 +10,6 @@ use sha2::Digest;
 #[derive(Debug)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
-    count: VarInt,
     block_locator_hashes: Vec<Hash>,
     hash_stop: Hash,
 }
@@ -19,7 +18,6 @@ impl LocatorHashes {
     pub fn new(block_locator_hashes: Vec<Hash>, hash_stop: Hash) -> Self {
         Self {
             version: ProtocolVersion::current(),
-            count: VarInt(block_locator_hashes.len()),
             block_locator_hashes,
             hash_stop,
         }
@@ -31,7 +29,7 @@ impl LocatorHashes {
 
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
-        self.count.encode(buffer)?;
+        VarInt(self.block_locator_hashes.len()).encode(buffer)?;
 
         for hash in &self.block_locator_hashes {
             hash.encode(buffer)?;
@@ -44,10 +42,10 @@ impl LocatorHashes {
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
-        let count = VarInt::decode(bytes)?;
-        let mut block_locator_hashes = Vec::with_capacity(count.0);
+        let count = *VarInt::decode(bytes)?;
+        let mut block_locator_hashes = Vec::with_capacity(count);
 
-        for _ in 0..count.0 {
+        for _ in 0..count {
             let hash = Hash::decode(bytes)?;
             block_locator_hashes.push(hash);
         }
@@ -56,7 +54,6 @@ impl LocatorHashes {
 
         Ok(Self {
             version,
-            count,
             block_locator_hashes,
             hash_stop,
         })
@@ -83,7 +80,7 @@ impl Block {
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let header = Header::decode(bytes)?;
-        let tx_count = VarInt::decode(bytes)?.0;
+        let tx_count = *VarInt::decode(bytes)?;
         let mut txs = Vec::with_capacity(tx_count);
 
         for _ in 0..tx_count {
@@ -102,30 +99,27 @@ impl Block {
 
 #[derive(Debug)]
 pub struct Headers {
-    count: VarInt,
     headers: Vec<Header>,
 }
 
 impl Headers {
     pub fn new(headers: Vec<Header>) -> Self {
-        Self {
-            count: VarInt(headers.len()),
-            headers,
-        }
+        Self { headers }
     }
 
     pub fn empty() -> Self {
         Headers {
-            count: VarInt(0),
             headers: Vec::new(),
         }
     }
 
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.count.encode(buffer)?;
+        VarInt(self.headers.len()).encode(buffer)?;
 
         for header in &self.headers {
             header.encode(buffer)?;
+            // This encodes the tx_count, which is always 0 for the Header message
+            // (since we don't send the tx vector, unlike a Block message)
             VarInt(0).encode(buffer)?;
         }
 
@@ -133,16 +127,23 @@ impl Headers {
     }
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let count = VarInt::decode(bytes)?;
-        let mut headers = Vec::with_capacity(count.0);
+        let count = *VarInt::decode(bytes)?;
+        let mut headers = Vec::with_capacity(count);
 
-        for _ in 0..count.0 {
+        for _ in 0..count {
             let header = Header::decode(bytes)?;
-            assert_eq!(VarInt::decode(bytes)?, VarInt(0));
+            // The tx_count must always be 0 for a Header message
+            let tx_count = *VarInt::decode(bytes)?;
+            if tx_count != 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Message::Header.tx_count = {}, expected 0", tx_count),
+                ));
+            }
             headers.push(header);
         }
 
-        Ok(Self { count, headers })
+        Ok(Self::new(headers))
     }
 }
 
