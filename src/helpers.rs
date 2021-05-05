@@ -40,35 +40,28 @@ macro_rules! wait_until {
 ///
 /// Note, the listener's adddress must be set on the node as an initial peer.
 pub async fn respond_to_handshake(listener: TcpListener) -> io::Result<TcpStream> {
-    let (mut peer_stream, addr) = listener.accept().await.unwrap();
+    let (mut peer_stream, addr) = listener.accept().await?;
 
-    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+    let version = Message::read_from_stream(&mut peer_stream).await?;
     assert!(matches!(version, Message::Version(..)));
 
     Message::Version(Version::new(addr, listener.local_addr().unwrap()))
         .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+        .await?;
 
-    let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+    let verack = Message::read_from_stream(&mut peer_stream).await?;
     assert!(matches!(verack, Message::Verack));
 
-    Message::Verack
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+    Message::Verack.write_to_stream(&mut peer_stream).await?;
 
     Ok(peer_stream)
 }
 
 /// Connects to the node at the given address, handshakes and returns the established stream.
 pub async fn initiate_handshake(node_addr: SocketAddr) -> io::Result<TcpStream> {
-    let mut peer_stream = initiate_version_exchange(node_addr).await.unwrap();
+    let mut peer_stream = initiate_version_exchange(node_addr).await?;
 
-    Message::Verack
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+    Message::Verack.write_to_stream(&mut peer_stream).await?;
 
     let verack = Message::read_from_stream(&mut peer_stream).await?;
     assert!(matches!(verack, Message::Verack));
@@ -84,10 +77,9 @@ pub async fn initiate_version_exchange(node_addr: SocketAddr) -> io::Result<TcpS
     // Send and receive Version.
     Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
         .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+        .await?;
 
-    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+    let version = Message::read_from_stream(&mut peer_stream).await?;
     assert!(matches!(version, Message::Version(..)));
 
     Ok(peer_stream)
