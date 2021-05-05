@@ -1,11 +1,15 @@
-use crate::protocol::{message::Message, payload::Version};
+use crate::protocol::{
+    message::{Message, MessageFilter},
+    payload::Version,
+};
 
 use tokio::{
     io,
     net::{TcpListener, TcpStream},
+    time::timeout,
 };
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 /// Waits until an expression is true or times out.
 ///
@@ -59,15 +63,7 @@ pub async fn respond_to_handshake(listener: TcpListener) -> io::Result<TcpStream
 
 /// Connects to the node at the given address, handshakes and returns the established stream.
 pub async fn initiate_handshake(node_addr: SocketAddr) -> io::Result<TcpStream> {
-    let mut peer_stream = TcpStream::connect(node_addr).await?;
-
-    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
-
-    let version = Message::read_from_stream(&mut peer_stream).await?;
-    assert!(matches!(version, Message::Version(..)));
+    let mut peer_stream = initiate_version_exchange(node_addr).await.unwrap();
 
     Message::Verack
         .write_to_stream(&mut peer_stream)
@@ -78,4 +74,61 @@ pub async fn initiate_handshake(node_addr: SocketAddr) -> io::Result<TcpStream> 
     assert!(matches!(verack, Message::Verack));
 
     Ok(peer_stream)
+}
+
+// Connects to the node at the given address, completes the version exchange and returns the
+// established stream.
+pub async fn initiate_version_exchange(node_addr: SocketAddr) -> io::Result<TcpStream> {
+    let mut peer_stream = TcpStream::connect(node_addr).await?;
+
+    // Send and receive Version.
+    Message::Version(Version::new(node_addr, peer_stream.local_addr().unwrap()))
+        .write_to_stream(&mut peer_stream)
+        .await
+        .unwrap();
+
+    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+    assert!(matches!(version, Message::Version(..)));
+
+    Ok(peer_stream)
+}
+
+// Returns true if the error kind is one that indicates that the connection has
+// been terminated.
+// TODO: dedup
+pub fn is_termination_error(err: &std::io::Error) -> bool {
+    use std::io::ErrorKind::*;
+    matches!(
+        err.kind(),
+        ConnectionReset | ConnectionAborted | BrokenPipe | UnexpectedEof
+    )
+}
+
+// Autoresponds to a maximum of 10 messages while expecting the stream to disconnect.
+pub async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
+    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
+
+    let mut is_disconnect = false;
+
+    // Read a maximum of 10 messages before exiting.
+    for _ in 0usize..10 {
+        let result = timeout(
+            Duration::from_secs(5),
+            auto_responder.read_from_stream(stream),
+        )
+        .await;
+
+        match result {
+            Err(elapsed) => panic!("Timeout after {}", elapsed),
+            Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
+            Ok(Err(err)) => {
+                if is_termination_error(&err) {
+                    is_disconnect = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    assert!(is_disconnect);
 }
