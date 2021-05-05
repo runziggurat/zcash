@@ -1,4 +1,4 @@
-use crate::protocol::payload::{read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
 
 use std::{
     convert::TryInto,
@@ -10,7 +10,6 @@ use sha2::Digest;
 #[derive(Debug)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
-    count: VarInt,
     block_locator_hashes: Vec<Hash>,
     hash_stop: Hash,
 }
@@ -19,7 +18,6 @@ impl LocatorHashes {
     pub fn new(block_locator_hashes: Vec<Hash>, hash_stop: Hash) -> Self {
         Self {
             version: ProtocolVersion::current(),
-            count: VarInt(block_locator_hashes.len()),
             block_locator_hashes,
             hash_stop,
         }
@@ -28,35 +26,24 @@ impl LocatorHashes {
     pub fn empty() -> Self {
         Self::new(Vec::new(), Hash::zeroed())
     }
+}
 
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for LocatorHashes {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
-        self.count.encode(buffer)?;
-
-        for hash in &self.block_locator_hashes {
-            hash.encode(buffer)?;
-        }
-
+        self.block_locator_hashes.encode(buffer)?;
         self.hash_stop.encode(buffer)?;
 
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
-        let count = VarInt::decode(bytes)?;
-        let mut block_locator_hashes = Vec::with_capacity(count.0);
-
-        for _ in 0..count.0 {
-            let hash = Hash::decode(bytes)?;
-            block_locator_hashes.push(hash);
-        }
-
+        let block_locator_hashes = Vec::decode(bytes)?;
         let hash_stop = Hash::decode(bytes)?;
 
         Ok(Self {
             version,
-            count,
             block_locator_hashes,
             hash_stop,
         })
@@ -70,75 +57,76 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.header.encode(buffer)?;
-
-        for tx in &self.txs {
-            tx.encode(buffer)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let header = Header::decode(bytes)?;
-        let mut txs = Vec::with_capacity(header.tx_count.0);
-
-        for _ in 0..header.tx_count.0 {
-            let tx = Tx::decode(bytes)?;
-            txs.push(tx);
-        }
-
-        Ok(Self { header, txs })
-    }
-
     /// Calculates the double Sha256 hash for this [Block]
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         self.header.double_sha256()
     }
 }
 
+impl Codec for Block {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.header.encode(buffer)?;
+        self.txs.encode(buffer)
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let header = Header::decode(bytes)?;
+        let txs = Vec::decode(bytes)?;
+        Ok(Self { header, txs })
+    }
+}
+
 #[derive(Debug)]
 pub struct Headers {
-    count: VarInt,
     headers: Vec<Header>,
 }
 
 impl Headers {
     pub fn new(headers: Vec<Header>) -> Self {
-        Self {
-            count: VarInt(headers.len()),
-            headers,
-        }
+        Self { headers }
     }
 
     pub fn empty() -> Self {
         Headers {
-            count: VarInt(0),
             headers: Vec::new(),
         }
     }
+}
 
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.count.encode(buffer)?;
+impl Codec for Headers {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        // Can't use Vec::encode because of the tx_count=0 requirement for each Header
+        VarInt(self.headers.len()).encode(buffer)?;
 
         for header in &self.headers {
-            header.encode(buffer)?
+            header.encode(buffer)?;
+            // This encodes the tx_count, which is always 0 for the Header message
+            // (since we don't send the tx vector, unlike a Block message)
+            VarInt(0).encode(buffer)?;
         }
 
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let count = VarInt::decode(bytes)?;
-        let mut headers = Vec::with_capacity(count.0);
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        // Can't use Vec::decode because of the tx_count=0 requirement for each Header
+        let count = *VarInt::decode(bytes)?;
+        let mut headers = Vec::with_capacity(count);
 
-        for _ in 0..count.0 {
+        for _ in 0..count {
             let header = Header::decode(bytes)?;
+            // The tx_count must always be 0 for a Header message
+            let tx_count = *VarInt::decode(bytes)?;
+            if tx_count != 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Message::Header.tx_count = {}, expected 0", tx_count),
+                ));
+            }
             headers.push(header);
         }
 
-        Ok(Self { count, headers })
+        Ok(Self::new(headers))
     }
 }
 
@@ -155,48 +143,10 @@ pub struct Header {
     nonce: [u8; 32],
     solution_size: VarInt,
     solution: [u8; 1344],
-    tx_count: VarInt,
 }
 
-impl Header {
+impl Codec for Header {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.encode_without_tx_count(buffer)?;
-        self.tx_count.encode(buffer)?;
-
-        Ok(())
-    }
-
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let version = ProtocolVersion::decode(bytes)?;
-        let prev_block = Hash::decode(bytes)?;
-        let merkle_root = Hash::decode(bytes)?;
-        let light_client_root = Hash::decode(bytes)?;
-
-        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
-
-        let bits = u32::from_le_bytes(read_n_bytes(bytes)?);
-        let nonce = read_n_bytes(bytes)?;
-
-        let solution_size = VarInt::decode(bytes)?;
-        let solution = read_n_bytes(bytes)?;
-
-        let tx_count = VarInt::decode(bytes)?;
-
-        Ok(Self {
-            version,
-            prev_block,
-            merkle_root,
-            light_client_root,
-            timestamp,
-            bits,
-            nonce,
-            solution_size,
-            solution,
-            tx_count,
-        })
-    }
-
-    fn encode_without_tx_count(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
         self.prev_block.encode(buffer)?;
         self.merkle_root.encode(buffer)?;
@@ -212,11 +162,43 @@ impl Header {
         Ok(())
     }
 
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let version = ProtocolVersion::decode(bytes)?;
+        let prev_block = Hash::decode(bytes)?;
+        let merkle_root = Hash::decode(bytes)?;
+        let light_client_root = Hash::decode(bytes)?;
+
+        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
+
+        let bits = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let nonce = read_n_bytes(bytes)?;
+
+        let solution_size = VarInt::decode(bytes)?;
+        let solution = read_n_bytes(bytes)?;
+
+        Ok(Self {
+            version,
+            prev_block,
+            merkle_root,
+            light_client_root,
+            timestamp,
+            bits,
+            nonce,
+            solution_size,
+            solution,
+        })
+    }
+}
+
+impl Header {
     /// Calculates the double Sha256 hash for [Header]
     fn double_sha256(&self) -> std::io::Result<Hash> {
         let mut buffer = Vec::new();
 
-        self.encode_without_tx_count(&mut buffer)?;
+        self.encode(&mut buffer)?;
 
         let hash_bytes_1 = sha2::Sha256::digest(&buffer);
         let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);

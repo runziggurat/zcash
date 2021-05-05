@@ -1,4 +1,4 @@
-use crate::protocol::payload::{read_n_bytes, VarStr};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, VarStr};
 
 use std::io::{self, Cursor, Read, Write};
 
@@ -16,15 +16,15 @@ pub struct Reject {
     data: Vec<u8>,
 }
 
-impl Reject {
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for Reject {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.message.encode(buffer)?;
         self.ccode.encode(buffer)?;
         self.reason.encode(buffer)?;
         buffer.write_all(&self.data)
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let message = VarStr::decode(bytes)?;
         let ccode = CCode::decode(bytes)?;
         let reason = VarStr::decode(bytes)?;
@@ -66,7 +66,7 @@ pub enum CCode {
     Other,
 }
 
-impl CCode {
+impl Codec for CCode {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         let code: u8 = match self {
             Self::Malformed => MALFORMED_CODE,
@@ -102,7 +102,9 @@ impl CCode {
             )),
         }
     }
+}
 
+impl CCode {
     pub fn is_obsolete(&self) -> bool {
         *self == Self::Obselete
     }
