@@ -1,4 +1,5 @@
 use crate::{
+    helpers::is_termination_error,
     protocol::{
         message::{Filter, Message, MessageFilter},
         payload::{block::Headers, Addr, Nonce, Version},
@@ -496,14 +497,4 @@ async fn reject_obsolete_versions() {
     }
 
     node.stop().await;
-}
-
-// Returns true if the error kind is one that indicates that the connection has
-// been terminated.
-fn is_termination_error(err: &std::io::Error) -> bool {
-    use std::io::ErrorKind::*;
-    matches!(
-        err.kind(),
-        ConnectionReset | ConnectionAborted | BrokenPipe | UnexpectedEof
-    )
 }
