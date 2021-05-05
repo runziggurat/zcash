@@ -396,7 +396,7 @@ async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_value(header.checksum);
+        header.checksum = random_non_valid_u32(header.checksum);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -444,7 +444,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_value(header.checksum);
+        header.checksum = random_non_valid_u32(header.checksum);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -480,7 +480,7 @@ async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_value(header.checksum);
+        header.checksum = random_non_valid_u32(header.checksum);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -528,7 +528,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_value(header.checksum);
+        header.checksum = random_non_valid_u32(header.checksum);
 
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
@@ -565,7 +565,7 @@ async fn fuzzing_version_with_incorrect_length_pre_handshake() {
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_value(header.body_length);
+        header.body_length = random_non_valid_u32(header.body_length);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -614,7 +614,7 @@ async fn fuzzing_incorrect_length_pre_handshake() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_value(header.body_length);
+        header.body_length = random_non_valid_u32(header.body_length);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -649,7 +649,7 @@ async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side()
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_value(header.body_length);
+        header.body_length = random_non_valid_u32(header.body_length);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -697,7 +697,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_value(header.body_length);
+        header.body_length = random_non_valid_u32(header.body_length);
 
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
@@ -711,8 +711,8 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
     node.stop().await;
 }
 
+// Random length zeroes.
 fn zeroes(n: usize) -> Vec<Vec<u8>> {
-    // Random length zeroes.
     (0..n)
         .map(|_| {
             let random_len: usize = thread_rng().gen_range(1..(MAX_MESSAGE_LEN * 2));
@@ -721,20 +721,22 @@ fn zeroes(n: usize) -> Vec<Vec<u8>> {
         .collect()
 }
 
+// Random length, random bytes.
 fn random_bytes(n: usize) -> Vec<Vec<u8>> {
+    let mut rng = thread_rng();
+
     (0..n)
         .map(|_| {
-            let random_len: usize = thread_rng().gen_range(1..(64 * 1024));
-            let random_payload: Vec<u8> = (&mut thread_rng())
-                .sample_iter(Standard)
-                .take(random_len)
-                .collect();
+            let random_len: usize = rng.gen_range(1..(64 * 1024));
+            let random_payload: Vec<u8> =
+                (&mut rng).sample_iter(Standard).take(random_len).collect();
 
             random_payload
         })
         .collect()
 }
 
+// Valid message header, random bytes as message.
 fn metadata_compliant_random_bytes(
     n: usize,
     commands: Vec<[u8; 12]>,
@@ -755,6 +757,7 @@ fn metadata_compliant_random_bytes(
         .collect()
 }
 
+// Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.
 fn slightly_corrupted_messages(n: usize, messages: Vec<Message>) -> Vec<Vec<u8>> {
     let mut rng = thread_rng();
 
@@ -796,7 +799,8 @@ fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-fn random_non_valid_value(value: u32) -> u32 {
+// Returns a random u32 which isn't the supplied value.
+fn random_non_valid_u32(value: u32) -> u32 {
     let mut rng = thread_rng();
 
     // Make sure the generated value isn't the same.
