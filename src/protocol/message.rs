@@ -1,5 +1,6 @@
 use crate::protocol::payload::{
     block::{Block, Headers, LocatorHashes},
+    codec::Codec,
     Addr, Inv, Nonce, Reject, Tx, Version,
 };
 
