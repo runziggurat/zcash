@@ -6,16 +6,6 @@
 // - Messages with an incorrect checksum.
 // - Messages with differing announced and actual lengths.
 
-// Testing connection rejection (closed or just ignored messages):
-//
-// Verifying closed connections is easy: keep reading the stream until connection is closed while ignoring all other messages.
-// Verifying messages are just ignored is harder?
-//
-// Cases:
-// - Closed stream -> read.
-// - Ignored messages leading to closed stream -> read.
-// - Ignored messages, stream stays open -> write ping/pong or try handshake.
-
 use crate::{
     protocol::{
         message::*,
@@ -26,7 +16,7 @@ use crate::{
 
 use tokio::{
     io::{self, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
+    net::TcpStream,
     time::timeout,
 };
 
