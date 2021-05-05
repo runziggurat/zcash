@@ -75,10 +75,7 @@ impl Tx {
 
 #[derive(Debug, PartialEq)]
 pub struct TxV1 {
-    tx_in_count: VarInt,
     tx_in: Vec<TxIn>,
-
-    tx_out_count: VarInt,
     tx_out: Vec<TxOut>,
 
     // TODO: newtype?
@@ -87,12 +84,12 @@ pub struct TxV1 {
 
 impl TxV1 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.tx_in_count.encode(buffer)?;
+        VarInt(self.tx_in.len()).encode(buffer)?;
         for input in &self.tx_in {
             input.encode(buffer)?;
         }
 
-        self.tx_out_count.encode(buffer)?;
+        VarInt(self.tx_out.len()).encode(buffer)?;
         for output in &self.tx_out {
             output.encode(buffer)?;
         }
@@ -103,18 +100,18 @@ impl TxV1 {
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let tx_in_count = VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count.0);
+        let tx_in_count = *VarInt::decode(bytes)?;
+        let mut tx_in = Vec::with_capacity(tx_in_count);
 
-        for _ in 0..tx_in_count.0 {
+        for _ in 0..tx_in_count {
             let input = TxIn::decode(bytes)?;
             tx_in.push(input);
         }
 
-        let tx_out_count = VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count.0);
+        let tx_out_count = *VarInt::decode(bytes)?;
+        let mut tx_out = Vec::with_capacity(tx_out_count);
 
-        for _ in 0..tx_out_count.0 {
+        for _ in 0..tx_out_count {
             let output = TxOut::decode(bytes)?;
             tx_out.push(output);
         }
@@ -122,9 +119,7 @@ impl TxV1 {
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         Ok(Self {
-            tx_in_count,
             tx_in,
-            tx_out_count,
             tx_out,
             lock_time,
         })
@@ -133,16 +128,12 @@ impl TxV1 {
 
 #[derive(Debug, PartialEq)]
 pub struct TxV2 {
-    tx_in_count: VarInt,
     tx_in: Vec<TxIn>,
-
-    tx_out_count: VarInt,
     tx_out: Vec<TxOut>,
 
     lock_time: u32,
 
     // BCTV14
-    join_split_count: VarInt,
     join_split: Vec<JoinSplit>,
 
     // Only present if the join_split count > 0.
@@ -152,25 +143,25 @@ pub struct TxV2 {
 
 impl TxV2 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.tx_in_count.encode(buffer)?;
+        VarInt(self.tx_in.len()).encode(buffer)?;
         for input in &self.tx_in {
             input.encode(buffer)?;
         }
 
-        self.tx_out_count.encode(buffer)?;
+        VarInt(self.tx_out.len()).encode(buffer)?;
         for output in &self.tx_out {
             output.encode(buffer)?;
         }
 
         buffer.write_all(&self.lock_time.to_le_bytes())?;
 
-        self.join_split_count.encode(buffer)?;
+        VarInt(self.join_split.len()).encode(buffer)?;
         for description in &self.join_split {
             // Encode join split description.
             description.encode(buffer)?;
         }
 
-        if self.join_split_count.0 > 0 {
+        if !self.join_split.is_empty() {
             // Must be present.
             buffer.write_all(&self.join_split_pub_key.unwrap())?;
             buffer.write_all(&self.join_split_sig.unwrap())?;
@@ -180,33 +171,33 @@ impl TxV2 {
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let tx_in_count = VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count.0);
+        let tx_in_count = *VarInt::decode(bytes)?;
+        let mut tx_in = Vec::with_capacity(tx_in_count);
 
-        for _ in 0..tx_in_count.0 {
+        for _ in 0..tx_in_count {
             let input = TxIn::decode(bytes)?;
             tx_in.push(input);
         }
 
-        let tx_out_count = VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count.0);
+        let tx_out_count = *VarInt::decode(bytes)?;
+        let mut tx_out = Vec::with_capacity(tx_out_count);
 
-        for _ in 0..tx_out_count.0 {
+        for _ in 0..tx_out_count {
             let output = TxOut::decode(bytes)?;
             tx_out.push(output);
         }
 
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
 
-        let join_split_count = VarInt::decode(bytes)?;
-        let mut join_split = Vec::with_capacity(join_split_count.0);
+        let join_split_count = *VarInt::decode(bytes)?;
+        let mut join_split = Vec::with_capacity(join_split_count);
 
-        for _ in 0..join_split_count.0 {
+        for _ in 0..join_split_count {
             let description = JoinSplit::decode_bctv14(bytes)?;
             join_split.push(description);
         }
 
-        let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
+        let (join_split_pub_key, join_split_sig) = if join_split_count > 0 {
             let mut pub_key = [0u8; 32];
             bytes.read_exact(&mut pub_key)?;
 
@@ -219,12 +210,9 @@ impl TxV2 {
         };
 
         Ok(Self {
-            tx_in_count,
             tx_in,
-            tx_out_count,
             tx_out,
             lock_time,
-            join_split_count,
             join_split,
             join_split_pub_key,
             join_split_sig,
@@ -236,17 +224,13 @@ impl TxV2 {
 pub struct TxV3 {
     group_id: u32,
 
-    tx_in_count: VarInt,
     tx_in: Vec<TxIn>,
-
-    tx_out_count: VarInt,
     tx_out: Vec<TxOut>,
 
     lock_time: u32,
     expiry_height: u32,
 
     // BCTV14
-    join_split_count: VarInt,
     join_split: Vec<JoinSplit>,
 
     // Only present if the join_split count > 0.
@@ -258,12 +242,12 @@ impl TxV3 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.group_id.to_le_bytes())?;
 
-        self.tx_in_count.encode(buffer)?;
+        VarInt(self.tx_in.len()).encode(buffer)?;
         for input in &self.tx_in {
             input.encode(buffer)?;
         }
 
-        self.tx_out_count.encode(buffer)?;
+        VarInt(self.tx_out.len()).encode(buffer)?;
         for output in &self.tx_out {
             output.encode(buffer)?;
         }
@@ -271,13 +255,13 @@ impl TxV3 {
         buffer.write_all(&self.lock_time.to_le_bytes())?;
         buffer.write_all(&self.expiry_height.to_le_bytes())?;
 
-        self.join_split_count.encode(buffer)?;
+        VarInt(self.join_split.len()).encode(buffer)?;
         for description in &self.join_split {
             // Encode join split description.
             description.encode(buffer)?;
         }
 
-        if self.join_split_count.0 > 0 {
+        if !self.join_split.is_empty() {
             // Must be present.
             buffer.write_all(&self.join_split_pub_key.unwrap())?;
             buffer.write_all(&self.join_split_sig.unwrap())?;
@@ -289,18 +273,18 @@ impl TxV3 {
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
 
-        let tx_in_count = VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count.0);
+        let tx_in_count = *VarInt::decode(bytes)?;
+        let mut tx_in = Vec::with_capacity(tx_in_count);
 
-        for _ in 0..tx_in_count.0 {
+        for _ in 0..tx_in_count {
             let input = TxIn::decode(bytes)?;
             tx_in.push(input);
         }
 
-        let tx_out_count = VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count.0);
+        let tx_out_count = *VarInt::decode(bytes)?;
+        let mut tx_out = Vec::with_capacity(tx_out_count);
 
-        for _ in 0..tx_out_count.0 {
+        for _ in 0..tx_out_count {
             let output = TxOut::decode(bytes)?;
             tx_out.push(output);
         }
@@ -308,15 +292,15 @@ impl TxV3 {
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
         let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
 
-        let join_split_count = VarInt::decode(bytes)?;
-        let mut join_split = Vec::with_capacity(join_split_count.0);
+        let join_split_count = *VarInt::decode(bytes)?;
+        let mut join_split = Vec::with_capacity(join_split_count);
 
-        for _ in 0..join_split_count.0 {
+        for _ in 0..join_split_count {
             let description = JoinSplit::decode_bctv14(bytes)?;
             join_split.push(description);
         }
 
-        let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
+        let (join_split_pub_key, join_split_sig) = if join_split_count > 0 {
             let mut pub_key = [0u8; 32];
             bytes.read_exact(&mut pub_key)?;
 
@@ -330,13 +314,10 @@ impl TxV3 {
 
         Ok(Self {
             group_id,
-            tx_in_count,
             tx_in,
-            tx_out_count,
             tx_out,
             lock_time,
             expiry_height,
-            join_split_count,
             join_split,
             join_split_pub_key,
             join_split_sig,
@@ -348,23 +329,17 @@ impl TxV3 {
 pub struct TxV4 {
     group_id: u32,
 
-    tx_in_count: VarInt,
     tx_in: Vec<TxIn>,
-
-    tx_out_count: VarInt,
     tx_out: Vec<TxOut>,
 
     lock_time: u32,
     expiry_height: u32,
 
     value_balance_sapling: i64,
-    spends_sapling_count: VarInt,
     spends_sapling: Vec<SpendDescription>,
-    outputs_sapling_count: VarInt,
     outputs_sapling: Vec<SaplingOutput>,
 
     // Groth16
-    join_split_count: VarInt,
     join_split: Vec<JoinSplit>,
 
     // Only present if the join_split count > 0.
@@ -379,12 +354,12 @@ impl TxV4 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.group_id.to_le_bytes())?;
 
-        self.tx_in_count.encode(buffer)?;
+        VarInt(self.tx_in.len()).encode(buffer)?;
         for input in &self.tx_in {
             input.encode(buffer)?;
         }
 
-        self.tx_out_count.encode(buffer)?;
+        VarInt(self.tx_out.len()).encode(buffer)?;
         for output in &self.tx_out {
             output.encode(buffer)?;
         }
@@ -393,29 +368,29 @@ impl TxV4 {
         buffer.write_all(&self.expiry_height.to_le_bytes())?;
 
         buffer.write_all(&self.value_balance_sapling.to_le_bytes())?;
-        self.spends_sapling_count.encode(buffer)?;
+        VarInt(self.spends_sapling.len()).encode(buffer)?;
         for spend in &self.spends_sapling {
             spend.encode(buffer)?;
         }
 
-        self.outputs_sapling_count.encode(buffer)?;
+        VarInt(self.outputs_sapling.len()).encode(buffer)?;
         for output in &self.outputs_sapling {
             output.encode(buffer)?;
         }
 
-        self.join_split_count.encode(buffer)?;
+        VarInt(self.join_split.len()).encode(buffer)?;
         for description in &self.join_split {
             // Encode join split description.
             description.encode(buffer)?;
         }
 
-        if self.join_split_count.0 > 0 {
+        if !self.join_split.is_empty() {
             // Must be present.
             buffer.write_all(&self.join_split_pub_key.unwrap())?;
             buffer.write_all(&self.join_split_sig.unwrap())?;
         }
 
-        if self.spends_sapling_count.0 + self.outputs_sapling_count.0 > 0 {
+        if !self.spends_sapling.is_empty() || !self.outputs_sapling.is_empty() {
             // Must be present.
             buffer.write_all(&self.binding_sig_sapling.unwrap())?
         }
@@ -427,17 +402,17 @@ impl TxV4 {
         let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let tx_in_count = VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count.0);
+        let mut tx_in = Vec::with_capacity(*tx_in_count);
 
-        for _ in 0..tx_in_count.0 {
+        for _ in 0..*tx_in_count {
             let input = TxIn::decode(bytes)?;
             tx_in.push(input);
         }
 
         let tx_out_count = VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count.0);
+        let mut tx_out = Vec::with_capacity(*tx_out_count);
 
-        for _ in 0..tx_out_count.0 {
+        for _ in 0..*tx_out_count {
             let output = TxOut::decode(bytes)?;
             tx_out.push(output);
         }
@@ -447,28 +422,28 @@ impl TxV4 {
 
         let value_balance_sapling = i64::from_le_bytes(read_n_bytes(bytes)?);
         let spends_sapling_count = VarInt::decode(bytes)?;
-        let mut spends_sapling = Vec::with_capacity(spends_sapling_count.0);
-        for _ in 0..spends_sapling_count.0 {
+        let mut spends_sapling = Vec::with_capacity(*spends_sapling_count);
+        for _ in 0..*spends_sapling_count {
             let spend = SpendDescription::decode(bytes)?;
             spends_sapling.push(spend);
         }
 
         let outputs_sapling_count = VarInt::decode(bytes)?;
-        let mut outputs_sapling = Vec::with_capacity(outputs_sapling_count.0);
-        for _ in 0..outputs_sapling_count.0 {
+        let mut outputs_sapling = Vec::with_capacity(*outputs_sapling_count);
+        for _ in 0..*outputs_sapling_count {
             let output = SaplingOutput::decode(bytes)?;
             outputs_sapling.push(output);
         }
 
         let join_split_count = VarInt::decode(bytes)?;
-        let mut join_split = Vec::with_capacity(join_split_count.0);
+        let mut join_split = Vec::with_capacity(*join_split_count);
 
-        for _ in 0..join_split_count.0 {
+        for _ in 0..*join_split_count {
             let description = JoinSplit::decode_groth16(bytes)?;
             join_split.push(description);
         }
 
-        let (join_split_pub_key, join_split_sig) = if join_split_count.0 > 0 {
+        let (join_split_pub_key, join_split_sig) = if *join_split_count > 0 {
             let mut pub_key = [0u8; 32];
             bytes.read_exact(&mut pub_key)?;
 
@@ -480,7 +455,7 @@ impl TxV4 {
             (None, None)
         };
 
-        let binding_sig_sapling = if spends_sapling_count.0 + outputs_sapling_count.0 > 0 {
+        let binding_sig_sapling = if *spends_sapling_count + *outputs_sapling_count > 0 {
             Some(read_n_bytes(bytes)?)
         } else {
             None
@@ -488,18 +463,13 @@ impl TxV4 {
 
         Ok(Self {
             group_id,
-            tx_in_count,
             tx_in,
-            tx_out_count,
             tx_out,
             lock_time,
             expiry_height,
             value_balance_sapling,
-            spends_sapling_count,
             spends_sapling,
-            outputs_sapling_count,
             outputs_sapling,
-            join_split_count,
             join_split,
             join_split_pub_key,
             join_split_sig,
@@ -788,9 +758,7 @@ mod tests {
     #[ignore]
     fn empty_transaction_v1_round_trip() {
         let tx_v1 = Tx::V1(TxV1 {
-            tx_in_count: VarInt(0),
             tx_in: Vec::new(),
-            tx_out_count: VarInt(0),
             tx_out: Vec::new(),
             lock_time: 500_000_000,
         });
@@ -805,12 +773,9 @@ mod tests {
     #[ignore]
     fn empty_transaction_v2_round_trip() {
         let tx_v2 = Tx::V2(TxV2 {
-            tx_in_count: VarInt(0),
             tx_in: Vec::new(),
-            tx_out_count: VarInt(0),
             tx_out: Vec::new(),
             lock_time: 500_000_000,
-            join_split_count: VarInt(0),
             join_split: Vec::new(),
             join_split_pub_key: None,
             join_split_sig: None,
@@ -827,13 +792,10 @@ mod tests {
     fn empty_transaction_v3_round_trip() {
         let tx_v3 = Tx::V3(TxV3 {
             group_id: 0,
-            tx_in_count: VarInt(0),
             tx_in: Vec::new(),
-            tx_out_count: VarInt(0),
             tx_out: Vec::new(),
             lock_time: 500_000_000,
             expiry_height: 500_000_000,
-            join_split_count: VarInt(0),
             join_split: Vec::new(),
             join_split_pub_key: None,
             join_split_sig: None,
@@ -850,18 +812,13 @@ mod tests {
     fn empty_transaction_v4_round_trip() {
         let tx_v4 = Tx::V4(TxV4 {
             group_id: 0,
-            tx_in_count: VarInt(0),
             tx_in: Vec::new(),
-            tx_out_count: VarInt(0),
             tx_out: Vec::new(),
             lock_time: 500_000_000,
             expiry_height: 500_000_000,
             value_balance_sapling: 0,
-            spends_sapling_count: VarInt(0),
             spends_sapling: Vec::new(),
-            outputs_sapling_count: VarInt(0),
             outputs_sapling: Vec::new(),
-            join_split_count: VarInt(0),
             join_split: Vec::new(),
             join_split_pub_key: None,
             join_split_sig: None,

@@ -11,25 +11,20 @@ use std::{
 
 #[derive(Debug)]
 pub struct Addr {
-    count: VarInt,
     addrs: Vec<NetworkAddr>,
 }
 
 impl Addr {
     pub fn empty() -> Self {
-        Self {
-            count: VarInt(0),
-            addrs: Vec::new(),
-        }
+        Self { addrs: Vec::new() }
     }
 
     pub fn new(addrs: Vec<NetworkAddr>) -> Self {
-        let count = VarInt(addrs.len());
-        Addr { count, addrs }
+        Addr { addrs }
     }
 
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.count.encode(buffer)?;
+        VarInt(self.addrs.len()).encode(buffer)?;
 
         for addr in &self.addrs {
             addr.encode(buffer)?;
@@ -39,15 +34,15 @@ impl Addr {
     }
 
     pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let count = VarInt::decode(bytes)?;
-        let mut addrs = Vec::with_capacity(count.0);
+        let count = *VarInt::decode(bytes)?;
+        let mut addrs = Vec::with_capacity(count);
 
-        for _ in 0..count.0 {
+        for _ in 0..count {
             let addr = NetworkAddr::decode(bytes)?;
             addrs.push(addr);
         }
 
-        Ok(Self { count, addrs })
+        Ok(Self::new(addrs))
     }
 
     /// Returns an iterator over its list of [NetworkAddr]'s

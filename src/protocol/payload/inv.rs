@@ -4,13 +4,12 @@ use std::io::{self, Cursor, Write};
 
 #[derive(Debug)]
 pub struct Inv {
-    count: VarInt,
     inventory: Vec<InvHash>,
 }
 
 impl Inv {
     pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.count.encode(buffer)?;
+        VarInt(self.inventory.len()).encode(buffer)?;
 
         for hash in &self.inventory {
             hash.encode(buffer)?;
@@ -28,7 +27,7 @@ impl Inv {
             inventory.push(hash);
         }
 
-        Ok(Self { count, inventory })
+        Ok(Self { inventory })
     }
 }
 
