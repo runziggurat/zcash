@@ -19,6 +19,10 @@ pub use version::Version;
 pub mod reject;
 pub use reject::Reject;
 
+use self::codec::Codec;
+
+pub mod codec;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
 
@@ -28,14 +32,14 @@ impl Default for Nonce {
     }
 }
 
-impl Nonce {
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for Nonce {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.0.to_le_bytes())?;
 
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let nonce = u64::from_le_bytes(read_n_bytes(bytes)?);
 
         Ok(Self(nonce))
@@ -49,7 +53,9 @@ impl ProtocolVersion {
     fn current() -> Self {
         Self(170_013)
     }
+}
 
+impl Codec for ProtocolVersion {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.0.to_le_bytes())?;
 
@@ -74,33 +80,29 @@ impl std::ops::Deref for VarInt {
     }
 }
 
-impl VarInt {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<usize> {
+impl Codec for VarInt {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         // length of the payload to be written.
         let l = self.0;
-        let bytes_written = match l {
+        match l {
             0x0000_0000..=0x0000_00fc => {
                 buffer.write_all(&[l as u8])?;
-                1 // bytes written
             }
             0x0000_00fd..=0x0000_ffff => {
                 buffer.write_all(&[0xfdu8])?;
                 buffer.write_all(&(l as u16).to_le_bytes())?;
-                3
             }
             0x0001_0000..=0xffff_ffff => {
                 buffer.write_all(&[0xfeu8])?;
                 buffer.write_all(&(l as u32).to_le_bytes())?;
-                5
             }
             _ => {
                 buffer.write_all(&[0xffu8])?;
                 buffer.write_all(&(l as u64).to_le_bytes())?;
-                9
             }
         };
 
-        Ok(bytes_written)
+        Ok(())
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
@@ -121,11 +123,11 @@ impl VarInt {
 struct VarStr(String);
 
 impl VarStr {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<usize> {
-        let int_len = VarInt(self.0.len()).encode(buffer)?;
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        VarInt(self.0.len()).encode(buffer)?;
         buffer.write_all(self.0.as_bytes())?;
 
-        Ok(int_len + self.0.len())
+        Ok(())
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
@@ -145,6 +147,12 @@ impl Hash {
         Hash(hash)
     }
 
+    pub fn zeroed() -> Self {
+        Self([0; 32])
+    }
+}
+
+impl Codec for Hash {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.0)?;
 
@@ -156,10 +164,6 @@ impl Hash {
         bytes.read_exact(&mut hash.0)?;
 
         Ok(hash)
-    }
-
-    pub fn zeroed() -> Self {
-        Self([0; 32])
     }
 }
 

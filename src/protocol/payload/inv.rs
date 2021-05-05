@@ -1,34 +1,21 @@
-use crate::protocol::payload::{read_n_bytes, Hash, VarInt};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
 
 use std::io::{self, Cursor, Write};
 
 #[derive(Debug)]
 pub struct Inv {
-    count: VarInt,
     inventory: Vec<InvHash>,
 }
 
-impl Inv {
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.count.encode(buffer)?;
-
-        for hash in &self.inventory {
-            hash.encode(buffer)?;
-        }
-
-        Ok(())
+impl Codec for Inv {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.inventory.encode(buffer)
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let count = VarInt::decode(bytes)?;
-        let mut inventory = Vec::with_capacity(count.0);
-
-        for _ in 0..count.0 {
-            let hash = InvHash::decode(bytes)?;
-            inventory.push(hash);
-        }
-
-        Ok(Self { count, inventory })
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        Ok(Self {
+            inventory: Vec::decode(bytes)?,
+        })
     }
 }
 
@@ -38,7 +25,7 @@ struct InvHash {
     hash: Hash,
 }
 
-impl InvHash {
+impl Codec for InvHash {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.kind.encode(buffer)?;
         self.hash.encode(buffer)?;
@@ -62,7 +49,7 @@ enum ObjectKind {
     FilteredBlock,
 }
 
-impl ObjectKind {
+impl Codec for ObjectKind {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         let value: u32 = match self {
             Self::Error => 0,

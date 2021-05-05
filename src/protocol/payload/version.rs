@@ -1,4 +1,6 @@
-use crate::protocol::payload::{addr::NetworkAddr, read_n_bytes, Nonce, ProtocolVersion, VarStr};
+use crate::protocol::payload::{
+    addr::NetworkAddr, codec::Codec, read_n_bytes, Nonce, ProtocolVersion, VarStr,
+};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 
@@ -23,8 +25,7 @@ pub struct Version {
 impl Version {
     pub fn new(addr_recv: SocketAddr, addr_from: SocketAddr) -> Self {
         Self {
-            // TODO: make constants.
-            version: ProtocolVersion(170_013),
+            version: ProtocolVersion::current(),
             services: 1,
             timestamp: Utc::now(),
             addr_recv: NetworkAddr {
@@ -48,8 +49,10 @@ impl Version {
         self.version = ProtocolVersion(version);
         self
     }
+}
 
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for Version {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
         buffer.write_all(&self.services.to_le_bytes())?;
         buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
@@ -65,7 +68,7 @@ impl Version {
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
         let services = u64::from_le_bytes(read_n_bytes(bytes)?);
         let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
