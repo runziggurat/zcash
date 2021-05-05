@@ -1,4 +1,4 @@
-use crate::protocol::payload::{read_n_bytes, Hash, VarInt};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, VarInt};
 
 use std::io::{self, Cursor, Read, Write};
 
@@ -15,8 +15,8 @@ pub enum Tx {
     V5,
 }
 
-impl Tx {
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for Tx {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         match self {
             Tx::V1(tx) => {
                 // The overwintered flag is NOT set.
@@ -44,7 +44,7 @@ impl Tx {
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         use std::io::{Error, ErrorKind};
 
         let (version, overwinter) = {
@@ -82,17 +82,10 @@ pub struct TxV1 {
     lock_time: u32,
 }
 
-impl TxV1 {
+impl Codec for TxV1 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        VarInt(self.tx_in.len()).encode(buffer)?;
-        for input in &self.tx_in {
-            input.encode(buffer)?;
-        }
-
-        VarInt(self.tx_out.len()).encode(buffer)?;
-        for output in &self.tx_out {
-            output.encode(buffer)?;
-        }
+        self.tx_in.encode(buffer)?;
+        self.tx_out.encode(buffer)?;
 
         buffer.write_all(&self.lock_time.to_le_bytes())?;
 
@@ -100,21 +93,8 @@ impl TxV1 {
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let tx_in_count = *VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count);
-
-        for _ in 0..tx_in_count {
-            let input = TxIn::decode(bytes)?;
-            tx_in.push(input);
-        }
-
-        let tx_out_count = *VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count);
-
-        for _ in 0..tx_out_count {
-            let output = TxOut::decode(bytes)?;
-            tx_out.push(output);
-        }
+        let tx_in = Vec::<TxIn>::decode(bytes)?;
+        let tx_out = Vec::<TxOut>::decode(bytes)?;
 
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
 
@@ -141,17 +121,10 @@ pub struct TxV2 {
     join_split_sig: Option<[u8; 32]>,
 }
 
-impl TxV2 {
+impl Codec for TxV2 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        VarInt(self.tx_in.len()).encode(buffer)?;
-        for input in &self.tx_in {
-            input.encode(buffer)?;
-        }
-
-        VarInt(self.tx_out.len()).encode(buffer)?;
-        for output in &self.tx_out {
-            output.encode(buffer)?;
-        }
+        self.tx_in.encode(buffer)?;
+        self.tx_out.encode(buffer)?;
 
         buffer.write_all(&self.lock_time.to_le_bytes())?;
 
@@ -171,22 +144,8 @@ impl TxV2 {
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let tx_in_count = *VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count);
-
-        for _ in 0..tx_in_count {
-            let input = TxIn::decode(bytes)?;
-            tx_in.push(input);
-        }
-
-        let tx_out_count = *VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count);
-
-        for _ in 0..tx_out_count {
-            let output = TxOut::decode(bytes)?;
-            tx_out.push(output);
-        }
-
+        let tx_in = Vec::<TxIn>::decode(bytes)?;
+        let tx_out = Vec::<TxOut>::decode(bytes)?;
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let join_split_count = *VarInt::decode(bytes)?;
@@ -238,19 +197,12 @@ pub struct TxV3 {
     join_split_sig: Option<[u8; 32]>,
 }
 
-impl TxV3 {
+impl Codec for TxV3 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.group_id.to_le_bytes())?;
 
-        VarInt(self.tx_in.len()).encode(buffer)?;
-        for input in &self.tx_in {
-            input.encode(buffer)?;
-        }
-
-        VarInt(self.tx_out.len()).encode(buffer)?;
-        for output in &self.tx_out {
-            output.encode(buffer)?;
-        }
+        self.tx_in.encode(buffer)?;
+        self.tx_out.encode(buffer)?;
 
         buffer.write_all(&self.lock_time.to_le_bytes())?;
         buffer.write_all(&self.expiry_height.to_le_bytes())?;
@@ -273,22 +225,8 @@ impl TxV3 {
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
 
-        let tx_in_count = *VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(tx_in_count);
-
-        for _ in 0..tx_in_count {
-            let input = TxIn::decode(bytes)?;
-            tx_in.push(input);
-        }
-
-        let tx_out_count = *VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(tx_out_count);
-
-        for _ in 0..tx_out_count {
-            let output = TxOut::decode(bytes)?;
-            tx_out.push(output);
-        }
-
+        let tx_in = Vec::<TxIn>::decode(bytes)?;
+        let tx_out = Vec::<TxOut>::decode(bytes)?;
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
         let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
 
@@ -350,33 +288,19 @@ pub struct TxV4 {
     binding_sig_sapling: Option<[u8; 64]>,
 }
 
-impl TxV4 {
+impl Codec for TxV4 {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.group_id.to_le_bytes())?;
 
-        VarInt(self.tx_in.len()).encode(buffer)?;
-        for input in &self.tx_in {
-            input.encode(buffer)?;
-        }
-
-        VarInt(self.tx_out.len()).encode(buffer)?;
-        for output in &self.tx_out {
-            output.encode(buffer)?;
-        }
+        self.tx_in.encode(buffer)?;
+        self.tx_out.encode(buffer)?;
 
         buffer.write_all(&self.lock_time.to_le_bytes())?;
         buffer.write_all(&self.expiry_height.to_le_bytes())?;
 
         buffer.write_all(&self.value_balance_sapling.to_le_bytes())?;
-        VarInt(self.spends_sapling.len()).encode(buffer)?;
-        for spend in &self.spends_sapling {
-            spend.encode(buffer)?;
-        }
-
-        VarInt(self.outputs_sapling.len()).encode(buffer)?;
-        for output in &self.outputs_sapling {
-            output.encode(buffer)?;
-        }
+        self.spends_sapling.encode(buffer)?;
+        self.outputs_sapling.encode(buffer)?;
 
         VarInt(self.join_split.len()).encode(buffer)?;
         for description in &self.join_split {
@@ -401,39 +325,14 @@ impl TxV4 {
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
 
-        let tx_in_count = VarInt::decode(bytes)?;
-        let mut tx_in = Vec::with_capacity(*tx_in_count);
-
-        for _ in 0..*tx_in_count {
-            let input = TxIn::decode(bytes)?;
-            tx_in.push(input);
-        }
-
-        let tx_out_count = VarInt::decode(bytes)?;
-        let mut tx_out = Vec::with_capacity(*tx_out_count);
-
-        for _ in 0..*tx_out_count {
-            let output = TxOut::decode(bytes)?;
-            tx_out.push(output);
-        }
-
+        let tx_in = Vec::<TxIn>::decode(bytes)?;
+        let tx_out = Vec::<TxOut>::decode(bytes)?;
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
         let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let value_balance_sapling = i64::from_le_bytes(read_n_bytes(bytes)?);
-        let spends_sapling_count = VarInt::decode(bytes)?;
-        let mut spends_sapling = Vec::with_capacity(*spends_sapling_count);
-        for _ in 0..*spends_sapling_count {
-            let spend = SpendDescription::decode(bytes)?;
-            spends_sapling.push(spend);
-        }
-
-        let outputs_sapling_count = VarInt::decode(bytes)?;
-        let mut outputs_sapling = Vec::with_capacity(*outputs_sapling_count);
-        for _ in 0..*outputs_sapling_count {
-            let output = SaplingOutput::decode(bytes)?;
-            outputs_sapling.push(output);
-        }
+        let spends_sapling = Vec::<SpendDescription>::decode(bytes)?;
+        let outputs_sapling = Vec::<SaplingOutput>::decode(bytes)?;
 
         let join_split_count = VarInt::decode(bytes)?;
         let mut join_split = Vec::with_capacity(*join_split_count);
@@ -455,7 +354,7 @@ impl TxV4 {
             (None, None)
         };
 
-        let binding_sig_sapling = if *spends_sapling_count + *outputs_sapling_count > 0 {
+        let binding_sig_sapling = if !spends_sapling.is_empty() || !outputs_sapling.is_empty() {
             Some(read_n_bytes(bytes)?)
         } else {
             None
@@ -491,7 +390,7 @@ struct TxIn {
     sequence: u32,
 }
 
-impl TxIn {
+impl Codec for TxIn {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.prev_out_hash.encode(buffer)?;
         buffer.write_all(&self.prev_out_index.to_le_bytes())?;
@@ -531,7 +430,7 @@ struct TxOut {
     pk_script: Vec<u8>,
 }
 
-impl TxOut {
+impl Codec for TxOut {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.value.to_le_bytes())?;
         self.pk_script_len.encode(buffer)?;
@@ -678,7 +577,7 @@ struct SpendDescription {
     spend_auth_sig: [u8; 64],
 }
 
-impl SpendDescription {
+impl Codec for SpendDescription {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.cv)?;
         buffer.write_all(&self.anchor)?;
@@ -719,7 +618,7 @@ struct SaplingOutput {
     zkproof: [u8; 192],
 }
 
-impl SaplingOutput {
+impl Codec for SaplingOutput {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.cv)?;
         buffer.write_all(&self.cmu)?;

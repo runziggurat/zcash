@@ -1,4 +1,4 @@
-use crate::protocol::payload::{read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
 
 use std::{
     convert::TryInto,
@@ -26,30 +26,20 @@ impl LocatorHashes {
     pub fn empty() -> Self {
         Self::new(Vec::new(), Hash::zeroed())
     }
+}
 
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for LocatorHashes {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
-        VarInt(self.block_locator_hashes.len()).encode(buffer)?;
-
-        for hash in &self.block_locator_hashes {
-            hash.encode(buffer)?;
-        }
-
+        self.block_locator_hashes.encode(buffer)?;
         self.hash_stop.encode(buffer)?;
 
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
-        let count = *VarInt::decode(bytes)?;
-        let mut block_locator_hashes = Vec::with_capacity(count);
-
-        for _ in 0..count {
-            let hash = Hash::decode(bytes)?;
-            block_locator_hashes.push(hash);
-        }
-
+        let block_locator_hashes = Vec::decode(bytes)?;
         let hash_stop = Hash::decode(bytes)?;
 
         Ok(Self {
@@ -67,33 +57,22 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.header.encode(buffer)?;
-        VarInt(self.txs.len()).encode(buffer)?;
-
-        for tx in &self.txs {
-            tx.encode(buffer)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let header = Header::decode(bytes)?;
-        let tx_count = *VarInt::decode(bytes)?;
-        let mut txs = Vec::with_capacity(tx_count);
-
-        for _ in 0..tx_count {
-            let tx = Tx::decode(bytes)?;
-            txs.push(tx);
-        }
-
-        Ok(Self { header, txs })
-    }
-
     /// Calculates the double Sha256 hash for this [Block]
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         self.header.double_sha256()
+    }
+}
+
+impl Codec for Block {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.header.encode(buffer)?;
+        self.txs.encode(buffer)
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let header = Header::decode(bytes)?;
+        let txs = Vec::decode(bytes)?;
+        Ok(Self { header, txs })
     }
 }
 
@@ -112,8 +91,11 @@ impl Headers {
             headers: Vec::new(),
         }
     }
+}
 
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+impl Codec for Headers {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        // Can't use Vec::encode because of the tx_count=0 requirement for each Header
         VarInt(self.headers.len()).encode(buffer)?;
 
         for header in &self.headers {
@@ -126,7 +108,8 @@ impl Headers {
         Ok(())
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        // Can't use Vec::decode because of the tx_count=0 requirement for each Header
         let count = *VarInt::decode(bytes)?;
         let mut headers = Vec::with_capacity(count);
 
@@ -162,7 +145,7 @@ pub struct Header {
     solution: [u8; 1344],
 }
 
-impl Header {
+impl Codec for Header {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
         self.prev_block.encode(buffer)?;
@@ -179,7 +162,10 @@ impl Header {
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
         let version = ProtocolVersion::decode(bytes)?;
         let prev_block = Hash::decode(bytes)?;
         let merkle_root = Hash::decode(bytes)?;
@@ -205,7 +191,9 @@ impl Header {
             solution,
         })
     }
+}
 
+impl Header {
     /// Calculates the double Sha256 hash for [Header]
     fn double_sha256(&self) -> std::io::Result<Hash> {
         let mut buffer = Vec::new();

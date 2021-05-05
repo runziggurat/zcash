@@ -1,4 +1,4 @@
-use crate::protocol::payload::{read_n_bytes, VarInt};
+use crate::protocol::payload::{codec::Codec, read_n_bytes};
 
 use std::convert::TryInto;
 
@@ -23,31 +23,19 @@ impl Addr {
         Addr { addrs }
     }
 
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        VarInt(self.addrs.len()).encode(buffer)?;
-
-        for addr in &self.addrs {
-            addr.encode(buffer)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let count = *VarInt::decode(bytes)?;
-        let mut addrs = Vec::with_capacity(count);
-
-        for _ in 0..count {
-            let addr = NetworkAddr::decode(bytes)?;
-            addrs.push(addr);
-        }
-
-        Ok(Self::new(addrs))
-    }
-
     /// Returns an iterator over its list of [NetworkAddr]'s
     pub fn iter(&self) -> std::slice::Iter<NetworkAddr> {
         self.addrs.iter()
+    }
+}
+
+impl Codec for Addr {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.addrs.encode(buffer)
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        Ok(Self::new(Vec::decode(bytes)?))
     }
 }
 
@@ -70,20 +58,6 @@ impl NetworkAddr {
         }
     }
 
-    pub(super) fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        let timestamp: u32 = self
-            .last_seen
-            .expect("missing timestamp")
-            .timestamp()
-            .try_into()
-            .unwrap();
-        buffer.write_all(&timestamp.to_le_bytes())?;
-
-        self.encode_without_timestamp(buffer)?;
-
-        Ok(())
-    }
-
     pub(super) fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.services.to_le_bytes())?;
 
@@ -96,18 +70,6 @@ impl NetworkAddr {
         buffer.write_all(&port.to_be_bytes())?;
 
         Ok(())
-    }
-
-    pub(super) fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp.into(), 0), Utc);
-
-        let without_timestamp = Self::decode_without_timestamp(bytes)?;
-
-        Ok(Self {
-            last_seen: Some(dt),
-            ..without_timestamp
-        })
     }
 
     pub(super) fn decode_without_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
@@ -128,6 +90,34 @@ impl NetworkAddr {
             last_seen: None,
             services,
             addr: SocketAddr::new(ip_addr, port),
+        })
+    }
+}
+
+impl Codec for NetworkAddr {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        let timestamp: u32 = self
+            .last_seen
+            .expect("missing timestamp")
+            .timestamp()
+            .try_into()
+            .unwrap();
+        buffer.write_all(&timestamp.to_le_bytes())?;
+
+        self.encode_without_timestamp(buffer)?;
+
+        Ok(())
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp.into(), 0), Utc);
+
+        let without_timestamp = Self::decode_without_timestamp(bytes)?;
+
+        Ok(Self {
+            last_seen: Some(dt),
+            ..without_timestamp
         })
     }
 }
