@@ -5,6 +5,10 @@
 // - Slightly corrupted but otherwise valid messages, e.g. N% of body replaced with random bytes.
 // - Messages with an incorrect checksum.
 // - Messages with differing announced and actual lengths.
+//
+// A note on RNGs: each test makes the use of one seeded ChaCha8Rng. If the test fails, the test
+// can be rerun with the same seed to reproduce the failure. The seed is outputed in the case of a
+// failure or can be inspected with `-- --nocapture`.
 
 use crate::{
     helpers::{autorespond_and_expect_disconnect, initiate_version_exchange},
@@ -729,6 +733,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
     node.stop().await;
 }
 
+// Returns a randomly seeded `ChaCha8Rng` instance.
 fn seeded_rng() -> ChaCha8Rng {
     let mut seed: <ChaCha8Rng as SeedableRng>::Seed = Default::default();
     thread_rng().fill(&mut seed);
