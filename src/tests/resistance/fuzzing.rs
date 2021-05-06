@@ -6,7 +6,7 @@
 // - Messages with an incorrect checksum.
 // - Messages with differing announced and actual lengths.
 //
-// A note on RNGs: each test makes the use of one seeded ChaCha8Rng. If the test fails, the test
+// A note on RNGs: each test makes use of one seeded ChaCha8Rng. If the test fails, the test
 // can be rerun with the same seed to reproduce the failure. The seed is outputed in the case of a
 // failure or can be inspected with `-- --nocapture`.
 
