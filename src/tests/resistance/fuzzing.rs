@@ -15,7 +15,12 @@ use crate::{
     setup::{config::read_config_file, node::Node},
 };
 
-use rand::{distributions::Standard, prelude::SliceRandom, thread_rng, Rng};
+use rand::{
+    distributions::Standard,
+    prelude::{Rng, SeedableRng, SliceRandom},
+    thread_rng,
+};
+use rand_chacha::ChaCha8Rng;
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 const ITERATIONS: usize = 100;
@@ -28,7 +33,8 @@ async fn fuzzing_zeroes_pre_handshake() {
     // zebra: sends a version before disconnecting.
     // zcashd: disconnects immediately (log: `INFO main: PROCESSMESSAGE: INVALID MESSAGESTART peer=1`).
 
-    let payloads = zeroes(ITERATIONS);
+    let mut rng = seeded_rng();
+    let payloads = zeroes(&mut rng, ITERATIONS);
 
     let (zig, node_meta) = read_config_file();
 
@@ -54,7 +60,8 @@ async fn fuzzing_zeroes_during_handshake_responder_side() {
     // zebra: responds with verack before disconnecting.
     // zcashd: disconnects immediately.
 
-    let payloads = zeroes(ITERATIONS);
+    let mut rng = seeded_rng();
+    let payloads = zeroes(&mut rng, ITERATIONS);
 
     let (zig, node_meta) = read_config_file();
 
@@ -82,7 +89,8 @@ async fn fuzzing_random_bytes_pre_handshake() {
     // zebra: sends a version before disconnecting.
     // zcashd: ignores the bytes and disconnects.
 
-    let payloads = random_bytes(ITERATIONS);
+    let mut rng = seeded_rng();
+    let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let (zig, node_meta) = read_config_file();
 
@@ -108,7 +116,8 @@ async fn fuzzing_random_bytes_during_handshake_responder_side() {
     // zebra: responds with verack before disconnecting.
     // zcashd: responds with verack, pong and getheaders before disconnecting.
 
-    let payloads = random_bytes(ITERATIONS);
+    let mut rng = seeded_rng();
+    let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let (zig, node_meta) = read_config_file();
 
@@ -153,7 +162,9 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
         TX_COMMAND,
         REJECT_COMMAND,
     ];
-    let payloads = metadata_compliant_random_bytes(ITERATIONS, commands);
+
+    let mut rng = seeded_rng();
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
     let (zig, node_meta) = read_config_file();
 
@@ -197,7 +208,9 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
         TX_COMMAND,
         REJECT_COMMAND,
     ];
-    let payloads = metadata_compliant_random_bytes(ITERATIONS, commands);
+
+    let mut rng = seeded_rng();
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
     let (zig, node_meta) = read_config_file();
 
@@ -233,6 +246,7 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
     // `INFO main: ProcessMessages(version, 86 bytes): CHECKSUM ERROR nChecksum=67412de1 hdr.nChecksum=ddca6880`
     // which indicates the message was recognised as invalid).
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
@@ -244,7 +258,7 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let version =
             Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
-        let corrupted_version = corrupt_message(&version);
+        let corrupted_version = corrupt_message(&mut rng, &version);
 
         // Send corrupt Version in place of Verack.
         // Contains header + message.
@@ -265,6 +279,8 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
     //
     // zebra: sends a verack before disconnecting (though somewhat slow running).
     // zcashd: logs suggest the message was ignored but the node doesn't disconnect.
+
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
@@ -277,7 +293,7 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
 
         let version_to_corrupt =
             Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
-        let corrupted_version = corrupt_message(&version_to_corrupt);
+        let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
 
         // Send corrupt Version in place of Verack.
         // Contains header + message.
@@ -311,7 +327,8 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
         // Message::NotFound(Inv));
     ];
 
-    let payloads = slightly_corrupted_messages(ITERATIONS, test_messages);
+    let mut rng = seeded_rng();
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
     let (zig, node_meta) = read_config_file();
 
@@ -352,7 +369,8 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
         // Message::NotFound(Inv));
     ];
 
-    let payloads = slightly_corrupted_messages(ITERATIONS, test_messages);
+    let mut rng = seeded_rng();
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
     let (zig, node_meta) = read_config_file();
 
@@ -380,6 +398,7 @@ async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
     // zebra: sends version before disconnecting.
     // zcashd: log suggests messages was ignored, doesn't disconnect.
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
@@ -396,7 +415,7 @@ async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(header.checksum);
+        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -414,14 +433,13 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
     // zebra: sends a version before disconnecting.
     // zcashd: ignores the messages but doesn't disconnect (logs show a `CHECKSUM ERROR`).
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.start_waits_for_connection(zig.new_local_addr())
         .start()
         .await;
-
-    let mut rng = thread_rng();
 
     let test_messages = vec![
         Message::MemPool,
@@ -444,7 +462,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(header.checksum);
+        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -464,6 +482,7 @@ async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side
     // zcashd: log suggests messages was ignored, sends verack, ping, getheaders but doesn't
     // disconnect.
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
@@ -480,7 +499,7 @@ async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(header.checksum);
+        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -498,14 +517,13 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
     // zebra: sends a verack before disconnecting.
     // zcashd: logs indicate message was ignored, doesn't disconnect.
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.start_waits_for_connection(zig.new_local_addr())
         .start()
         .await;
-
-    let mut rng = thread_rng();
 
     let test_messages = vec![
         Message::MemPool,
@@ -528,7 +546,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(header.checksum);
+        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
@@ -549,6 +567,7 @@ async fn fuzzing_version_with_incorrect_length_pre_handshake() {
     // zebra: sends version before disconnecting.
     // zcashd: disconnects.
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
@@ -565,7 +584,7 @@ async fn fuzzing_version_with_incorrect_length_pre_handshake() {
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_u32(header.body_length);
+        header.body_length = random_non_valid_u32(&mut rng, header.body_length);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -583,14 +602,13 @@ async fn fuzzing_incorrect_length_pre_handshake() {
     // zebra: disconnects.
     // zcashd: disconnects.
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.start_waits_for_connection(zig.new_local_addr())
         .start()
         .await;
-
-    let mut rng = thread_rng();
 
     let test_messages = vec![
         Message::GetAddr,
@@ -614,7 +632,7 @@ async fn fuzzing_incorrect_length_pre_handshake() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_u32(header.body_length);
+        header.body_length = random_non_valid_u32(&mut rng, header.body_length);
 
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
         let _ = header.write_to_stream(&mut peer_stream).await;
@@ -633,6 +651,7 @@ async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side()
     // zebra: sends verack before disconnecting.
     // zcashd: disconnects (after sending verack, ping, getheaders).
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
@@ -649,7 +668,7 @@ async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side()
         let mut header = version.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_u32(header.body_length);
+        header.body_length = random_non_valid_u32(&mut rng, header.body_length);
 
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
@@ -667,14 +686,13 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
     // zebra: disconnects.
     // zcashd: disconnects (after sending verack, ping, getheaders).
 
+    let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.start_waits_for_connection(zig.new_local_addr())
         .start()
         .await;
-
-    let mut rng = thread_rng();
 
     let test_messages = vec![
         Message::MemPool,
@@ -697,7 +715,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
         let mut header = message.encode(&mut message_buffer).unwrap();
 
         // Set the length to a random value which isn't the current value.
-        header.body_length = random_non_valid_u32(header.body_length);
+        header.body_length = random_non_valid_u32(&mut rng, header.body_length);
 
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
@@ -711,25 +729,34 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
     node.stop().await;
 }
 
+fn seeded_rng() -> ChaCha8Rng {
+    let mut seed: <ChaCha8Rng as SeedableRng>::Seed = Default::default();
+    thread_rng().fill(&mut seed);
+
+    // We print the seed for reproducability.
+    println!("Seed for RNG: {:?}", seed);
+
+    // Isn't cryptographically secure but adequate enough as a general source of seeded randomness.
+    ChaCha8Rng::from_seed(seed)
+}
+
 // Random length zeroes.
-fn zeroes(n: usize) -> Vec<Vec<u8>> {
+fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
-            let random_len: usize = thread_rng().gen_range(1..(MAX_MESSAGE_LEN * 2));
+            let random_len: usize = rng.gen_range(1..(MAX_MESSAGE_LEN * 2));
+            dbg!(random_len);
             vec![0u8; random_len]
         })
         .collect()
 }
 
 // Random length, random bytes.
-fn random_bytes(n: usize) -> Vec<Vec<u8>> {
-    let mut rng = thread_rng();
-
+fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
             let random_len: usize = rng.gen_range(1..(64 * 1024));
-            let random_payload: Vec<u8> =
-                (&mut rng).sample_iter(Standard).take(random_len).collect();
+            let random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
 
             random_payload
         })
@@ -738,18 +765,16 @@ fn random_bytes(n: usize) -> Vec<Vec<u8>> {
 
 // Valid message header, random bytes as message.
 fn metadata_compliant_random_bytes(
+    rng: &mut ChaCha8Rng,
     n: usize,
     commands: Vec<[u8; 12]>,
 ) -> Vec<(MessageHeader, Vec<u8>)> {
-    let mut rng = thread_rng();
-
     (0..n)
         .map(|_| {
             let random_len: usize = rng.gen_range(1..(64 * 1024));
-            let random_payload: Vec<u8> =
-                (&mut rng).sample_iter(Standard).take(random_len).collect();
+            let random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
 
-            let command = commands.choose(&mut rng).unwrap();
+            let command = commands.choose(rng).unwrap();
             let header = MessageHeader::new(*command, &random_payload);
 
             (header, random_payload)
@@ -758,25 +783,27 @@ fn metadata_compliant_random_bytes(
 }
 
 // Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.
-fn slightly_corrupted_messages(n: usize, messages: Vec<Message>) -> Vec<Vec<u8>> {
-    let mut rng = thread_rng();
-
+fn slightly_corrupted_messages(
+    rng: &mut ChaCha8Rng,
+    n: usize,
+    messages: Vec<Message>,
+) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
-            let message = messages.choose(&mut rng).unwrap();
-            corrupt_message(&message)
+            let message = messages.choose(rng).unwrap();
+            corrupt_message(rng, &message)
         })
         .collect()
 }
 
-fn corrupt_message(message: &Message) -> Vec<u8> {
+fn corrupt_message(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
     let mut message_buffer = vec![];
     let header = message.encode(&mut message_buffer).unwrap();
     let mut header_buffer = vec![];
     header.encode(&mut header_buffer).unwrap();
 
-    let mut corrupted_header = corrupt_bytes(&header_buffer);
-    let mut corrupted_message = corrupt_bytes(&message_buffer);
+    let mut corrupted_header = corrupt_bytes(rng, &header_buffer);
+    let mut corrupted_message = corrupt_bytes(rng, &message_buffer);
 
     corrupted_header.append(&mut corrupted_message);
 
@@ -784,9 +811,7 @@ fn corrupt_message(message: &Message) -> Vec<u8> {
     corrupted_header
 }
 
-fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
-    let mut rng = thread_rng();
-
+fn corrupt_bytes(rng: &mut ChaCha8Rng, serialized: &[u8]) -> Vec<u8> {
     serialized
         .iter()
         .map(|byte| {
@@ -800,9 +825,7 @@ fn corrupt_bytes(serialized: &[u8]) -> Vec<u8> {
 }
 
 // Returns a random u32 which isn't the supplied value.
-fn random_non_valid_u32(value: u32) -> u32 {
-    let mut rng = thread_rng();
-
+fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
     // Make sure the generated value isn't the same.
     let random_value = rng.gen();
     if value != random_value {
