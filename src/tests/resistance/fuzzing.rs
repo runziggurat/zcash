@@ -418,6 +418,41 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
 }
 
 #[tokio::test]
+async fn fuzzing_slightly_corrupted_version_post_handshake() {
+    // ZG-RESISTANCE-005 (part 4)
+    //
+    // This particular case is considered alone because it is at particular risk of causing
+    // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
+    //
+    // zebra: spams getdata, doesn't disconnect.
+    // zcashd:
+
+    let mut rng = seeded_rng();
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for _ in 0..ITERATIONS {
+        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+
+        let version_to_corrupt =
+            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
+
+        // Send corrupt Version in place of Verack.
+        // Contains header + message.
+        let _ = peer_stream.write_all(&corrupted_version).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     // ZG-RESISTANCE-001 (part 4)
     //
