@@ -65,12 +65,12 @@ impl Block {
 
 impl Codec for Block {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.header.encode(buffer)?;
+        self.header.encode_without_tx_count(buffer)?;
         self.txs.encode(buffer)
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let header = Header::decode(bytes)?;
+        let header = Header::decode_without_tx_count(bytes)?;
         let txs = Vec::decode(bytes)?;
         Ok(Self { header, txs })
     }
@@ -95,37 +95,11 @@ impl Headers {
 
 impl Codec for Headers {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        // Can't use Vec::encode because of the tx_count=0 requirement for each Header
-        VarInt(self.headers.len()).encode(buffer)?;
-
-        for header in &self.headers {
-            header.encode(buffer)?;
-            // This encodes the tx_count, which is always 0 for the Header message
-            // (since we don't send the tx vector, unlike a Block message)
-            VarInt(0).encode(buffer)?;
-        }
-
-        Ok(())
+        self.headers.encode(buffer)
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        // Can't use Vec::decode because of the tx_count=0 requirement for each Header
-        let count = *VarInt::decode(bytes)?;
-        let mut headers = Vec::with_capacity(count);
-
-        for _ in 0..count {
-            let header = Header::decode(bytes)?;
-            // The tx_count must always be 0 for a Header message
-            let tx_count = *VarInt::decode(bytes)?;
-            if tx_count != 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Message::Header.tx_count = {}, expected 0", tx_count),
-                ));
-            }
-            headers.push(header);
-        }
-
+        let headers = Vec::decode(bytes)?;
         Ok(Self::new(headers))
     }
 }
@@ -147,6 +121,48 @@ pub struct Header {
 
 impl Codec for Header {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.encode_without_tx_count(buffer)?;
+        // Encode tx_count=0
+        VarInt(0).encode(buffer)
+    }
+
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let result = Self::decode_without_tx_count(bytes);
+
+        // tx_count must be zero
+        let tx_count = *VarInt::decode(bytes)?;
+        if tx_count != 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Message::Header.tx_count = {}, expected 0", tx_count),
+            ));
+        }
+
+        result
+    }
+}
+
+impl Header {
+    /// Calculates the double Sha256 hash for [Header]
+    fn double_sha256(&self) -> std::io::Result<Hash> {
+        let mut buffer = Vec::new();
+
+        self.encode_without_tx_count(&mut buffer)?;
+
+        let hash_bytes_1 = sha2::Sha256::digest(&buffer);
+        let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);
+
+        let hash = Hash::new(hash_bytes_2.try_into().unwrap());
+
+        Ok(hash)
+    }
+
+    /// Encodes [Header] without the VarInt `tx_count=0`. This is useful for [Block] encoding which requires
+    /// `tx_count=N`, as well as Hash calculation as it excludes `tx_count`.
+    fn encode_without_tx_count(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.version.encode(buffer)?;
         self.prev_block.encode(buffer)?;
         self.merkle_root.encode(buffer)?;
@@ -157,15 +173,14 @@ impl Codec for Header {
         buffer.write_all(&self.nonce)?;
 
         self.solution_size.encode(buffer)?;
-        buffer.write_all(&self.solution)?;
-
-        Ok(())
+        buffer.write_all(&self.solution)
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
-    where
-        Self: Sized,
-    {
+    /// Decodes [Header] without consuming the VarInt `tx_count`. This is useful for [Block] decoding which
+    /// requires the value to determine the number of transactions which follow in the body. [Header] on the
+    /// otherhand requires that this value be 0. This gets asserted in Header::encode, making it unsuiteable
+    /// for use by [Block].
+    fn decode_without_tx_count(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
         let prev_block = Hash::decode(bytes)?;
         let merkle_root = Hash::decode(bytes)?;
@@ -190,22 +205,6 @@ impl Codec for Header {
             solution_size,
             solution,
         })
-    }
-}
-
-impl Header {
-    /// Calculates the double Sha256 hash for [Header]
-    fn double_sha256(&self) -> std::io::Result<Hash> {
-        let mut buffer = Vec::new();
-
-        self.encode(&mut buffer)?;
-
-        let hash_bytes_1 = sha2::Sha256::digest(&buffer);
-        let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);
-
-        let hash = Hash::new(hash_bytes_2.try_into().unwrap());
-
-        Ok(hash)
     }
 }
 
