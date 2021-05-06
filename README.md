@@ -80,5 +80,5 @@ Quick overview of the current status, providing implementation progress and test
 | [![resis_002](https://img.shields.io/badge/002-████████░░-red)](SPEC.md#ZG-RESISTANCE-002)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_003](https://img.shields.io/badge/003-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-003)|
 | [![resis_004](https://img.shields.io/badge/004-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-004)|
-| [![resis_005](https://img.shields.io/badge/005-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-005)|
+| [![resis_005](https://img.shields.io/badge/005-████████░░-red)](SPEC.md#ZG-RESISTANCE-005)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet. 
 | [![resis_006](https://img.shields.io/badge/006-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-006)|
