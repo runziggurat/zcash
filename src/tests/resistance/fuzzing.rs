@@ -167,6 +167,35 @@ async fn fuzzing_random_bytes_during_handshake_responder_side() {
 }
 
 #[tokio::test]
+async fn fuzzing_random_bytes_post_handshake() {
+    // ZG-RESISTANCE-005 (part 2)
+    //
+    // zebra: disconnects.
+    // zcashd: sends ping, getheaders and disconnects.
+
+    let mut rng = seeded_rng();
+    let payloads = random_bytes(&mut rng, ITERATIONS);
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for payload in payloads {
+        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+
+        // Write random bytes in place of Verack.
+        let _ = peer_stream.write_all(&payload).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     // ZG-RESISTANCE-001 (part 3)
     //
