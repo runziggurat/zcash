@@ -298,6 +298,53 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
 }
 
 #[tokio::test]
+async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
+    // ZG-RESISTANCE-005 (part 3)
+    //
+    // zebra: breaks with a version command in header, spams getdata, doesn't disconnect.
+    // zcashd:
+
+    // Payloadless messages are omitted.
+    let commands = vec![
+        VERSION_COMMAND,
+        PING_COMMAND,
+        PONG_COMMAND,
+        ADDR_COMMAND,
+        GETHEADERS_COMMAND,
+        HEADERS_COMMAND,
+        GETBLOCKS_COMMAND,
+        BLOCK_COMMAND,
+        GETDATA_COMMAND,
+        INV_COMMAND,
+        NOTFOUND_COMMAND,
+        TX_COMMAND,
+        REJECT_COMMAND,
+    ];
+
+    let mut rng = seeded_rng();
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for (header, payload) in payloads {
+        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+
+        // Write random bytes in place of Verack.
+        let _ = header.write_to_stream(&mut peer_stream).await;
+        let _ = peer_stream.write_all(&payload).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_slightly_corrupted_version_pre_handshake() {
     // ZG-RESISTANCE-001 (part 4)
     //
