@@ -94,6 +94,9 @@ impl Node {
     /// This function will write the appropriate configuration file and run the start command
     /// provided in `config.toml`.
     pub async fn start(&mut self) {
+        // cleanup any previous runs (node.stop won't always be reached e.g. test panics, or SIGINT)
+        self.cleanup();
+
         // Set the listener if start signalling is enabled.
         let mut listener: Option<TcpListener> = None;
         if let Some(addr) = self.config.start_listener_addr {
@@ -164,21 +167,55 @@ impl Node {
             _ => child.kill().await.expect("failed to kill process"),
         }
 
-        // TODO: Cleanup?
+        self.cleanup();
     }
 
     fn generate_config_file(&self) {
-        let (path, content) = match self.meta.kind {
-            NodeKind::Zebra => (
-                self.meta.path.join("node.toml"),
-                ZebraConfigFile::generate(&self.config),
-            ),
-            NodeKind::Zcashd => (
-                self.meta.path.join("zcash.conf"),
-                ZcashdConfigFile::generate(&self.config),
-            ),
+        let path = self.config_filepath();
+        let content = match self.meta.kind {
+            NodeKind::Zebra => ZebraConfigFile::generate(&self.config),
+            NodeKind::Zcashd => ZcashdConfigFile::generate(&self.config),
         };
 
         fs::write(path, content).unwrap();
+    }
+
+    fn config_filepath(&self) -> std::path::PathBuf {
+        match self.meta.kind {
+            NodeKind::Zebra => self.meta.path.join("node.toml"),
+            NodeKind::Zcashd => self.meta.path.join("zcash.conf"),
+        }
+    }
+
+    fn cleanup(&self) {
+        self.cleanup_config_file();
+        self.cleanup_cache();
+    }
+
+    fn cleanup_config_file(&self) {
+        let path = self.config_filepath();
+        match std::fs::remove_file(path) {
+            // File may not exist, so we let that error through
+            Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+                panic!("Error removing config file: {}", err)
+            }
+            _ => {}
+        }
+    }
+
+    fn cleanup_cache(&self) {
+        // No cache for zebra as it is configured in ephemeral mode
+        if let NodeKind::Zcashd = self.meta.kind {
+            // Default cache location is ~/.zcash
+            let path = home::home_dir().unwrap().join(".zcash");
+
+            match std::fs::remove_dir_all(path) {
+                // Directory may not exist, so we let that error through
+                Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+                    panic!("Error cleaning up zcashd cache: {}", err)
+                }
+                _ => {}
+            }
+        }
     }
 }
