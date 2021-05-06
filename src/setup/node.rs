@@ -168,17 +168,19 @@ impl Node {
     }
 
     fn generate_config_file(&self) {
-        let (path, content) = match self.meta.kind {
-            NodeKind::Zebra => (
-                self.meta.path.join("node.toml"),
-                ZebraConfigFile::generate(&self.config),
-            ),
-            NodeKind::Zcashd => (
-                self.meta.path.join("zcash.conf"),
-                ZcashdConfigFile::generate(&self.config),
-            ),
+        let path = self.config_filepath();
+        let content = match self.meta.kind {
+            NodeKind::Zebra => ZebraConfigFile::generate(&self.config),
+            NodeKind::Zcashd => ZcashdConfigFile::generate(&self.config),
         };
 
         fs::write(path, content).unwrap();
+    }
+
+    fn config_filepath(&self) -> std::path::PathBuf {
+        match self.meta.kind {
+            NodeKind::Zebra => self.meta.path.join("node.toml"),
+            NodeKind::Zcashd => self.meta.path.join("zcash.conf"),
+        }
     }
 }
