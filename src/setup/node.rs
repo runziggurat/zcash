@@ -164,7 +164,8 @@ impl Node {
             _ => child.kill().await.expect("failed to kill process"),
         }
 
-        // TODO: Cleanup?
+        self.cleanup_config_file();
+        // todo: zcashd cache cleanup
     }
 
     fn generate_config_file(&self) {
@@ -182,5 +183,10 @@ impl Node {
             NodeKind::Zebra => self.meta.path.join("node.toml"),
             NodeKind::Zcashd => self.meta.path.join("zcash.conf"),
         }
+    }
+
+    fn cleanup_config_file(&self) {
+        let path = self.config_filepath();
+        std::fs::remove_file(path).expect("Unable to remove config file");
     }
 }
