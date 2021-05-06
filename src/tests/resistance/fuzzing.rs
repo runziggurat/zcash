@@ -539,6 +539,50 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
 }
 
 #[tokio::test]
+async fn fuzzing_slightly_corrupted_messages_post_handshake() {
+    // ZG-RESISTANCE-005 (part 4)
+    //
+    // zebra: sends getdata and ignores message.
+    // zcashd:
+
+    let test_messages = vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let mut rng = seeded_rng();
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+
+    let (zig, node_meta) = read_config_file();
+
+    let mut node = Node::new(node_meta);
+    node.start_waits_for_connection(zig.new_local_addr())
+        .start()
+        .await;
+
+    for payload in payloads {
+        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+
+        // Write the corrupted message in place of Verack.
+        let _ = peer_stream.write_all(&payload).await;
+
+        autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
     // ZG-RESISTANCE-001 (part 5)
     //
