@@ -19,8 +19,7 @@ impl Codec for Inv {
     }
 }
 
-#[derive(Debug)]
-struct InvHash {
+pub struct InvHash {
     kind: ObjectKind,
     hash: Hash,
 }
