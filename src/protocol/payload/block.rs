@@ -61,6 +61,24 @@ impl Block {
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         self.header.double_sha256()
     }
+
+    /// Creates the first block on the testnet chain
+    pub fn genesis_0() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_GENESIS_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the second block on the testnet chain
+    pub fn genesis_1() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_1_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the third block on the testnet chain
+    pub fn genesis_2() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
 }
 
 impl Codec for Block {
