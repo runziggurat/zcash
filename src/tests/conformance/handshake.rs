@@ -4,7 +4,10 @@ use crate::{
         message::{Filter, Message, MessageFilter},
         payload::{block::Headers, Addr, Nonce, Version},
     },
-    setup::{config::read_config_file, node::Node},
+    setup::{
+        config::read_config_file,
+        node::{Action, Node},
+    },
 };
 
 use tokio::net::{TcpListener, TcpStream};
@@ -16,7 +19,7 @@ async fn handshake_responder_side() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
         .start()
         .await;
 
@@ -129,7 +132,7 @@ async fn reject_non_version_before_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
         .start()
         .await;
 
@@ -467,7 +470,7 @@ async fn reject_obsolete_versions() {
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
         .start()
         .await;
 
