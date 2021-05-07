@@ -4,7 +4,10 @@ use crate::{
         message::{Message, MessageFilter},
         payload::{addr::NetworkAddr, block::Headers, reject::CCode, Addr, Nonce, Version},
     },
-    setup::{config::read_config_file, node::Node},
+    setup::{
+        config::read_config_file,
+        node::{Action, Node},
+    },
     wait_until,
 };
 
@@ -92,7 +95,7 @@ async fn reject_invalid_messages() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
         .start()
         .await;
 
@@ -228,7 +231,7 @@ async fn eagerly_crawls_network_for_peers() {
 
     // start the node
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
         .start()
         .await;
 
@@ -330,7 +333,7 @@ async fn correctly_lists_peers() {
 
     // Create a node and main connection
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
         .start()
         .await;
 
