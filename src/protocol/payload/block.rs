@@ -63,19 +63,19 @@ impl Block {
     }
 
     /// Creates the first block on the testnet chain
-    pub fn genesis_0() -> Self {
+    pub fn testnet_genesis() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_GENESIS_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
     /// Creates the second block on the testnet chain
-    pub fn genesis_1() -> Self {
+    pub fn testnet_1() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_1_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
     /// Creates the third block on the testnet chain
-    pub fn genesis_2() -> Self {
+    pub fn testnet_2() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
