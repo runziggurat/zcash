@@ -4,7 +4,11 @@ use std::io::{self, Cursor, Write};
 
 #[derive(Debug)]
 pub struct Inv {
-    inventory: Vec<InvHash>,
+
+impl Inv {
+    pub fn new(inventory: Vec<InvHash>) -> Self {
+        Self { inventory }
+    }
 }
 
 impl Codec for Inv {
@@ -24,6 +28,12 @@ pub struct InvHash {
     hash: Hash,
 }
 
+impl InvHash {
+    pub fn new(kind: ObjectKind, hash: Hash) -> Self {
+        Self { kind, hash }
+    }
+}
+
 impl Codec for InvHash {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         self.kind.encode(buffer)?;
@@ -40,8 +50,7 @@ impl Codec for InvHash {
     }
 }
 
-#[derive(Debug)]
-enum ObjectKind {
+pub enum ObjectKind {
     Error,
     Tx,
     Block,
