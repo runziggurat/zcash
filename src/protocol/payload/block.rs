@@ -10,8 +10,8 @@ use sha2::Digest;
 #[derive(Debug)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
-    block_locator_hashes: Vec<Hash>,
-    hash_stop: Hash,
+    pub block_locator_hashes: Vec<Hash>,
+    pub hash_stop: Hash,
 }
 
 impl LocatorHashes {
@@ -61,6 +61,24 @@ impl Block {
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         self.header.double_sha256()
     }
+
+    /// Creates the first block on the testnet chain
+    pub fn testnet_genesis() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_GENESIS_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the second block on the testnet chain
+    pub fn testnet_1() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_1_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the third block on the testnet chain
+    pub fn testnet_2() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
 }
 
 impl Codec for Block {
@@ -78,7 +96,7 @@ impl Codec for Block {
 
 #[derive(Debug)]
 pub struct Headers {
-    headers: Vec<Header>,
+    pub headers: Vec<Header>,
 }
 
 impl Headers {
@@ -104,7 +122,7 @@ impl Codec for Headers {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Header {
     version: ProtocolVersion,
     prev_block: Hash,
@@ -147,7 +165,7 @@ impl Codec for Header {
 
 impl Header {
     /// Calculates the double Sha256 hash for [Header]
-    fn double_sha256(&self) -> std::io::Result<Hash> {
+    pub fn double_sha256(&self) -> std::io::Result<Hash> {
         let mut buffer = Vec::new();
 
         self.encode_without_tx_count(&mut buffer)?;

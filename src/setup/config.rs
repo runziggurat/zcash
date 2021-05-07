@@ -9,6 +9,8 @@ use std::{
     path::PathBuf,
 };
 
+use crate::setup::node::Action;
+
 const NODE_PORT: u16 = 8080;
 
 /// Reads the contents of Ziggurat's configuration file.
@@ -66,9 +68,8 @@ pub(super) struct NodeConfig {
     pub(super) max_peers: usize,
     /// Setting this option to true will enable node logging to stdout.
     pub(super) log_to_stdout: bool,
-    /// Setting this option will configure the node to signal it has started through a peer
-    /// connection at the supplied address.
-    pub(super) start_listener_addr: Option<SocketAddr>,
+    /// Defines the intial action to take once the node has started.
+    pub(super) initial_action: Action,
 }
 
 impl NodeConfig {
@@ -78,13 +79,13 @@ impl NodeConfig {
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
-            start_listener_addr: None,
+            initial_action: Action::None,
         }
     }
 }
 
 /// Describes the node kind, currently supports the two known variants.
-#[derive(Deserialize, Debug, Clone, Copy)]
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all(deserialize = "lowercase"))]
 pub(super) enum NodeKind {
     Zebra,
