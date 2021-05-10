@@ -5,8 +5,9 @@ use crate::{
         payload::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
+            inv::{InvHash, ObjectKind},
             reject::CCode,
-            Addr, Hash, Nonce, Version,
+            Addr, Hash, Inv, Nonce, Version,
         },
     },
     setup::{
@@ -490,6 +491,111 @@ async fn correctly_lists_blocks() {
             assert_eq!(headers.headers, expected[2..], "test for forked Headers")
         }
         messsage => panic!("Expected Headers, but got: {:?}", messsage),
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn get_data_blocks() {
+    // ZG-CONFORMANCE-017, blocks portion
+    //
+    // The node responds to `GetData` requests with the appropriate transaction or block as requested by the peer.
+    //
+    // We test the following conditions:
+    //  1. query for i=1..3 blocks
+    //  2. a non-existing block
+    //  3. a mixture of existing and non-existing blocks
+    //
+    // Test procedure:
+    //  1. Create a node and seed it with the testnet chain
+    //  2. Establish a peer node
+    //  3. For each test case:
+    //      a) send GetData
+    //      b) receive a series Blocks
+    //      c) assert Block received matches expectations
+    //
+    // The test currently fails for both Zebra and zcashd.
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Ignores non-existing block requests, we expect `NotFound` to be sent but it never does (both in cases 2 and 3).
+    //
+    //  zebra: does not support seeding as yet, and therefore cannot perform this test.
+
+    let (zig, node_meta) = read_config_file();
+
+    // Create a node with knowledge of the initial three testnet blocks
+    let mut node = Node::new(node_meta);
+    node.initial_action(Action::SeedWithTestnetBlocks(zig.new_local_addr()))
+        .log_to_stdout(true)
+        .start()
+        .await;
+
+    // block headers and hashes
+    let blocks = vec![
+        Box::new(Block::testnet_genesis()),
+        Box::new(Block::testnet_1()),
+        Box::new(Block::testnet_2()),
+    ];
+
+    let inv_blocks = blocks
+        .iter()
+        .map(|block| InvHash::new(ObjectKind::Block, block.double_sha256().unwrap()))
+        .collect::<Vec<_>>();
+
+    // Establish a peer node
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    let filter = MessageFilter::with_all_auto_reply();
+
+    // Query for the first i blocks
+    for i in 0..blocks.len() {
+        Message::GetData(Inv::new(inv_blocks[..=i].to_vec()))
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap();
+        // Expect the i blocks
+        for j in 0..=i {
+            match filter.read_from_stream(&mut stream).await.unwrap() {
+                Message::Block(block) => assert_eq!(block, blocks[j], "run {}, {}", i, j),
+                messsage => panic!("Expected Block, but got: {:?}", messsage),
+            }
+        }
+    }
+
+    // Query for a non-existant block
+    let non_existant = InvHash::new(ObjectKind::Block, Hash::new([17; 32]));
+    let non_existant_inv = Inv::new(vec![non_existant.clone()]);
+    Message::GetData(non_existant_inv.clone())
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    match filter.read_from_stream(&mut stream).await.unwrap() {
+        Message::NotFound(not_found) => assert_eq!(not_found, non_existant_inv),
+        messsage => panic!("Expected NotFound, but got: {:?}", messsage),
+    }
+
+    // Query a mixture of existing and non-existing blocks
+    let mut mixed_blocks = inv_blocks;
+    mixed_blocks.insert(1, non_existant.clone());
+    mixed_blocks.push(non_existant.clone());
+
+    let expected = vec![
+        Message::Block(Box::new(Block::testnet_genesis())),
+        Message::NotFound(non_existant_inv.clone()),
+        Message::Block(Box::new(Block::testnet_1())),
+        Message::Block(Box::new(Block::testnet_2())),
+        Message::NotFound(non_existant_inv),
+    ];
+
+    Message::GetData(Inv::new(mixed_blocks))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+
+    for expect in expected {
+        let message = filter.read_from_stream(&mut stream).await.unwrap();
+        assert_eq!(message, expect);
     }
 
     node.stop().await;
