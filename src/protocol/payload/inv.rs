@@ -2,7 +2,7 @@ use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
 
 use std::io::{self, Cursor, Write};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Inv {
     pub inventory: Vec<InvHash>,
 }
@@ -25,7 +25,7 @@ impl Codec for Inv {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct InvHash {
     kind: ObjectKind,
     hash: Hash,
@@ -53,7 +53,7 @@ impl Codec for InvHash {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ObjectKind {
     Error,
     Tx,

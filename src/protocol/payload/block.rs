@@ -7,7 +7,7 @@ use std::{
 
 use sha2::Digest;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
     pub block_locator_hashes: Vec<Hash>,
@@ -94,7 +94,7 @@ impl Codec for Block {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Headers {
     pub headers: Vec<Header>,
 }
