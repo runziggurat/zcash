@@ -2,7 +2,12 @@ use crate::{
     helpers::{initiate_handshake, respond_to_handshake},
     protocol::{
         message::{Message, MessageFilter},
-        payload::{addr::NetworkAddr, block::Headers, reject::CCode, Addr, Nonce, Version},
+        payload::{
+            addr::NetworkAddr,
+            block::{Block, Headers, LocatorHashes},
+            reject::CCode,
+            Addr, Hash, Nonce, Version,
+        },
     },
     setup::{
         config::read_config_file,
@@ -367,6 +372,124 @@ async fn correctly_lists_peers() {
 
         // list updated after check since current peer is not expecting to be part of the node's peer list
         peers.push(new_peer);
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn correctly_lists_blocks() {
+    // ZG-CONFORMANCE-016
+    //
+    // The node responds to `GetHeaders` request with a list of block headers based on the provided range.
+    //
+    // We test the following conditions:
+    //  1. unlimited queries i.e. stop_hash = 0
+    //  2. range queries i.e. stop_hash = i
+    //  3. a forked chain (we submit a header which doesn't match the chain)
+    //
+    // Test procedure:
+    //  1. Create a node and seed it with the testnet chain
+    //  2. Establish a peer node
+    //  3. For each test case:
+    //      a) send GetHeaders
+    //      b) receive Headers
+    //      c) assert headers received match expectations
+    //
+    // The test currently fails for both Zebra and zcashd.
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Fails for range queries where the head of the chain equals the stop hash. We expect to receive an empty set,
+    //          but instead we get header [i+1] (which exceeds stop_hash).
+    //
+    //  zebra: does not support seeding as yet, and therefore cannot perform this test.
+
+    let (zig, node_meta) = read_config_file();
+
+    // Create a node with knowledge of the initial three testnet blocks
+    let mut node = Node::new(node_meta);
+    node.initial_action(Action::SeedWithTestnetBlocks(zig.new_local_addr()))
+        .start()
+        .await;
+
+    // block headers and hashes
+    let expected = vec![
+        Block::testnet_genesis().header,
+        Block::testnet_1().header,
+        Block::testnet_2().header,
+    ];
+    let hashes = expected
+        .iter()
+        .map(|header| header.double_sha256().unwrap())
+        .collect::<Vec<_>>();
+
+    // locator hashes are stored in reverse order
+    let locator = vec![
+        vec![hashes[0].clone()],
+        vec![hashes[1].clone(), hashes[0].clone()],
+        vec![hashes[2].clone(), hashes[1].clone(), hashes[0].clone()],
+    ];
+
+    // Establish a peer node
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    let filter = MessageFilter::with_all_auto_reply();
+
+    // Query for all blocks from i onwards (stop_hash = [0])
+    for i in 0..expected.len() {
+        Message::GetHeaders(LocatorHashes::new(locator[i].clone(), Hash::zeroed()))
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap();
+
+        match filter.read_from_stream(&mut stream).await.unwrap() {
+            Message::Headers(headers) => assert_eq!(
+                headers.headers,
+                expected[(i + 1)..],
+                "test for Headers([{}..])",
+                i
+            ),
+            messsage => panic!("Expected Headers, but got: {:?}", messsage),
+        }
+    }
+
+    // Query for all possible valid ranges
+    let ranges: Vec<(usize, usize)> = vec![(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)];
+    for (start, stop) in ranges {
+        Message::GetHeaders(LocatorHashes::new(
+            locator[start].clone(),
+            hashes[stop].clone(),
+        ))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+
+        // We use start+1 because Headers should list the blocks starting *after* the
+        // final location in GetHeaders, and up (and including) the stop-hash.
+        match filter.read_from_stream(&mut stream).await.unwrap() {
+            Message::Headers(headers) => assert_eq!(
+                headers.headers,
+                expected[start + 1..=stop],
+                "test for Headers([{}..={}])",
+                start + 1,
+                stop
+            ),
+            messsage => panic!("Expected Headers, but got: {:?}", messsage),
+        }
+    }
+
+    // Query as if from a fork. We replace [2], and expect to be corrected
+    let mut fork_locator = locator[1].clone();
+    fork_locator.insert(0, Hash::new([17; 32]));
+    Message::GetHeaders(LocatorHashes::new(fork_locator, Hash::zeroed()))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    match filter.read_from_stream(&mut stream).await.unwrap() {
+        Message::Headers(headers) => {
+            assert_eq!(headers.headers, expected[2..], "test for forked Headers")
+        }
+        messsage => panic!("Expected Headers, but got: {:?}", messsage),
     }
 
     node.stop().await;

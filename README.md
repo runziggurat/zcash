@@ -85,7 +85,7 @@ Quick overview of the current status, providing implementation progress and test
 | [![conf_013](https://img.shields.io/badge/013-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-013)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_014](https://img.shields.io/badge/014-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-014)|
 | [![conf_015](https://img.shields.io/badge/015-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-015)|
-| [![conf_016](https://img.shields.io/badge/016-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-016)|
+| [![conf_016](https://img.shields.io/badge/016-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-016)|
 | [![conf_017](https://img.shields.io/badge/017-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-017)|
 
 | Performance | Additional Information |
@@ -95,8 +95,8 @@ Quick overview of the current status, providing implementation progress and test
 
 | Resistance | Additional Information |
 | :--------- | :--------------------- |
-| [![resis_001](https://img.shields.io/badge/001-████████░░-red)](SPEC.md#ZG-RESISTANCE-001)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet. 
-| [![resis_002](https://img.shields.io/badge/002-████████░░-red)](SPEC.md#ZG-RESISTANCE-002)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet. 
+| [![resis_001](https://img.shields.io/badge/001-████████░░-red)](SPEC.md#ZG-RESISTANCE-001)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
+| [![resis_002](https://img.shields.io/badge/002-████████░░-red)](SPEC.md#ZG-RESISTANCE-002)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_003](https://img.shields.io/badge/003-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-003)|
 | [![resis_004](https://img.shields.io/badge/004-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-004)|
 | [![resis_005](https://img.shields.io/badge/005-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-005)|
