@@ -9,7 +9,7 @@ use std::{
     net::SocketAddr,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Version {
     version: ProtocolVersion,
     services: u64,

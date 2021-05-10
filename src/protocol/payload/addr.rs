@@ -9,7 +9,7 @@ use std::{
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Addr {
     addrs: Vec<NetworkAddr>,
 }
@@ -39,7 +39,7 @@ impl Codec for Addr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NetworkAddr {
     // Note: Present only when version is >= 31402
     pub(super) last_seen: Option<DateTime<Utc>>,
