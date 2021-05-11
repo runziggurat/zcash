@@ -25,12 +25,18 @@ pub enum Action {
     /// This is useful for indicating that the node has started and is available for
     /// other connections.
     WaitForConnection(SocketAddr),
-    /// Seeds the node with the first three blocks from the testnet chain, by connecting on
-    /// the given address and sending the appropriate data. After this, the connection is terminated.
+    /// Seeds the node with `block_count` blocks from the testnet chain, by connecting from a socket
+    /// on `socket_addr` and sending the appropriate data. After this, the connection is terminated.
     ///
     /// **Warning**: this currently only works for zcashd type nodes, for zebra the behaviour
     /// is equivalent to WaitForConnection.
-    SeedWithTestnetBlocks(SocketAddr),
+    SeedWithTestnetBlocks {
+        /// The socket address to use when connecting to the node
+        socket_addr: SocketAddr,
+        /// The number of initial testnet blocks to seed. Note that this is capped by the number of blocks available
+        /// from [Block::initial_testnet_blocks].
+        block_count: usize,
+    },
 }
 
 /// Represents an instance of a node, its configuration and setup/teardown intricacies.
@@ -121,7 +127,11 @@ impl Node {
         // Setup the listener if there is some initial action required
         let listener = match self.config.initial_action {
             Action::None => None,
-            Action::WaitForConnection(addr) | Action::SeedWithTestnetBlocks(addr) => {
+            Action::WaitForConnection(addr)
+            | Action::SeedWithTestnetBlocks {
+                socket_addr: addr,
+                block_count: _,
+            } => {
                 let bound_listener = TcpListener::bind(addr).await.unwrap();
                 self.config.initial_peers.insert(format!(
                     "{}:{}",
@@ -161,11 +171,17 @@ impl Node {
             Action::WaitForConnection(_) => {
                 listener.unwrap().accept().await.unwrap();
             }
-            Action::SeedWithTestnetBlocks(_) if self.meta.kind == NodeKind::Zebra => {
+            Action::SeedWithTestnetBlocks {
+                socket_addr: _,
+                block_count: _,
+            } if self.meta.kind == NodeKind::Zebra => {
                 // not supported for zebra yet, so we just wait for connection at least
                 listener.unwrap().accept().await.unwrap();
             }
-            Action::SeedWithTestnetBlocks(_) => {
+            Action::SeedWithTestnetBlocks {
+                socket_addr: _,
+                block_count,
+            } => {
                 use crate::protocol::message::Message;
                 let mut stream = respond_to_handshake(listener.unwrap()).await.unwrap();
 
@@ -173,9 +189,13 @@ impl Node {
                     .with_getheaders_filter(Filter::Disabled)
                     .with_getdata_filter(Filter::Disabled);
 
-                let block_0 = Box::new(Block::testnet_genesis());
-                let block_1 = Box::new(Block::testnet_1());
-                let block_2 = Box::new(Block::testnet_2());
+                let genesis_block = Block::testnet_genesis();
+                // initial blocks, skipping genesis as it doesn't get sent
+                let blocks = Block::initial_testnet_blocks()
+                    .into_iter()
+                    .take(block_count)
+                    .skip(1)
+                    .collect::<Vec<_>>();
 
                 // respond to GetHeaders(Block[0])
                 match filter.read_from_stream(&mut stream).await.unwrap() {
@@ -184,42 +204,40 @@ impl Node {
                         // i.e. locator_hash = [genesis.hash], stop_hash = [0]
                         assert_eq!(
                             locations.block_locator_hashes,
-                            vec![block_0.double_sha256().unwrap()]
+                            vec![genesis_block.double_sha256().unwrap()]
                         );
                         assert_eq!(locations.hash_stop, Hash::zeroed());
 
-                        // Reply with headers for blocks [1,2]
-                        Message::Headers(Headers::new(vec![
-                            block_1.header.clone(),
-                            block_2.header.clone(),
-                        ]))
-                        .write_to_stream(&mut stream)
-                        .await
-                        .unwrap();
+                        // Reply with headers for the initial block headers
+                        let headers = blocks.iter().map(|block| block.header.clone()).collect();
+                        Message::Headers(Headers::new(headers))
+                            .write_to_stream(&mut stream)
+                            .await
+                            .unwrap();
                     }
                     msg => panic!("Expected GetHeaders but got: {:?}", msg),
                 }
 
-                // respond to GetData(inv) for blocks([1,2])
+                // respond to GetData(inv) for the initial blocks
                 match filter.read_from_stream(&mut stream).await.unwrap() {
                     Message::GetData(inv) => {
-                        // The request must be for blocks [1,2]
-                        let expected = Inv::new(vec![
-                            InvHash::new(ObjectKind::Block, block_1.double_sha256().unwrap()),
-                            InvHash::new(ObjectKind::Block, block_2.double_sha256().unwrap()),
-                        ]);
-
+                        // The request must be for the initial blocks
+                        let inv_hashes = blocks
+                            .iter()
+                            .map(|block| {
+                                InvHash::new(ObjectKind::Block, block.double_sha256().unwrap())
+                            })
+                            .collect();
+                        let expected = Inv::new(inv_hashes);
                         assert_eq!(inv, expected);
 
-                        // send blocks 1 and 2
-                        Message::Block(block_1)
-                            .write_to_stream(&mut stream)
-                            .await
-                            .unwrap();
-                        Message::Block(block_2)
-                            .write_to_stream(&mut stream)
-                            .await
-                            .unwrap();
+                        // Send the blocks
+                        for block in blocks {
+                            Message::Block(Box::new(block))
+                                .write_to_stream(&mut stream)
+                                .await
+                                .unwrap();
+                        }
                     }
                     msg => panic!("Expected GetData but got: {:?}", msg),
                 }

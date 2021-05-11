@@ -410,16 +410,18 @@ async fn correctly_lists_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node = Node::new(node_meta);
-    node.initial_action(Action::SeedWithTestnetBlocks(zig.new_local_addr()))
-        .start()
-        .await;
+    node.initial_action(Action::SeedWithTestnetBlocks {
+        socket_addr: zig.new_local_addr(),
+        block_count: 3,
+    })
+    .start()
+    .await;
 
     // block headers and hashes
-    let expected = vec![
-        Block::testnet_genesis().header,
-        Block::testnet_1().header,
-        Block::testnet_2().header,
-    ];
+    let expected = Block::initial_testnet_blocks()
+        .iter()
+        .map(|block| block.header.clone())
+        .collect::<Vec<_>>();
     let hashes = expected
         .iter()
         .map(|header| header.double_sha256().unwrap())
@@ -527,10 +529,13 @@ async fn get_data_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node = Node::new(node_meta);
-    node.initial_action(Action::SeedWithTestnetBlocks(zig.new_local_addr()))
-        .log_to_stdout(true)
-        .start()
-        .await;
+    node.initial_action(Action::SeedWithTestnetBlocks {
+        socket_addr: zig.new_local_addr(),
+        block_count: 3,
+    })
+    .log_to_stdout(true)
+    .start()
+    .await;
 
     // block headers and hashes
     let blocks = vec![

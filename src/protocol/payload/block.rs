@@ -79,6 +79,15 @@ impl Block {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
+
+    /// Returns the initial 3 testnet blocks
+    pub fn initial_testnet_blocks() -> Vec<Self> {
+        vec![
+            Self::testnet_genesis(),
+            Self::testnet_1(),
+            Self::testnet_2(),
+        ]
+    }
 }
 
 impl Codec for Block {
