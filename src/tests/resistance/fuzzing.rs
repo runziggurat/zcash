@@ -43,7 +43,7 @@ async fn fuzzing_zeroes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -68,7 +68,7 @@ async fn fuzzing_zeroes_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -95,7 +95,7 @@ async fn fuzzing_random_bytes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -120,7 +120,7 @@ async fn fuzzing_random_bytes_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -165,7 +165,7 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -209,7 +209,7 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
     let mut rng = seeded_rng();
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -243,7 +243,7 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -276,7 +276,7 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -323,7 +323,7 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -363,7 +363,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -389,7 +389,7 @@ async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -423,7 +423,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -471,7 +471,7 @@ async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -505,7 +505,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -554,7 +554,7 @@ async fn fuzzing_version_with_incorrect_length_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -588,7 +588,7 @@ async fn fuzzing_incorrect_length_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -636,7 +636,7 @@ async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side()
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -670,7 +670,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
 
     let mut rng = seeded_rng();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;

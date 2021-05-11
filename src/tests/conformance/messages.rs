@@ -27,7 +27,7 @@ async fn ping_pong() {
     let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     // Create a node and set the listener as an initial peer.
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
@@ -96,7 +96,7 @@ async fn reject_invalid_messages() {
     //  Zebra:
     //      Both Version and Verack result in a terminated connection
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -148,7 +148,7 @@ async fn ignores_unsolicited_responses() {
     let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     // Create a node and set the listener as an initial peer.
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
@@ -228,7 +228,7 @@ async fn eagerly_crawls_network_for_peers() {
         .collect::<Vec<_>>();
 
     // start the node
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -328,7 +328,7 @@ async fn correctly_lists_peers() {
     //          all its peer connections have responded to `GetAddr` with a non-empty list.
 
     // Create a node and main connection
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -400,7 +400,7 @@ async fn get_blocks() {
     //       We are taking current behaviour as correct.
 
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks {
         socket_addr: new_local_addr(),
         block_count: 3,
@@ -508,7 +508,7 @@ async fn correctly_lists_blocks() {
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks {
         socket_addr: new_local_addr(),
         block_count: 3,
@@ -625,7 +625,7 @@ async fn get_data_blocks() {
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks {
         socket_addr: new_local_addr(),
         block_count: 3,
@@ -705,7 +705,7 @@ async fn get_data_blocks() {
 
 #[allow(dead_code)]
 async fn unsolicitation_listener() {
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.start().await;
 
     let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();

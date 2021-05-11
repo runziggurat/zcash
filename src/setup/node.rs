@@ -52,18 +52,18 @@ pub struct Node {
     process: Option<Child>,
 }
 
-impl Node {
-    /// Creates a new [`Node`] instance from [`NodeMetaData`].
+impl Default for Node {
+    /// Creates a new [`Node`] instance.
     ///
     /// Once created, it can be configured with calls to [`initial_peers`], [`max_peers`] and [`log_to_stdout`].
     ///
     /// [`Node`]: struct@Node
     /// [`NodeMetaData`]: struct@crate::setup::config::NodeMetaData
-    /// [`initial_peers`]: methode@Node::initial_peers
-    /// [`max_peers`]: methode@Node::max_peers
+    /// [`initial_peers`]: method@Node::initial_peers
+    /// [`max_peers`]: method@Node::max_peers
     /// [`log_to_stdout`]: method@Node::log_to_stdout
-    pub fn new() -> Self {
-        // Config (to be written to node configuration file) sets a random local address.
+    fn default() -> Self {
+        // Config (to be written to node configuration file).
         let config = NodeConfig::new();
         let meta = NodeMetaData::new();
 
@@ -73,7 +73,9 @@ impl Node {
             process: None,
         }
     }
+}
 
+impl Node {
     /// Returns the (external) address of the node.
     pub fn addr(&self) -> SocketAddr {
         self.config.local_addr
