@@ -5,7 +5,7 @@ use crate::{
         payload::{block::Headers, Addr, Nonce, Version},
     },
     setup::{
-        config::read_config_file,
+        config::{new_local_addr, read_config_file},
         node::{Action, Node},
     },
 };
@@ -16,10 +16,10 @@ use tokio::net::{TcpListener, TcpStream};
 async fn handshake_responder_side() {
     // ZG-CONFORMANCE-001
 
-    let (zig, node_meta) = read_config_file();
+    let node_meta = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -49,13 +49,13 @@ async fn handshake_responder_side() {
 async fn handshake_initiator_side() {
     // ZG-CONFORMANCE-002
 
-    let (zig, node_meta) = read_config_file();
+    let node_meta = read_config_file();
 
-    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     // Create a node and set the listener as an initial peer.
     let mut node = Node::new(node_meta);
-    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+    node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
 
@@ -129,10 +129,10 @@ async fn reject_non_version_before_handshake() {
         // Message::NotFound(Inv));
     ];
 
-    let (zig, node_meta) = read_config_file();
+    let node_meta = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -221,20 +221,20 @@ async fn reject_non_version_replies_to_version() {
         // Message::NotFound(Inv));
     ];
 
-    let (zig, node_meta) = read_config_file();
+    let node_meta = read_config_file();
 
     // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
     let mut listeners = Vec::with_capacity(test_messages.len());
     for _ in test_messages.iter() {
-        listeners.push(TcpListener::bind(zig.new_local_addr()).await.unwrap());
+        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
     }
 
-    let ports = listeners
+    let addrs = listeners
         .iter()
-        .map(|listener| listener.local_addr().unwrap().port())
+        .map(|listener| listener.local_addr().unwrap())
         .collect();
     let mut node = Node::new(node_meta);
-    node.initial_peers(ports);
+    node.initial_peers(addrs);
 
     let mut handles = Vec::with_capacity(test_messages.len());
 
@@ -319,20 +319,20 @@ async fn reject_non_verack_replies_to_verack() {
         // Message::NotFound(Inv)),
     ];
 
-    let (zig, node_meta) = read_config_file();
+    let node_meta = read_config_file();
 
     // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
     let mut listeners = Vec::with_capacity(test_messages.len());
     for _ in test_messages.iter() {
-        listeners.push(TcpListener::bind(zig.new_local_addr()).await.unwrap());
+        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
     }
 
-    let ports = listeners
+    let addrs = listeners
         .iter()
-        .map(|listener| listener.local_addr().unwrap().port())
+        .map(|listener| listener.local_addr().unwrap())
         .collect();
     let mut node = Node::new(node_meta);
-    node.initial_peers(ports);
+    node.initial_peers(addrs);
 
     let mut handles = Vec::with_capacity(test_messages.len());
 
@@ -395,11 +395,11 @@ async fn reject_version_reusing_nonce() {
     // 2. Send back version with same nonce
     // 3. Connection should be terminated
 
-    let (zig, node_meta) = read_config_file();
-    let listener = TcpListener::bind(zig.new_local_addr()).await.unwrap();
+    let node_meta = read_config_file();
+    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     let mut node = Node::new(node_meta);
-    node.initial_peers(vec![listener.local_addr().unwrap().port()])
+    node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
 
@@ -466,11 +466,11 @@ async fn reject_obsolete_versions() {
     //      3. Node sends `verack`
     //      4. Node terminates the connection
 
-    let (zig, node_meta) = read_config_file();
+    let node_meta = read_config_file();
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
     let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
