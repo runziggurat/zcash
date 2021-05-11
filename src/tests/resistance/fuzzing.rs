@@ -17,7 +17,7 @@ use crate::{
         payload::{block::Headers, Addr, Nonce, Version},
     },
     setup::{
-        config::{new_local_addr, read_config_file},
+        config::new_local_addr,
         node::{Action, Node},
     },
 };
@@ -43,9 +43,7 @@ async fn fuzzing_zeroes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -70,9 +68,7 @@ async fn fuzzing_zeroes_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -99,9 +95,7 @@ async fn fuzzing_random_bytes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -126,9 +120,7 @@ async fn fuzzing_random_bytes_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -173,9 +165,7 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -219,9 +209,7 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
     let mut rng = seeded_rng();
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -254,9 +242,8 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
     // which indicates the message was recognised as invalid).
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -288,9 +275,8 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
     // zcashd: logs suggest the message was ignored but the node doesn't disconnect.
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -337,9 +323,7 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -379,9 +363,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -406,9 +388,8 @@ async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
     // zcashd: log suggests messages was ignored, doesn't disconnect.
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -441,9 +422,8 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
     // zcashd: ignores the messages but doesn't disconnect (logs show a `CHECKSUM ERROR`).
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -490,9 +470,8 @@ async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side
     // disconnect.
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -525,9 +504,8 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
     // zcashd: logs indicate message was ignored, doesn't disconnect.
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -575,9 +553,8 @@ async fn fuzzing_version_with_incorrect_length_pre_handshake() {
     // zcashd: disconnects.
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -610,9 +587,8 @@ async fn fuzzing_incorrect_length_pre_handshake() {
     // zcashd: disconnects.
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -659,9 +635,8 @@ async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side()
     // zcashd: disconnects (after sending verack, ping, getheaders).
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -694,9 +669,8 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
     // zcashd: disconnects (after sending verack, ping, getheaders).
 
     let mut rng = seeded_rng();
-    let node_meta = read_config_file();
 
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;

@@ -18,6 +18,9 @@ use tokio::{
 
 use std::{fs, net::SocketAddr, process::Stdio};
 
+const ZEBRA_CONFIG: &str = "zebra.toml";
+const ZCASHD_CONFIG: &str = "zcash.conf";
+
 pub enum Action {
     /// Performs no action
     None,
@@ -60,9 +63,10 @@ impl Node {
     /// [`initial_peers`]: methode@Node::initial_peers
     /// [`max_peers`]: methode@Node::max_peers
     /// [`log_to_stdout`]: method@Node::log_to_stdout
-    pub fn new(meta: NodeMetaData) -> Self {
+    pub fn new() -> Self {
         // Config (to be written to node configuration file) sets a random local address.
         let config = NodeConfig::new();
+        let meta = NodeMetaData::new();
 
         Self {
             config,
@@ -243,7 +247,7 @@ impl Node {
         }
     }
 
-    // FIXME: move to a `Drop` impl on `Node`.
+    // FIXME: move to a `Drop` impl on `Node`?
     /// Stops the node instance.
     ///
     /// The stop command will only be run if provided in the `config.toml` file as it may not be
@@ -267,8 +271,8 @@ impl Node {
 
     fn config_filepath(&self) -> std::path::PathBuf {
         match self.meta.kind {
-            NodeKind::Zebra => self.meta.path.join("node.toml"),
-            NodeKind::Zcashd => self.meta.path.join("zcash.conf"),
+            NodeKind::Zebra => self.meta.path.join(ZEBRA_CONFIG),
+            NodeKind::Zcashd => self.meta.path.join(ZCASHD_CONFIG),
         }
     }
 
