@@ -14,36 +14,19 @@ use crate::setup::node::Action;
 const NODE_PORT: u16 = 8080;
 
 /// Reads the contents of Ziggurat's configuration file.
-pub fn read_config_file() -> (Config, NodeMetaData) {
+pub fn read_config_file() -> NodeMetaData {
     let path = &env::current_dir().unwrap().join("config.toml");
     let config_string = fs::read_to_string(path).unwrap();
     let config_file: ConfigFile = toml::from_str(&config_string).unwrap();
 
-    let config = Config::new(config_file.local_ip);
     let node_meta = NodeMetaData::new(config_file.node);
 
-    (config, node_meta)
+    node_meta
 }
 
-/// Ziggurat configuration read from the `config.toml` file.
-pub struct Config {
-    /// The local address to be used by Ziggurat listeners.
-    local_ip: IpAddr,
-}
-
-impl Config {
-    fn new(local_ip: Option<String>) -> Self {
-        let ip = local_ip.map_or(IpAddr::V4(Ipv4Addr::LOCALHOST), |ip| {
-            ip.parse().expect("couldn't parse string into ip address")
-        });
-
-        Self { local_ip: ip }
-    }
-
-    /// Returns a new address suitable for starting a local listener.
-    pub fn new_local_addr(&self) -> SocketAddr {
-        SocketAddr::new(self.local_ip, 0)
-    }
+/// Returns a new address suitable for starting a local listener.
+pub fn new_local_addr() -> SocketAddr {
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)
 }
 
 /// Convenience struct for reading Ziggurat's configuration file.
@@ -73,9 +56,9 @@ pub(super) struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub(super) fn new(local_addr: SocketAddr) -> Self {
+    pub(super) fn new() -> Self {
         Self {
-            local_addr,
+            local_addr: new_local_addr(),
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
