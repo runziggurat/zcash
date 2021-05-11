@@ -11,7 +11,7 @@ use crate::{
         },
     },
     setup::{
-        config::{new_local_addr, read_config_file},
+        config::new_local_addr,
         node::{Action, Node},
     },
     wait_until,
@@ -24,12 +24,10 @@ use tokio::{
 
 #[tokio::test]
 async fn ping_pong() {
-    let node_meta = read_config_file();
-
     let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     // Create a node and set the listener as an initial peer.
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
@@ -98,9 +96,7 @@ async fn reject_invalid_messages() {
     //  Zebra:
     //      Both Version and Verack result in a terminated connection
 
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -149,12 +145,10 @@ async fn ignores_unsolicited_responses() {
     //      2. Send a ping request
     //      3. Receive a pong response
 
-    let node_meta = read_config_file();
-
     let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     // Create a node and set the listener as an initial peer.
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
@@ -221,8 +215,6 @@ async fn eagerly_crawls_network_for_peers() {
     //          If we do not keep responding, then the peer connections take really long to establish,
     //          sometimes even spuriously failing the test completely.
 
-    let node_meta = read_config_file();
-
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::new();
     for _ in 0u8..5 {
@@ -236,7 +228,7 @@ async fn eagerly_crawls_network_for_peers() {
         .collect::<Vec<_>>();
 
     // start the node
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -335,10 +327,8 @@ async fn correctly_lists_peers() {
     //  zebra:  Infinitely spams `GetAddr` and `GetData`. Can be coaxed into responding correctly if
     //          all its peer connections have responded to `GetAddr` with a non-empty list.
 
-    let node_meta = read_config_file();
-
     // Create a node and main connection
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -519,10 +509,8 @@ async fn correctly_lists_blocks() {
     //
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
-    let node_meta = read_config_file();
-
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::SeedWithTestnetBlocks {
         socket_addr: new_local_addr(),
         block_count: 3,
@@ -638,10 +626,8 @@ async fn get_data_blocks() {
     //
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
-    let node_meta = read_config_file();
-
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::SeedWithTestnetBlocks {
         socket_addr: new_local_addr(),
         block_count: 3,
@@ -721,9 +707,7 @@ async fn get_data_blocks() {
 
 #[allow(dead_code)]
 async fn unsolicitation_listener() {
-    let node_meta = read_config_file();
-
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.start().await;
 
     let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
