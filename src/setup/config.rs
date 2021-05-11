@@ -12,6 +12,7 @@ use std::{
 use crate::setup::node::Action;
 
 const CONFIG: &str = "config.toml";
+const DEFAULT_PORT: u16 = 8080;
 
 /// Returns a new address suitable for starting a local listener.
 pub fn new_local_addr() -> SocketAddr {
@@ -47,8 +48,12 @@ pub(super) struct NodeConfig {
 
 impl NodeConfig {
     pub(super) fn new() -> Self {
+        // Set the port explicitly.
+        let mut local_addr = new_local_addr();
+        local_addr.set_port(DEFAULT_PORT);
+
         Self {
-            local_addr: new_local_addr(),
+            local_addr,
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
