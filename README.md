@@ -23,7 +23,7 @@ Ziggurat is configured with a `config.toml` file in the root.
 ```toml
 kind = "zebra"
 path = "path/to/zebra/repo"
-start_command = "cargo +stable r -- --config node.toml --verbose start"
+start_command = "cargo +stable r -- --config zebra.toml --verbose start"
 
 # kind = "zcashd"
 # path = "path/to/zcash/repo"
