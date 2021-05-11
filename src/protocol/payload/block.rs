@@ -7,7 +7,7 @@ use std::{
 
 use sha2::Digest;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
     pub block_locator_hashes: Vec<Hash>,
@@ -53,7 +53,7 @@ impl Codec for LocatorHashes {
 #[derive(Debug, PartialEq)]
 pub struct Block {
     pub header: Header,
-    txs: Vec<Tx>,
+    pub txs: Vec<Tx>,
 }
 
 impl Block {
@@ -79,6 +79,15 @@ impl Block {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
+
+    /// Returns the initial 3 testnet blocks
+    pub fn initial_testnet_blocks() -> Vec<Self> {
+        vec![
+            Self::testnet_genesis(),
+            Self::testnet_1(),
+            Self::testnet_2(),
+        ]
+    }
 }
 
 impl Codec for Block {
@@ -94,7 +103,7 @@ impl Codec for Block {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Headers {
     pub headers: Vec<Header>,
 }

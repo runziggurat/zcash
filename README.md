@@ -86,7 +86,7 @@ Quick overview of the current status, providing implementation progress and test
 | [![conf_014](https://img.shields.io/badge/014-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-014)|
 | [![conf_015](https://img.shields.io/badge/015-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-015)|
 | [![conf_016](https://img.shields.io/badge/016-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-016)|
-| [![conf_017](https://img.shields.io/badge/017-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-017)|
+| [![conf_017](https://img.shields.io/badge/017-█████░░░░░-red)     ](SPEC.md#ZG-CONFORMANCE-017)| Tx portion still todo
 
 | Performance | Additional Information |
 | :---------- | :--------------------- |
