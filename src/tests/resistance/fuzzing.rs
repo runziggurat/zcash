@@ -302,7 +302,8 @@ async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
     // ZG-RESISTANCE-005 (part 3)
     //
     // zebra: breaks with a version command in header, spams getdata, doesn't disconnect.
-    // zcashd:
+    // zcashd: does a combination of ignoring messages, returning cc malformed or accepting messages (`addr`)
+    // for instance.
 
     // Payloadless messages are omitted.
     let commands = vec![
