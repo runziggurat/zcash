@@ -102,7 +102,8 @@ async fn fuzzing_zeroes_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -187,7 +188,8 @@ async fn fuzzing_random_bytes_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -328,7 +330,8 @@ async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -432,7 +435,8 @@ async fn fuzzing_slightly_corrupted_version_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -567,7 +571,8 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -713,7 +718,8 @@ async fn fuzzing_version_with_incorrect_checksum_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -798,7 +804,8 @@ async fn fuzzing_incorrect_checksum_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -967,7 +974,8 @@ async fn fuzzing_version_with_incorrect_length_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
@@ -1052,7 +1060,8 @@ async fn fuzzing_incorrect_length_post_handshake() {
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
-    node.start_waits_for_connection(zig.new_local_addr())
+    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+
         .start()
         .await;
 
