@@ -103,7 +103,6 @@ async fn fuzzing_zeroes_post_handshake() {
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -189,7 +188,6 @@ async fn fuzzing_random_bytes_post_handshake() {
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -331,7 +329,6 @@ async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -429,14 +426,13 @@ async fn fuzzing_slightly_corrupted_version_post_handshake() {
     // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
     //
     // zebra: spams getdata, doesn't disconnect.
-    // zcashd:
+    // zcashd: tbd.
 
     let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -548,7 +544,7 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
     // ZG-RESISTANCE-005 (part 4)
     //
     // zebra: sends getdata and ignores message.
-    // zcashd:
+    // zcashd: tbd.
 
     let test_messages = vec![
         Message::MemPool,
@@ -572,7 +568,6 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -712,14 +707,13 @@ async fn fuzzing_version_with_incorrect_checksum_post_handshake() {
     // ZG-RESISTANCE-005 (part 5)
     //
     // zebra: disconnects.
-    // zcashd:
+    // zcashd: tbd.
 
     let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -797,15 +791,14 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
 async fn fuzzing_incorrect_checksum_post_handshake() {
     // ZG-RESISTANCE-005 (part 5)
     //
-    // zebra:
-    // zcashd:
+    // zebra: tbd.
+    // zcashd: tbd.
 
     let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -968,14 +961,13 @@ async fn fuzzing_version_with_incorrect_length_post_handshake() {
     // ZG-RESISTANCE-005 (part 6)
     //
     // zebra: disconnects.
-    // zcashd:
+    // zcashd: tbd.
 
     let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
@@ -1054,14 +1046,13 @@ async fn fuzzing_incorrect_length_post_handshake() {
     // ZG-RESISTANCE-005 (part 6)
     //
     // zebra: disconnects.
-    // zcashd:
+    // zcashd: tbd.
 
     let mut rng = seeded_rng();
     let (zig, node_meta) = read_config_file();
 
     let mut node = Node::new(node_meta);
     node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
-
         .start()
         .await;
 
