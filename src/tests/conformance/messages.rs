@@ -379,6 +379,119 @@ async fn correctly_lists_peers() {
 }
 
 #[tokio::test]
+async fn get_blocks() {
+    // ZG-CONFORMANCE-015
+    //
+    // The node responds to `GetBlocks` requests with a list of blocks based on the provided range.
+    //
+    // We test the following conditions:
+    //  1. unlimited queries i.e. stop_hash = 0
+    //  2. range queries i.e. stop_hash = i
+    //  3. a forked chain (we submit a valid hash, followed by incorrect hashes)
+    //
+    // Test procedure:
+    //  1. Create a node and seed it with the testnet chain
+    //  2. Establish a peer node
+    //  3. For each test case:
+    //      a) send GetBlocks
+    //      b) receive Inv
+    //      c) assert Inv received matches expectations
+    //
+    // The test currently fails for both Zebra and zcashd.
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Fails because it ignores requests when the last hash is the last hash it knows of. We expect it to return
+    //          an empty Inv.
+    //
+    //  zebra: does not support seeding as yet, and therefore cannot perform this test.
+    //
+    // Note: zcashd also excludes the `stop_hash` from the range, whereas the spec states that it should be inclusive.
+    //       We are taking current behaviour as correct.
+
+    let (zig, node_meta) = read_config_file();
+
+    // Create a node with knowledge of the initial three testnet blocks
+    let mut node = Node::new(node_meta);
+    node.initial_action(Action::SeedWithTestnetBlocks {
+        socket_addr: zig.new_local_addr(),
+        block_count: 3,
+    })
+    .log_to_stdout(true)
+    .start()
+    .await;
+
+    let blocks = Block::initial_testnet_blocks();
+
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    let filter = MessageFilter::with_all_auto_reply();
+
+    // Test unlimited range queries, where given the hash for block i we expect all
+    // of its children as a reply.
+    // i.e. GetBlocks(i) -> Inv(i+1..)
+    for (i, block) in blocks.iter().enumerate() {
+        Message::GetBlocks(LocatorHashes::new(
+            vec![block.double_sha256().unwrap()],
+            Hash::zeroed(),
+        ))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+
+        match filter.read_from_stream(&mut stream).await.unwrap() {
+            Message::Inv(inv) => {
+                // collect inventory hashes for all blocks after i (i's children)
+                let inv_hashes = blocks.iter().skip(i + 1).map(|b| b.inv_hash()).collect();
+                let expected = Inv::new(inv_hashes);
+                assert_eq!(inv, expected);
+            }
+            message => panic!("Expected Inv, but got {:?}", message),
+        }
+    }
+
+    // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
+    Message::GetBlocks(LocatorHashes::new(
+        vec![blocks[0].double_sha256().unwrap()],
+        blocks[2].double_sha256().unwrap(),
+    ))
+    .write_to_stream(&mut stream)
+    .await
+    .unwrap();
+    match filter.read_from_stream(&mut stream).await.unwrap() {
+        Message::Inv(inv) => {
+            let expected = Inv::new(vec![blocks[1].inv_hash()]);
+            assert_eq!(inv, expected);
+        }
+        message => panic!("Expected Inv, but got {:?}", message),
+    }
+
+    // Test that we get corrected if we are "off chain".
+    // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
+    // all known children of that block.
+    let locators = LocatorHashes::new(
+        vec![
+            blocks[1].double_sha256().unwrap(),
+            Hash::new([19; 32]),
+            Hash::new([22; 32]),
+        ],
+        Hash::zeroed(),
+    );
+    Message::GetBlocks(locators)
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    match filter.read_from_stream(&mut stream).await.unwrap() {
+        Message::Inv(inv) => {
+            let expected = Inv::new(vec![blocks[2].inv_hash()]);
+            assert_eq!(inv, expected);
+        }
+        message => panic!("Expected Inv, but got {:?}", message),
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn correctly_lists_blocks() {
     // ZG-CONFORMANCE-016
     //
