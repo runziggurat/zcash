@@ -104,18 +104,6 @@ pub struct NodeMetaData {
     pub(super) start_command: OsString,
     /// The args to run with the start command.
     pub(super) start_args: Vec<OsString>,
-    /// The command to run when stopping a node.
-    pub(super) stop_command: Option<OsString>,
-    /// The args to run with the stop command.
-    pub(super) stop_args: Option<Vec<OsString>>,
-
-    /// The address the node should be run on.
-    pub(super) local_addr: SocketAddr,
-    /// The address peers can expect the node to be reachable on (this may differ from the
-    /// `local_addr` when using e.g. Docker).
-    pub(super) external_addr: SocketAddr,
-    /// The ip/dns name the node should expect peers to be reachable on.
-    pub(super) peer_ip: String,
 }
 
 impl NodeMetaData {
@@ -127,38 +115,11 @@ impl NodeMetaData {
         let mut start_args = args_from(&meta_file.start_command);
         let start_command = start_args.remove(0);
 
-        // Default to None.
-        let mut stop_args = None;
-        let mut stop_command = None;
-
-        // Set stop command if provided.
-        if let Some(command) = meta_file.stop_command {
-            let mut args = args_from(&command);
-            stop_command = Some(args.remove(0));
-            stop_args = Some(args);
-        }
-
-        // Default to localhost if no value is present in file.
-        let local_addr = meta_file
-            .local_addr
-            .unwrap_or_else(|| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), NODE_PORT));
-        let external_addr = meta_file
-            .external_addr
-            .unwrap_or_else(|| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), NODE_PORT));
-        let peer_ip = meta_file
-            .peer_ip
-            .unwrap_or_else(|| Ipv4Addr::LOCALHOST.to_string());
-
         Self {
             kind: meta_file.kind,
             path: meta_file.path,
             start_command,
             start_args,
-            stop_command,
-            stop_args,
-            local_addr,
-            external_addr,
-            peer_ip,
         }
     }
 }
@@ -170,10 +131,6 @@ struct MetaDataFile {
     kind: NodeKind,
     path: PathBuf,
     start_command: String,
-    stop_command: Option<String>,
-    local_addr: Option<SocketAddr>,
-    external_addr: Option<SocketAddr>,
-    peer_ip: Option<String>,
 }
 
 // ZEBRA CONFIG FILE
