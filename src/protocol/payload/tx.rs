@@ -5,7 +5,7 @@ use std::io::{self, Cursor, Read, Write};
 /// A Zcash transaction ([spec](https://zips.z.cash/protocol/canopy.pdf#txnencodingandconsensus)).
 ///
 /// Supports V1-V4, V5 isn't yet stable.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Tx {
     V1(TxV1),
     V2(TxV2),
@@ -73,7 +73,7 @@ impl Codec for Tx {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TxV1 {
     tx_in: Vec<TxIn>,
     tx_out: Vec<TxOut>,
@@ -106,7 +106,7 @@ impl Codec for TxV1 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TxV2 {
     tx_in: Vec<TxIn>,
     tx_out: Vec<TxOut>,
@@ -179,7 +179,7 @@ impl Codec for TxV2 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TxV3 {
     group_id: u32,
 
@@ -263,7 +263,7 @@ impl Codec for TxV3 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TxV4 {
     group_id: u32,
 
@@ -377,7 +377,7 @@ impl Codec for TxV4 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct TxIn {
     // Outpoint object (previous output transaction reference).
     prev_out_hash: Hash,
@@ -423,7 +423,7 @@ impl Codec for TxIn {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct TxOut {
     value: i64,
     pk_script_len: VarInt,
@@ -453,7 +453,7 @@ impl Codec for TxOut {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct JoinSplit {
     pub_old: u64,
     pub_new: u64,
@@ -549,7 +549,7 @@ impl JoinSplit {
 }
 
 // TODO: rethink abstraction.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Zkproof {
     BCTV14([u8; 296]),
     Groth16([u8; 192]),
@@ -566,7 +566,7 @@ impl Zkproof {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct SpendDescription {
     cv: [u8; 32],
     anchor: [u8; 32],
@@ -608,7 +608,7 @@ impl Codec for SpendDescription {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct SaplingOutput {
     cv: [u8; 32],
     cmu: [u8; 32],
