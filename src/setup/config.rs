@@ -11,15 +11,13 @@ use std::{
 
 use crate::setup::node::Action;
 
-const NODE_PORT: u16 = 8080;
-
 /// Reads the contents of Ziggurat's configuration file.
 pub fn read_config_file() -> NodeMetaData {
     let path = &env::current_dir().unwrap().join("config.toml");
     let config_string = fs::read_to_string(path).unwrap();
     let config_file: ConfigFile = toml::from_str(&config_string).unwrap();
 
-    let node_meta = NodeMetaData::new(config_file.node);
+    let node_meta = NodeMetaData::new(config_file);
 
     node_meta
 }
@@ -32,8 +30,9 @@ pub fn new_local_addr() -> SocketAddr {
 /// Convenience struct for reading Ziggurat's configuration file.
 #[derive(Deserialize)]
 struct ConfigFile {
-    local_ip: Option<String>,
-    node: MetaDataFile,
+    kind: NodeKind,
+    path: PathBuf,
+    start_command: String,
 }
 
 /// Node configuration abstracted by a [`Node`] instance.
@@ -82,7 +81,6 @@ pub struct NodeMetaData {
     pub(super) kind: NodeKind,
     /// The path to run the node's commands in.
     pub(super) path: PathBuf,
-
     /// The command to run when starting a node.
     pub(super) start_command: OsString,
     /// The args to run with the start command.
@@ -90,7 +88,7 @@ pub struct NodeMetaData {
 }
 
 impl NodeMetaData {
-    fn new(meta_file: MetaDataFile) -> Self {
+    fn new(meta_file: ConfigFile) -> Self {
         let args_from = |command: &str| -> Vec<OsString> {
             command.split_whitespace().map(OsString::from).collect()
         };
@@ -105,15 +103,6 @@ impl NodeMetaData {
             start_args,
         }
     }
-}
-
-/// Convenience struct for reading the toml configuration file. The data read here is used to
-/// construct a `NodeMeta` instance.
-#[derive(Deserialize, Debug)]
-struct MetaDataFile {
-    kind: NodeKind,
-    path: PathBuf,
-    start_command: String,
 }
 
 // ZEBRA CONFIG FILE
@@ -176,6 +165,8 @@ struct StateConfig {
 struct TracingConfig {
     filter: Option<String>,
 }
+
+// ZCASHD CONFIG FILE
 
 /// Convenience struct for writing a zcashd compatible configuration file.
 pub(super) struct ZcashdConfigFile;
