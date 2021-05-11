@@ -1,4 +1,8 @@
-use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, ProtocolVersion, Tx, VarInt};
+use crate::protocol::payload::{
+    codec::Codec,
+    inv::{InvHash, ObjectKind},
+    read_n_bytes, Hash, ProtocolVersion, Tx, VarInt,
+};
 
 use std::{
     convert::TryInto,
@@ -87,6 +91,11 @@ impl Block {
             Self::testnet_1(),
             Self::testnet_2(),
         ]
+    }
+
+    /// Convenience function which creates the [InvHash] for this block
+    pub fn inv_hash(&self) -> InvHash {
+        InvHash::new(ObjectKind::Block, self.double_sha256().unwrap())
     }
 }
 

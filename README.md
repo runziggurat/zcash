@@ -84,7 +84,7 @@ Quick overview of the current status, providing implementation progress and test
 | [![conf_012](https://img.shields.io/badge/012-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-012)| :warning: Zcashd node config requires investigation.
 | [![conf_013](https://img.shields.io/badge/013-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-013)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_014](https://img.shields.io/badge/014-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-014)|
-| [![conf_015](https://img.shields.io/badge/015-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-015)|
+| [![conf_015](https://img.shields.io/badge/015-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-015)|
 | [![conf_016](https://img.shields.io/badge/016-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-016)|
 | [![conf_017](https://img.shields.io/badge/017-█████░░░░░-red)     ](SPEC.md#ZG-CONFORMANCE-017)| Tx portion still todo
 
