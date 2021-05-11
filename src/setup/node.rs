@@ -41,11 +41,6 @@ pub enum Action {
 
 /// Represents an instance of a node, its configuration and setup/teardown intricacies.
 pub struct Node {
-    /// The (external) address of a node.
-    ///
-    /// Nodes can have a local address distinct from the external address at
-    /// which it is reachable (e.g. docker).
-    addr: SocketAddr,
     /// Configuration definable in tests and written to the node's configuration file on start.
     config: NodeConfig,
     /// Type, path to binary, various commands for starting, stopping, cleanup, network
@@ -66,13 +61,10 @@ impl Node {
     /// [`max_peers`]: methode@Node::max_peers
     /// [`log_to_stdout`]: method@Node::log_to_stdout
     pub fn new(meta: NodeMetaData) -> Self {
-        // Config (to be written to node configuration file) sets the configured `local_ip`.
-        let config = NodeConfig::new(meta.local_addr);
+        // Config (to be written to node configuration file) sets a random local address.
+        let config = NodeConfig::new();
 
-        // The node instance gets a node address which may differ from the `local_ip`.
         Self {
-            // TODO: select random port to support multiple nodes.
-            addr: meta.external_addr,
             config,
             meta,
             process: None,
@@ -81,18 +73,15 @@ impl Node {
 
     /// Returns the (external) address of the node.
     pub fn addr(&self) -> SocketAddr {
-        self.addr
+        self.config.local_addr
     }
 
     /// Sets the initial peers (ports only) for the node.
     ///
     /// The ip used to construct the addresses can be optionally set in the configuration file and
     /// otherwise defaults to localhost.
-    pub fn initial_peers(&mut self, peers: Vec<u16>) -> &mut Self {
-        self.config.initial_peers = peers
-            .iter()
-            .map(|port| format!("{}:{}", self.meta.peer_ip, port))
-            .collect();
+    pub fn initial_peers(&mut self, peers: Vec<SocketAddr>) -> &mut Self {
+        self.config.initial_peers = peers.iter().map(|addr| format!("{}", addr)).collect();
 
         self
     }
@@ -133,11 +122,9 @@ impl Node {
                 block_count: _,
             } => {
                 let bound_listener = TcpListener::bind(addr).await.unwrap();
-                self.config.initial_peers.insert(format!(
-                    "{}:{}",
-                    self.meta.peer_ip,
-                    bound_listener.local_addr().unwrap().port()
-                ));
+                self.config
+                    .initial_peers
+                    .insert(format!("{}", bound_listener.local_addr().unwrap()));
                 Some(bound_listener)
             }
         };
@@ -256,35 +243,14 @@ impl Node {
         }
     }
 
+    // FIXME: move to a `Drop` impl on `Node`.
     /// Stops the node instance.
     ///
     /// The stop command will only be run if provided in the `config.toml` file as it may not be
     /// necessary to shutdown a node (killing the process is sometimes sufficient).
     pub async fn stop(&mut self) {
         let mut child = self.process.take().unwrap();
-        let stdout = match self.config.log_to_stdout {
-            true => Stdio::inherit(),
-            false => Stdio::null(),
-        };
-
-        // Simply kill the process if no stop command is provided. If it is, run it under the
-        // assumption the process has already exited.
-        match (
-            self.meta.stop_command.as_ref(),
-            self.meta.stop_args.as_ref(),
-        ) {
-            (Some(stop_command), Some(stop_args)) => {
-                Command::new(stop_command)
-                    .current_dir(&self.meta.path)
-                    .args(stop_args)
-                    .stdin(Stdio::null())
-                    .stdout(stdout)
-                    .status()
-                    .await
-                    .expect("failed to run stop command");
-            }
-            _ => child.kill().await.expect("failed to kill process"),
-        }
+        child.kill().await.expect("failed to kill process");
 
         self.cleanup();
     }
