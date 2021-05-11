@@ -16,7 +16,7 @@ use tokio::net::{TcpListener, TcpStream};
 async fn handshake_responder_side() {
     // ZG-CONFORMANCE-001
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -50,7 +50,7 @@ async fn handshake_initiator_side() {
     let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
     // Create a node and set the listener as an initial peer.
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
@@ -125,7 +125,7 @@ async fn reject_non_version_before_handshake() {
         // Message::NotFound(Inv));
     ];
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
@@ -225,7 +225,7 @@ async fn reject_non_version_replies_to_version() {
         .iter()
         .map(|listener| listener.local_addr().unwrap())
         .collect();
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_peers(addrs);
 
     let mut handles = Vec::with_capacity(test_messages.len());
@@ -321,7 +321,7 @@ async fn reject_non_verack_replies_to_verack() {
         .iter()
         .map(|listener| listener.local_addr().unwrap())
         .collect();
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_peers(addrs);
 
     let mut handles = Vec::with_capacity(test_messages.len());
@@ -387,7 +387,7 @@ async fn reject_version_reusing_nonce() {
 
     let listener = TcpListener::bind(new_local_addr()).await.unwrap();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_peers(vec![listener.local_addr().unwrap()])
         .start()
         .await;
@@ -457,7 +457,7 @@ async fn reject_obsolete_versions() {
 
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
-    let mut node = Node::new();
+    let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
