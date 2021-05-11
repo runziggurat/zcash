@@ -11,16 +11,7 @@ use std::{
 
 use crate::setup::node::Action;
 
-/// Reads the contents of Ziggurat's configuration file.
-pub fn read_config_file() -> NodeMetaData {
-    let path = &env::current_dir().unwrap().join("config.toml");
-    let config_string = fs::read_to_string(path).unwrap();
-    let config_file: ConfigFile = toml::from_str(&config_string).unwrap();
-
-    let node_meta = NodeMetaData::new(config_file);
-
-    node_meta
-}
+const CONFIG: &str = "config.toml";
 
 /// Returns a new address suitable for starting a local listener.
 pub fn new_local_addr() -> SocketAddr {
@@ -88,17 +79,21 @@ pub struct NodeMetaData {
 }
 
 impl NodeMetaData {
-    fn new(meta_file: ConfigFile) -> Self {
+    pub(super) fn new() -> Self {
+        let path = &env::current_dir().unwrap().join(CONFIG);
+        let config_string = fs::read_to_string(path).unwrap();
+        let config_file: ConfigFile = toml::from_str(&config_string).unwrap();
+
         let args_from = |command: &str| -> Vec<OsString> {
             command.split_whitespace().map(OsString::from).collect()
         };
 
-        let mut start_args = args_from(&meta_file.start_command);
+        let mut start_args = args_from(&config_file.start_command);
         let start_command = start_args.remove(0);
 
         Self {
-            kind: meta_file.kind,
-            path: meta_file.path,
+            kind: config_file.kind,
+            path: config_file.path,
             start_command,
             start_args,
         }
