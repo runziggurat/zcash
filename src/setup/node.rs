@@ -4,7 +4,6 @@ use crate::{
         message::{Filter, MessageFilter},
         payload::{
             block::{Block, Headers},
-            inv::{InvHash, ObjectKind},
             Hash, Inv, Nonce,
         },
     },
@@ -222,12 +221,7 @@ impl Node {
                 match filter.read_from_stream(&mut stream).await.unwrap() {
                     Message::GetData(inv) => {
                         // The request must be for the initial blocks
-                        let inv_hashes = blocks
-                            .iter()
-                            .map(|block| {
-                                InvHash::new(ObjectKind::Block, block.double_sha256().unwrap())
-                            })
-                            .collect();
+                        let inv_hashes = blocks.iter().map(|block| block.inv_hash()).collect();
                         let expected = Inv::new(inv_hashes);
                         assert_eq!(inv, expected);
 

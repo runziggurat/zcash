@@ -546,7 +546,7 @@ async fn get_data_blocks() {
 
     let inv_blocks = blocks
         .iter()
-        .map(|block| InvHash::new(ObjectKind::Block, block.double_sha256().unwrap()))
+        .map(|block| block.inv_hash())
         .collect::<Vec<_>>();
 
     // Establish a peer node
