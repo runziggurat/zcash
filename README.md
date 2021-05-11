@@ -21,39 +21,20 @@ and [zebra](https://github.com/ZcashFoundation/zebra) devs with this reliable fo
 Ziggurat is configured with a `config.toml` file in the root.
 
 ```toml
-[node]
 kind = "zebra"
 path = "path/to/zebra/repo"
 start_command = "cargo +stable r -- --config node.toml --verbose start"
 
-# For dockerized zcashd:
-# local_ip = "0.0.0.0"
-# [node]
 # kind = "zcashd"
-# path = "/path/to/zcashd/configfile/usually/home/dir"
-# start_command = "docker start my_zcashd"
-# stop_command = "docker stop my_zcashd"
-# local_addr = "0.0.0.0:8080"
-# external_addr = "0.0.0.0:8080"
-# peer_ip = "host.docker.internal"
+# path = "path/to/zcash/repo"
+# start_command = "./src/zcashd -debug=1 -dnsseed=0 -printtoconsole -logips=1 -listenonion=0 -dns=0 -conf=/path/to/zcash/repo/zcash.conf"
 ```
 
-The networking properties of Ziggurat itself can be set with:
-- `local_ip`: the local ip to use with all Ziggurat spawned listeners. Defaults to localhost.
-
-Additionally, information about the node to be tested can be set under the `[node]` table:
+Information about the node to be tested can be set under the `[node]` table:
 
 - `kind`: one of `zebra` or `zcashd`
-- `path`: absolute path in which to run the start and stop commands, or your zcashd config in the case of dockerized zcashd.
+- `path`: absolute path in which to run the start and stop commands.
 - `start_command`: the command used to start the node (args inline).
-
-and optionally:
-
-- `stop_command`: the command used to stop the node. This may be useful when running e.g. a dockerised instance of the node.
-- `local_addr`: the local address of the node. Defaults to localhost, should be set if the node needs distinct local and external addresses.
-- `external_addr`: the external address of the node. Defaults to localhost.
-- `peer_ip`: the ip/dns name the node can reach the peers through.
-
 
 When starting the node, this information and the configuration provided in the tests will be written to a configuration file compatible with and read by the node under test.
 
