@@ -399,12 +399,10 @@ async fn get_blocks() {
     // Note: zcashd also excludes the `stop_hash` from the range, whereas the spec states that it should be inclusive.
     //       We are taking current behaviour as correct.
 
-    let (zig, node_meta) = read_config_file();
-
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new(node_meta);
+    let mut node = Node::new();
     node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: zig.new_local_addr(),
+        socket_addr: new_local_addr(),
         block_count: 3,
     })
     .log_to_stdout(true)
