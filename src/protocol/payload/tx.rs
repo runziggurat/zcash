@@ -1,6 +1,11 @@
+use sha2::Digest;
+
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, VarInt};
 
-use std::io::{self, Cursor, Read, Write};
+use std::{
+    convert::TryInto,
+    io::{self, Cursor, Read, Write},
+};
 
 /// A Zcash transaction ([spec](https://zips.z.cash/protocol/canopy.pdf#txnencodingandconsensus)).
 ///
@@ -13,6 +18,21 @@ pub enum Tx {
     V4(TxV4),
     // Not yet stabilised.
     V5,
+}
+
+impl Tx {
+    pub fn double_sha256(&self) -> std::io::Result<Hash> {
+        let mut buffer = Vec::new();
+
+        self.encode(&mut buffer)?;
+
+        let hash_bytes_1 = sha2::Sha256::digest(&buffer);
+        let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);
+
+        let hash = Hash::new(hash_bytes_2.try_into().unwrap());
+
+        Ok(hash)
+    }
 }
 
 impl Codec for Tx {
