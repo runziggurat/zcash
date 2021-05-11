@@ -53,7 +53,7 @@ impl Codec for LocatorHashes {
 #[derive(Debug, PartialEq)]
 pub struct Block {
     pub header: Header,
-    txs: Vec<Tx>,
+    pub txs: Vec<Tx>,
 }
 
 impl Block {
