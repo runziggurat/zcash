@@ -105,8 +105,6 @@ impl NodeMetaData {
     }
 }
 
-// ZEBRA CONFIG FILE
-
 /// Convenience struct for writing a zebra compatible configuration file.
 #[derive(Serialize)]
 pub(super) struct ZebraConfigFile {
@@ -165,8 +163,6 @@ struct StateConfig {
 struct TracingConfig {
     filter: Option<String>,
 }
-
-// ZCASHD CONFIG FILE
 
 /// Convenience struct for writing a zcashd compatible configuration file.
 pub(super) struct ZcashdConfigFile;
