@@ -95,10 +95,8 @@ async fn fuzzing_zeroes_post_handshake() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+    let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -176,10 +174,8 @@ async fn fuzzing_random_bytes_post_handshake() {
     let mut rng = seeded_rng();
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+    let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -313,10 +309,8 @@ async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
     let mut rng = seeded_rng();
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
 
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -415,10 +409,8 @@ async fn fuzzing_slightly_corrupted_version_post_handshake() {
     // zcashd: tbd.
 
     let mut rng = seeded_rng();
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -546,10 +538,8 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
 
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -689,10 +679,8 @@ async fn fuzzing_version_with_incorrect_checksum_post_handshake() {
     // zcashd: tbd.
 
     let mut rng = seeded_rng();
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -773,10 +761,8 @@ async fn fuzzing_incorrect_checksum_post_handshake() {
     // zcashd: tbd.
 
     let mut rng = seeded_rng();
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -939,10 +925,8 @@ async fn fuzzing_version_with_incorrect_length_post_handshake() {
     // zcashd: tbd.
 
     let mut rng = seeded_rng();
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
@@ -1023,10 +1007,8 @@ async fn fuzzing_incorrect_length_post_handshake() {
     // zcashd: tbd.
 
     let mut rng = seeded_rng();
-    let (zig, node_meta) = read_config_file();
-
-    let mut node = Node::new(node_meta);
-    node.initial_action(Action::WaitForConnection(zig.new_local_addr()))
+let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
