@@ -7,6 +7,8 @@ use std::{
     io::{self, Cursor, Read, Write},
 };
 
+use crate::protocol::payload::inv::{InvHash, ObjectKind};
+
 /// A Zcash transaction ([spec](https://zips.z.cash/protocol/canopy.pdf#txnencodingandconsensus)).
 ///
 /// Supports V1-V4, V5 isn't yet stable.
@@ -32,6 +34,11 @@ impl Tx {
         let hash = Hash::new(hash_bytes_2.try_into().unwrap());
 
         Ok(hash)
+    }
+
+    /// Convenience function which creates the [InvHash] for this [Tx]
+    pub fn inv_hash(&self) -> InvHash {
+        InvHash::new(ObjectKind::Tx, self.double_sha256().unwrap())
     }
 }
 
