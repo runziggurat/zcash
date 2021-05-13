@@ -1,4 +1,5 @@
 use crate::{
+    assert_matches,
     helpers::{initiate_handshake, respond_to_handshake},
     protocol::{
         message::{Message, MessageFilter},
@@ -185,6 +186,95 @@ async fn ignores_unsolicited_responses() {
     }
 
     node.stop().await;
+}
+
+#[tokio::test]
+async fn basic_query_response() {
+    // ZG-CONFORMANCE-010
+    //
+    // The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
+    //
+    // `Ping` expects `Pong`.
+    // `GetAddr` expects `Addr`.
+    // `Mempool` expects `Inv`.
+    // `Getblocks` expects `Inv`.
+    // `GetData(tx_hash)` expects `Tx`.
+    // `GetData(block_hash)` expects `Blocks`.
+    // `GetHeaders` expects `Headers`.
+    //
+    // The test currently fails for zcashd; zebra tbd.
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Ignores the following messages
+    //              - GetAddr
+    //              - MemPool
+    //              - GetBlocks
+    //              - GetData(block)
+    //
+    //          GetData(tx) returns NotFound (which is correct),
+    //          because we currently can't seed a mempool.
+    //
+    //  zebra:  tbd
+
+    let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
+        .log_to_stdout(true)
+        .start()
+        .await;
+
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    let filter = MessageFilter::with_all_auto_reply();
+    let genesis_block = Block::testnet_genesis();
+
+    Message::Ping(Nonce::default())
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Pong(..));
+
+    Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Addr(..));
+
+    Message::MemPool.write_to_stream(&mut stream).await.unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Inv(..));
+
+    Message::GetBlocks(LocatorHashes::new(
+        vec![genesis_block.double_sha256().unwrap()],
+        Hash::zeroed(),
+    ))
+    .write_to_stream(&mut stream)
+    .await
+    .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Inv(..));
+
+    Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()]))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Tx(..));
+
+    Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Block(..));
+
+    Message::GetHeaders(LocatorHashes::new(
+        vec![genesis_block.double_sha256().unwrap()],
+        Hash::zeroed(),
+    ))
+    .write_to_stream(&mut stream)
+    .await
+    .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::Headers(..));
 }
 
 #[tokio::test]
