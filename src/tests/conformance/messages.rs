@@ -158,17 +158,16 @@ async fn ignores_unsolicited_responses() {
         .await
         .unwrap();
 
-    // TODO: rest of the message types
     let test_messages = vec![
         Message::Pong(Nonce::default()),
         Message::Headers(Headers::empty()),
         Message::Addr(Addr::empty()),
-        // Block(Block),
-        // NotFound(Inv),
-        // Tx(Tx),
+        Message::Block(Box::new(Block::testnet_genesis())),
+        Message::NotFound(Inv::new(vec![Block::testnet_1().txs[0].inv_hash()])),
+        Message::Tx(Block::testnet_2().txs[0].clone()),
     ];
 
-    let filter = MessageFilter::with_all_auto_reply().enable_logging();
+    let filter = MessageFilter::with_all_auto_reply();
 
     for message in test_messages {
         message.write_to_stream(&mut stream).await.unwrap();
@@ -179,10 +178,8 @@ async fn ignores_unsolicited_responses() {
             .await
             .unwrap();
 
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Pong(returned_nonce) => assert_eq!(nonce, returned_nonce),
-            msg => panic!("Expected pong: {:?}", msg),
-        }
+        let pong = filter.read_from_stream(&mut stream).await.unwrap();
+        assert_matches!(pong, Message::Pong(..));
     }
 
     node.stop().await;
