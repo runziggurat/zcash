@@ -60,7 +60,7 @@ Quick overview of the current status, providing implementation progress and test
 | [![conf_007](https://img.shields.io/badge/007-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-007)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_008](https://img.shields.io/badge/008-████░░░░░░-red)     ](SPEC.md#ZG-CONFORMANCE-008)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_009](https://img.shields.io/badge/009-██████░░░░-green)   ](SPEC.md#ZG-CONFORMANCE-009)|
-| [![conf_010](https://img.shields.io/badge/010-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-010)|
+| [![conf_010](https://img.shields.io/badge/010-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-010)|
 | [![conf_011](https://img.shields.io/badge/011-░░░░░░░░░░-inactive)](SPEC.md#ZG-CONFORMANCE-011)|
 | [![conf_012](https://img.shields.io/badge/012-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-012)| :warning: Zcashd node config requires investigation.
 | [![conf_013](https://img.shields.io/badge/013-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-013)| :warning: Need to confirm expected behaviour with zcash.
@@ -80,5 +80,5 @@ Quick overview of the current status, providing implementation progress and test
 | [![resis_002](https://img.shields.io/badge/002-████████░░-red)](SPEC.md#ZG-RESISTANCE-002)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_003](https://img.shields.io/badge/003-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-003)|
 | [![resis_004](https://img.shields.io/badge/004-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-004)|
-| [![resis_005](https://img.shields.io/badge/005-████████░░-red)](SPEC.md#ZG-RESISTANCE-005)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet. 
+| [![resis_005](https://img.shields.io/badge/005-████████░░-red)](SPEC.md#ZG-RESISTANCE-005)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_006](https://img.shields.io/badge/006-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-006)|
