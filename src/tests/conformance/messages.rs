@@ -8,7 +8,7 @@ use crate::{
             block::{Block, Headers, LocatorHashes},
             inv::{InvHash, ObjectKind},
             reject::CCode,
-            Addr, Hash, Inv, Nonce, Version,
+            Addr, FilterAdd, FilterLoad, Hash, Inv, Nonce, Version,
         },
     },
     setup::{
@@ -70,10 +70,12 @@ async fn reject_invalid_messages() {
     //
     //      Version     (Duplicate)
     //      Verack      (Duplicate)
-    //      Inv         (Invalid -- with multiple advertised blocks)
+    //      Inv         (Invalid -- with mixed types)
     //      FilterLoad  (Obsolete)
     //      FilterAdd   (Obsolete)
     //      FilterClear (Obsolete)
+    //
+    // TBD: Inv         (Invalid -- with multiple advertised blocks)
     //
     // Test procedure:
     //      For each test message:
@@ -91,16 +93,32 @@ async fn reject_invalid_messages() {
     //
     // Current behaviour (if we initiate the connection):
     //  ZCashd:
-    //      Version: works as expected
-    //      Verack:  message is completely ignored
+    //      Version:        passes
+    //      Verack:         ignored
+    //      Mixed Inv:      ignored
+    //      FilterLoad:     Reject(Malformed) - needs investigation
+    //      FilterAdd:      Reject(Malformed) - needs investigation
+    //      FilterClear:    ignored
+    //      FilterClear:    ignored
     //
     //  Zebra:
-    //      Both Version and Verack result in a terminated connection
+    //      All result in a terminated connection (no reject sent).
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
+        .log_to_stdout(true)
         .start()
         .await;
+
+    // generate a mixed Inventory hash set
+    let genesis_block = Block::testnet_genesis();
+    let mixed_inv = vec![
+        genesis_block.inv_hash(),
+        InvHash::new(
+            ObjectKind::Tx,
+            genesis_block.txs[0].double_sha256().unwrap(),
+        ),
+    ];
 
     // list of test messages and their expected Reject kind
     let cases = vec![
@@ -109,11 +127,10 @@ async fn reject_invalid_messages() {
             CCode::Duplicate,
         ),
         (Message::Verack, CCode::Duplicate),
-        // TODO: rest of the message types once available
-        // (Message::Inv(inv), CCode::Invalid),
-        // (Message::FilterLoad, CCode::Obsolete),
-        // (Message::FilterAdd, CCode::Obsolete),
-        // (Message::FilterClear, CCode::Obsolete),
+        (Message::Inv(Inv::new(mixed_inv)), CCode::Invalid),
+        (Message::FilterLoad(FilterLoad::default()), CCode::Obsolete),
+        (Message::FilterAdd(FilterAdd::default()), CCode::Obsolete),
+        (Message::FilterClear, CCode::Obsolete),
     ];
 
     let filter = MessageFilter::with_all_auto_reply().enable_logging();
@@ -122,13 +139,25 @@ async fn reject_invalid_messages() {
         let mut stream = initiate_handshake(node.addr()).await.unwrap();
 
         test_message.write_to_stream(&mut stream).await.unwrap();
+        // sending a ping which will let us see if `test_message` was ignored
+        let nonce = Nonce::default();
+        Message::Ping(nonce)
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap();
 
         // Expect a Reject(Invalid) message
         match filter.read_from_stream(&mut stream).await.unwrap() {
             Message::Reject(reject) if reject.ccode == expected_ccode => {}
-            message => panic!("Expected Reject(Invalid), but got: {:?}", message),
+            Message::Pong(n) if n == nonce => panic!("Message was ignored: {:?}", test_message),
+            message => panic!(
+                "Expected Reject({:?}), but got: {:?}",
+                expected_ccode, message
+            ),
         }
     }
+
+    node.stop().await;
 }
 
 #[tokio::test]
