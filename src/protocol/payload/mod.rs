@@ -23,6 +23,9 @@ use self::codec::Codec;
 
 pub mod codec;
 
+pub mod filter;
+pub use filter::{FilterAdd, FilterLoad};
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
 

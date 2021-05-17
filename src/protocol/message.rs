@@ -1,7 +1,7 @@
 use crate::protocol::payload::{
     block::{Block, Headers, LocatorHashes},
     codec::Codec,
-    Addr, Inv, Nonce, Reject, Tx, Version,
+    Addr, FilterAdd, FilterLoad, Inv, Nonce, Reject, Tx, Version,
 };
 
 use sha2::{Digest, Sha256};
@@ -33,6 +33,9 @@ pub const NOTFOUND_COMMAND: [u8; 12] = *b"notfound\0\0\0\0";
 pub const MEMPOOL_COMMAND: [u8; 12] = *b"mempool\0\0\0\0\0";
 pub const TX_COMMAND: [u8; 12] = *b"tx\0\0\0\0\0\0\0\0\0\0";
 pub const REJECT_COMMAND: [u8; 12] = *b"reject\0\0\0\0\0\0";
+pub const FILTERLOAD_COMMAND: [u8; 12] = *b"filterload\0\0";
+pub const FILTERADD_COMMAND: [u8; 12] = *b"filteradd\0\0\0";
+pub const FILTERCLEAR_COMMAND: [u8; 12] = *b"filterclear\0";
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {
@@ -102,6 +105,9 @@ pub enum Message {
     MemPool,
     Tx(Tx),
     Reject(Reject),
+    FilterLoad(FilterLoad),
+    FilterAdd(FilterAdd),
+    FilterClear,
 }
 
 impl Message {
@@ -162,6 +168,15 @@ impl Message {
                 reject.encode(buffer)?;
                 MessageHeader::new(REJECT_COMMAND, &buffer)
             }
+            Self::FilterLoad(filter_load) => {
+                filter_load.encode(buffer)?;
+                MessageHeader::new(FILTERLOAD_COMMAND, &buffer)
+            }
+            Self::FilterAdd(filter) => {
+                filter.encode(buffer)?;
+                MessageHeader::new(FILTERADD_COMMAND, &buffer)
+            }
+            Self::FilterClear => MessageHeader::new(FILTERCLEAR_COMMAND, &buffer),
         };
 
         Ok(header)
