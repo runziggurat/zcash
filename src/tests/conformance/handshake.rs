@@ -1,8 +1,12 @@
 use crate::{
+    assert_matches,
     helpers::is_termination_error,
     protocol::{
         message::{Filter, Message, MessageFilter},
-        payload::{block::Headers, Addr, Nonce, Version},
+        payload::{
+            block::{Block, Headers, LocatorHashes},
+            Addr, Hash, Inv, Nonce, Version,
+        },
     },
     setup::{
         config::new_local_addr,
@@ -30,7 +34,7 @@ async fn handshake_responder_side() {
         .unwrap();
 
     let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert!(matches!(version, Message::Version(..)));
+    assert_matches!(version, Message::Version(..));
 
     Message::Verack
         .write_to_stream(&mut peer_stream)
@@ -38,7 +42,7 @@ async fn handshake_responder_side() {
         .unwrap();
 
     let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert!(matches!(verack, Message::Verack));
+    assert_matches!(verack, Message::Verack);
 
     node.stop().await;
 }
@@ -58,7 +62,7 @@ async fn handshake_initiator_side() {
     // Expect the node to initiate the handshake.
     let (mut peer_stream, addr) = listener.accept().await.unwrap();
     let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert!(matches!(version, Message::Version(..)));
+    assert_matches!(version, Message::Version(..));
 
     Message::Version(Version::new(addr, listener.local_addr().unwrap()))
         .write_to_stream(&mut peer_stream)
@@ -66,7 +70,7 @@ async fn handshake_initiator_side() {
         .unwrap();
 
     let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert!(matches!(verack, Message::Verack));
+    assert_matches!(verack, Message::Verack);
 
     Message::Verack
         .write_to_stream(&mut peer_stream)
@@ -108,7 +112,10 @@ async fn reject_non_version_before_handshake() {
     //  c) Messages received in (4, 5) will not match (version, verack)
     //  d) steps (3, 4) or (5) cause time out
 
-    // todo: implement rest of the messages
+    let genesis_block = Block::testnet_genesis();
+    let block_hash = genesis_block.double_sha256().unwrap();
+    let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
+    let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
     let test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
@@ -117,12 +124,12 @@ async fn reject_non_version_before_handshake() {
         Message::Pong(Nonce::default()),
         Message::GetAddr,
         Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
+        Message::GetHeaders(block_loc.clone()),
+        Message::GetBlocks(block_loc),
+        Message::GetData(block_inv.clone()),
+        Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+        Message::Inv(block_inv.clone()),
+        Message::NotFound(block_inv),
     ];
 
     let mut node: Node = Default::default();
@@ -149,14 +156,14 @@ async fn reject_non_version_before_handshake() {
 
         // (4) read version
         match Message::read_from_stream(&mut stream).await {
-            Ok(message) => assert!(matches!(message, Message::Version(..))),
+            Ok(message) => assert_matches!(message, Message::Version(..)),
             Err(err) if is_termination_error(&err) => continue,
             Err(err) => panic!("Unexpected error while receiving version: {:?}", err),
         };
 
         // (5) read verack
         match Message::read_from_stream(&mut stream).await {
-            Ok(message) => assert!(matches!(message, Message::Verack)),
+            Ok(message) => assert_matches!(message, Message::Verack),
             Err(err) if is_termination_error(&err) => continue,
             Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
         }
@@ -198,7 +205,10 @@ async fn reject_non_version_replies_to_version() {
     // Due to how we instrument the test node, we need to have the list of peers ready when we start the node.
     // This implies we need each test message to operate on a separate connection concurrently.
 
-    // todo: implement rest of the messages
+    let genesis_block = Block::testnet_genesis();
+    let block_hash = genesis_block.double_sha256().unwrap();
+    let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
+    let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
     let mut test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
@@ -207,12 +217,12 @@ async fn reject_non_version_replies_to_version() {
         Message::Pong(Nonce::default()),
         Message::GetAddr,
         Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        //Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
+        Message::GetHeaders(block_loc.clone()),
+        Message::GetBlocks(block_loc),
+        Message::GetData(block_inv.clone()),
+        Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+        Message::Inv(block_inv.clone()),
+        Message::NotFound(block_inv),
     ];
 
     // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
@@ -240,7 +250,7 @@ async fn reject_non_version_replies_to_version() {
 
             // (1) receive incoming `version`
             let version = Message::read_from_stream(&mut stream).await.unwrap();
-            assert!(matches!(version, Message::Version(..)));
+            assert_matches!(version, Message::Version(..));
 
             // (2) send non-version message
             message.write_to_stream(&mut stream).await.unwrap();
@@ -257,7 +267,7 @@ async fn reject_non_version_replies_to_version() {
 
             // (4) receive `verack` in response to our `version`
             match Message::read_from_stream(&mut stream).await {
-                Ok(message) => assert!(matches!(message, Message::Verack)),
+                Ok(message) => assert_matches!(message, Message::Verack),
                 Err(err) if is_termination_error(&err) => {}
                 Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
             }
@@ -297,18 +307,24 @@ async fn reject_non_verack_replies_to_verack() {
     //
     // TODO: confirm expected behaviour
 
+    let genesis_block = Block::testnet_genesis();
+    let block_hash = genesis_block.double_sha256().unwrap();
+    let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
+    let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
     let mut test_messages = vec![
+        Message::Version(Version::new(new_local_addr(), new_local_addr())),
         Message::GetAddr,
+        Message::MemPool,
         Message::Ping(Nonce::default()),
         Message::Pong(Nonce::default()),
-        Message::MemPool,
-        Message::Headers(Headers::empty()),
+        Message::GetAddr,
         Message::Addr(Addr::empty()),
-        //Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv)),
-        // Message::Inv(Inv)),
-        // Message::NotFound(Inv)),
+        Message::GetHeaders(block_loc.clone()),
+        Message::GetBlocks(block_loc),
+        Message::GetData(block_inv.clone()),
+        Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+        Message::Inv(block_inv.clone()),
+        Message::NotFound(block_inv),
     ];
 
     // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
@@ -336,7 +352,7 @@ async fn reject_non_verack_replies_to_verack() {
 
             // (1) receive incoming `version`
             let version = Message::read_from_stream(&mut stream).await.unwrap();
-            assert!(matches!(version, Message::Version(..)));
+            assert_matches!(version, Message::Version(..));
 
             // (2) send `version`
             Message::Version(Version::new(addr, listener.local_addr().unwrap()))
@@ -346,7 +362,7 @@ async fn reject_non_verack_replies_to_verack() {
 
             // (3) receive `verack`
             let verack = Message::read_from_stream(&mut stream).await.unwrap();
-            assert!(matches!(verack, Message::Verack));
+            assert_matches!(verack, Message::Verack);
 
             // (4) send test message
             message.write_to_stream(&mut stream).await.unwrap();
