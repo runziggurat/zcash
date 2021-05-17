@@ -2,7 +2,10 @@ use crate::{
     helpers::is_termination_error,
     protocol::{
         message::{Filter, Message, MessageFilter},
-        payload::{block::Headers, Addr, Nonce, Version},
+        payload::{
+            block::{Block, Headers, LocatorHashes},
+            Addr, Hash, Inv, Nonce, Version,
+        },
     },
     setup::{
         config::new_local_addr,
@@ -108,7 +111,10 @@ async fn reject_non_version_before_handshake() {
     //  c) Messages received in (4, 5) will not match (version, verack)
     //  d) steps (3, 4) or (5) cause time out
 
-    // todo: implement rest of the messages
+    let genesis_block = Block::testnet_genesis();
+    let block_hash = genesis_block.double_sha256().unwrap();
+    let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
+    let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
     let test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
@@ -117,12 +123,12 @@ async fn reject_non_version_before_handshake() {
         Message::Pong(Nonce::default()),
         Message::GetAddr,
         Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
+        Message::GetHeaders(block_loc.clone()),
+        Message::GetBlocks(block_loc),
+        Message::GetData(block_inv.clone()),
+        Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+        Message::Inv(block_inv.clone()),
+        Message::NotFound(block_inv),
     ];
 
     let mut node: Node = Default::default();
@@ -198,7 +204,10 @@ async fn reject_non_version_replies_to_version() {
     // Due to how we instrument the test node, we need to have the list of peers ready when we start the node.
     // This implies we need each test message to operate on a separate connection concurrently.
 
-    // todo: implement rest of the messages
+    let genesis_block = Block::testnet_genesis();
+    let block_hash = genesis_block.double_sha256().unwrap();
+    let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
+    let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
     let mut test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
@@ -207,12 +216,12 @@ async fn reject_non_version_replies_to_version() {
         Message::Pong(Nonce::default()),
         Message::GetAddr,
         Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        //Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
+        Message::GetHeaders(block_loc.clone()),
+        Message::GetBlocks(block_loc),
+        Message::GetData(block_inv.clone()),
+        Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+        Message::Inv(block_inv.clone()),
+        Message::NotFound(block_inv),
     ];
 
     // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
