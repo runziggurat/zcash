@@ -1,13 +1,18 @@
-use crate::{assert_matches, helpers::is_termination_error, protocol::{
+use crate::{
+    assert_matches,
+    helpers::is_termination_error,
+    protocol::{
         message::{Filter, Message, MessageFilter},
         payload::{
             block::{Block, Headers, LocatorHashes},
             Addr, Hash, Inv, Nonce, Version,
         },
-    }, setup::{
+    },
+    setup::{
         config::new_local_addr,
         node::{Action, Node},
-    }};
+    },
+};
 
 use tokio::net::{TcpListener, TcpStream};
 
@@ -302,18 +307,24 @@ async fn reject_non_verack_replies_to_verack() {
     //
     // TODO: confirm expected behaviour
 
+    let genesis_block = Block::testnet_genesis();
+    let block_hash = genesis_block.double_sha256().unwrap();
+    let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
+    let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
     let mut test_messages = vec![
+        Message::Version(Version::new(new_local_addr(), new_local_addr())),
         Message::GetAddr,
+        Message::MemPool,
         Message::Ping(Nonce::default()),
         Message::Pong(Nonce::default()),
-        Message::MemPool,
-        Message::Headers(Headers::empty()),
+        Message::GetAddr,
         Message::Addr(Addr::empty()),
-        //Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv)),
-        // Message::Inv(Inv)),
-        // Message::NotFound(Inv)),
+        Message::GetHeaders(block_loc.clone()),
+        Message::GetBlocks(block_loc),
+        Message::GetData(block_inv.clone()),
+        Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+        Message::Inv(block_inv.clone()),
+        Message::NotFound(block_inv),
     ];
 
     // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
