@@ -45,7 +45,7 @@ impl Codec for Reject {
 
 const MALFORMED_CODE: u8 = 0x01;
 const INVALID_CODE: u8 = 0x10;
-const OBSELETE_CODE: u8 = 0x11;
+const OBSOLETE_CODE: u8 = 0x11;
 const DUPLICATE_CODE: u8 = 0x12;
 const NON_STANDARD_CODE: u8 = 0x40;
 const DUST_CODE: u8 = 0x41;
@@ -57,7 +57,7 @@ const OTHER_CODE: u8 = 0x50;
 pub enum CCode {
     Malformed,
     Invalid,
-    Obselete,
+    Obsolete,
     Duplicate,
     NonStandard,
     Dust,
@@ -71,7 +71,7 @@ impl Codec for CCode {
         let code: u8 = match self {
             Self::Malformed => MALFORMED_CODE,
             Self::Invalid => INVALID_CODE,
-            Self::Obselete => OBSELETE_CODE,
+            Self::Obsolete => OBSOLETE_CODE,
             Self::Duplicate => DUPLICATE_CODE,
             Self::NonStandard => NON_STANDARD_CODE,
             Self::Dust => DUST_CODE,
@@ -89,7 +89,7 @@ impl Codec for CCode {
         match code[0] {
             MALFORMED_CODE => Ok(Self::Malformed),
             INVALID_CODE => Ok(Self::Invalid),
-            OBSELETE_CODE => Ok(Self::Obselete),
+            OBSOLETE_CODE => Ok(Self::Obsolete),
             DUPLICATE_CODE => Ok(Self::Duplicate),
             NON_STANDARD_CODE => Ok(Self::NonStandard),
             DUST_CODE => Ok(Self::Dust),
@@ -106,7 +106,7 @@ impl Codec for CCode {
 
 impl CCode {
     pub fn is_obsolete(&self) -> bool {
-        *self == Self::Obselete
+        *self == Self::Obsolete
     }
 
     pub fn is_invalid(&self) -> bool {
