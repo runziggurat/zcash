@@ -187,7 +187,7 @@ async fn ignores_unsolicited_responses() {
 
 #[tokio::test]
 async fn basic_query_response() {
-    // ZG-CONFORMANCE-010
+    // ZG-CONFORMANCE-010, node is seeded with data
     //
     // The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
     //
@@ -199,7 +199,7 @@ async fn basic_query_response() {
     // `GetData(block_hash)` expects `Blocks`.
     // `GetHeaders` expects `Headers`.
     //
-    // The test currently fails for zcashd; zebra tbd.
+    // The test currently fails for zcashd and zebra.
     //
     // Current behaviour:
     //
@@ -207,18 +207,19 @@ async fn basic_query_response() {
     //              - GetAddr
     //              - MemPool
     //              - GetBlocks
-    //              - GetData(block)
     //
     //          GetData(tx) returns NotFound (which is correct),
     //          because we currently can't seed a mempool.
     //
-    //  zebra:  tbd
+    //  zebra: DDoS spam due to auto-response
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .log_to_stdout(true)
-        .start()
-        .await;
+    node.initial_action(Action::SeedWithTestnetBlocks {
+        socket_addr: new_local_addr(),
+        block_count: 3,
+    })
+    .start()
+    .await;
 
     let mut stream = initiate_handshake(node.addr()).await.unwrap();
     let filter = MessageFilter::with_all_auto_reply();
@@ -272,6 +273,51 @@ async fn basic_query_response() {
     .unwrap();
     let reply = filter.read_from_stream(&mut stream).await.unwrap();
     assert_matches!(reply, Message::Headers(..));
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn basic_query_response_unseeded() {
+    // ZG-CONFORMANCE-010, node is *not* seeded with data
+    //
+    // The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
+    //
+    // `GetData(tx_hash)` expects `NotFound`.
+    // `GetData(block_hash)` expects `NotFound`.
+    //
+    // The test currently fails for zcashd and zebra
+    //
+    // Current behaviour:
+    //
+    //  zcashd: Ignores `GetData(block_hash)`
+    //
+    //  zebra: DDoS spam due to auto-response
+
+    let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
+        .start()
+        .await;
+
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    let filter = MessageFilter::with_all_auto_reply();
+    let genesis_block = Block::testnet_genesis();
+
+    Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()]))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::NotFound(..));
+
+    Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_matches!(reply, Message::NotFound(..));
+
+    node.stop().await;
 }
 
 #[tokio::test]
