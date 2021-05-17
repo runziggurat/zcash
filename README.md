@@ -54,8 +54,8 @@ Quick overview of the current status, providing implementation progress and test
 | [![conf_001](https://img.shields.io/badge/001-██████████-green)   ](SPEC.md#ZG-CONFORMANCE-001)|
 | [![conf_001](https://img.shields.io/badge/002-██████████-green)   ](SPEC.md#ZG-CONFORMANCE-002)|
 | [![conf_003](https://img.shields.io/badge/003-██████████-green)   ](SPEC.md#ZG-CONFORMANCE-003)| :warning: Need to confirm expected behaviour with zcash.
-| [![conf_004](https://img.shields.io/badge/004-██████░░░░-green)   ](SPEC.md#ZG-CONFORMANCE-004)| :warning: Need to confirm expected behaviour with zcash.
-| [![conf_005](https://img.shields.io/badge/005-█████░░░░░-red)     ](SPEC.md#ZG-CONFORMANCE-005)| :warning: Need to confirm expected behaviour with zcash.
+| [![conf_004](https://img.shields.io/badge/004-██████████-green)   ](SPEC.md#ZG-CONFORMANCE-004)| :warning: Need to confirm expected behaviour with zcash.
+| [![conf_005](https://img.shields.io/badge/005-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-005)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_006](https://img.shields.io/badge/006-██████████-green)   ](SPEC.md#ZG-CONFORMANCE-006)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_007](https://img.shields.io/badge/007-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-007)| :warning: Need to confirm expected behaviour with zcash.
 | [![conf_008](https://img.shields.io/badge/008-██████████-red)     ](SPEC.md#ZG-CONFORMANCE-008)| :warning: Need to confirm expected behaviour with zcash.

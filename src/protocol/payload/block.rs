@@ -11,7 +11,7 @@ use std::{
 
 use sha2::Digest;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct LocatorHashes {
     version: ProtocolVersion,
     pub block_locator_hashes: Vec<Hash>,
