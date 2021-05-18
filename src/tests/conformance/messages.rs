@@ -1,8 +1,8 @@
 use crate::{
     assert_matches,
-    helpers::{initiate_handshake, respond_to_handshake},
+    helpers::{autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake},
     protocol::{
-        message::{Message, MessageFilter},
+        message::{Filter, Message, MessageFilter},
         payload::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
@@ -112,13 +112,7 @@ async fn reject_invalid_messages() {
 
     // generate a mixed Inventory hash set
     let genesis_block = Block::testnet_genesis();
-    let mixed_inv = vec![
-        genesis_block.inv_hash(),
-        InvHash::new(
-            ObjectKind::Tx,
-            genesis_block.txs[0].double_sha256().unwrap(),
-        ),
-    ];
+    let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
 
     // list of test messages and their expected Reject kind
     let cases = vec![
@@ -345,6 +339,112 @@ async fn basic_query_response_unseeded() {
         .unwrap();
     let reply = filter.read_from_stream(&mut stream).await.unwrap();
     assert_matches!(reply, Message::NotFound(..));
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn disconnects_for_trivial_issues() {
+    // ZG-CONFORMANCE-011
+    //
+    // The node disconnects for trivial (non-fuzz, non-malicious) cases.
+    //
+    // - `Ping` timeout (not tested due to 20minute zcashd timeout).
+    // - `Pong` with wrong nonce.
+    // - `GetData` with mixed types in inventory list.
+    // - `Inv` with mixed types in inventory list.
+    // - `Addr` with `NetworkAddr` with no timestamp.
+    //
+    // Note: Ping with timeout test case is not exercised as the zcashd timeout is
+    //       set to 20 minutes, which is simply too long.
+    //
+    // Note: Addr test requires commenting out the relevant code in the encode
+    //       function of NetworkAddr as we cannot encode without a timestamp.
+    //
+    // This test currently fails for zcashd and zebra.
+    //
+    // Current behaviour:
+    //
+    //  zcashd:
+    //      GetData(mixed)  - responds to both
+    //      Inv(mixed)      - ignores the message
+    //      Addr            - Reject(Malformed), but no DC
+    //
+    //  zebra:
+    //      Pong            - ignores the message
+
+    // Create a node and main connection
+    let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
+        .log_to_stdout(true)
+        .start()
+        .await;
+
+    // NOTE: This test case is not exercised due to the extremely long timeout set
+    //       by zcashd - 20minutes.
+    //
+    // Ping with timeout
+    let filter = MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled);
+    // let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    // match filter.read_from_stream(&mut stream).await.unwrap() {
+    //     Message::Ping(_) => {
+    //         match timeout(
+    //             Duration::from_secs(120),
+    //             filter.read_from_stream(&mut stream),
+    //         )
+    //         .await
+    //         {
+    //             Ok(Err(err)) if crate::helpers::is_termination_error(&err) => {}
+    //             result => panic!("Expected termianted connection, but got {:?}", result),
+    //         }
+    //     }
+    //     message => panic!("Unexpected message while waiting for Ping: {:?}", message),
+    // }
+
+    // Pong with bad nonce
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    match filter.read_from_stream(&mut stream).await.unwrap() {
+        Message::Ping(_) => Message::Pong(Nonce::default())
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap(),
+
+        message => panic!("Unexpected message while waiting for Ping: {:?}", message),
+    }
+    autorespond_and_expect_disconnect(&mut stream).await;
+
+    // GetData with mixed inventory
+    let genesis_block = Block::testnet_genesis();
+    let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    Message::GetData(Inv::new(mixed_inv.clone()))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    autorespond_and_expect_disconnect(&mut stream).await;
+
+    // Inv with mixed inventory (using non-genesis block since all node's "should" have genesis already,
+    // which makes advertising it non-sensical)
+    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    let block_1 = Block::testnet_1();
+    let mixed_inv = vec![block_1.inv_hash(), block_1.txs[0].inv_hash()];
+    Message::Inv(Inv::new(mixed_inv))
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    autorespond_and_expect_disconnect(&mut stream).await;
+
+    // NOTE: Addr with missing timestamp cannot be run without modifying our code currently.
+    //       NetworkAddr::encode will panic due to missing timestamp, so one needs to comment that
+    //       section of code out before running this.
+    //
+    // let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    // let bad_addr = NetworkAddr::new(new_local_addr()).with_last_seen(None);
+    // Message::Addr(Addr::new(vec![bad_addr]))
+    //     .write_to_stream(&mut stream)
+    //     .await
+    //     .unwrap();
+    // autorespond_and_expect_disconnect(&mut stream).await;
 
     node.stop().await;
 }
