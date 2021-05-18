@@ -58,6 +58,11 @@ impl NetworkAddr {
         }
     }
 
+    pub fn with_last_seen(mut self, last_seen: Option<DateTime<Utc>>) -> Self {
+        self.last_seen = last_seen;
+        self
+    }
+
     pub(super) fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.services.to_le_bytes())?;
 
