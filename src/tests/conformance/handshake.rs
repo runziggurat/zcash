@@ -4,7 +4,7 @@ use crate::{
     protocol::{
         message::{Filter, Message, MessageFilter},
         payload::{
-            block::{Block, Headers, LocatorHashes},
+            block::{Block, LocatorHashes},
             Addr, Hash, Inv, Nonce, Version,
         },
     },
