@@ -22,6 +22,7 @@ use crate::{
         node::{Action, Node},
     },
 };
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use rand::{
@@ -33,7 +34,6 @@ use rand_chacha::ChaCha8Rng;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
-    sync::Mutex,
 };
 
 const ITERATIONS: usize = 100;
@@ -832,7 +832,7 @@ async fn fuzzing_slightly_corrupted_version_when_node_initiates_handshake() {
     //          - main: PROCESSMESSAGE: INVALID MESSAGESTART, or
     //          - net: Oversized message from peer
 
-    let locked_rng = Arc::new(Mutex::new(seeded_rng()));
+    let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -859,10 +859,15 @@ async fn fuzzing_slightly_corrupted_version_when_node_initiates_handshake() {
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                let mut rng = peer_rng.lock_owned().await;
-                let version_to_corrupt =
-                    Message::Version(Version::try_from_stream(&peer_stream).unwrap());
-                let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
+                let corrupted_version = {
+                    let mut rng = peer_rng.write();
+                    let version_to_corrupt = Message::Version(Version::new(
+                        peer_stream.peer_addr().unwrap(),
+                        peer_stream.local_addr().unwrap(),
+                    ));
+                    corrupt_message(&mut rng, &version_to_corrupt)
+                };
+
                 let _ = peer_stream.write_all(&corrupted_version).await;
 
                 autorespond_and_expect_disconnect(&mut peer_stream).await;
@@ -894,7 +899,7 @@ async fn fuzzing_slightly_corrupted_version_inplace_of_verack_when_node_initiate
     // zebra: disconnects immediately.
     // zcashd: Sends GetAddr, Ping and GetHeaders. Appears to ignore bad verack message.
 
-    let locked_rng = Arc::new(Mutex::new(seeded_rng()));
+    let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -921,21 +926,19 @@ async fn fuzzing_slightly_corrupted_version_inplace_of_verack_when_node_initiate
                 assert_matches!(version, Message::Version(..));
 
                 // send version, receive verack
-                Message::Version(Version::new(
+                let version = Message::Version(Version::new(
                     peer_stream.peer_addr().unwrap(),
                     peer_stream.local_addr().unwrap(),
-                ))
-                .write_to_stream(&mut peer_stream)
-                .await
-                .unwrap();
+                ));
+                version.write_to_stream(&mut peer_stream).await.unwrap();
                 let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
                 assert_matches!(verack, Message::Verack);
 
                 // send bad version instead of verack
-                let mut rng = peer_rng.lock_owned().await;
-                let version_to_corrupt =
-                    Message::Version(Version::try_from_stream(&peer_stream).unwrap());
-                let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
+                let corrupted_version = {
+                    let mut rng = peer_rng.write();
+                    corrupt_message(&mut rng, &version)
+                };
                 let _ = peer_stream.write_all(&corrupted_version).await;
 
                 autorespond_and_expect_disconnect(&mut peer_stream).await;
@@ -1803,7 +1806,7 @@ async fn fuzzing_version_with_incorrect_length_when_node_initiates_handshake() {
     //          - main: PROCESSMESSAGE: INVALID MESSAGESTART, or
     //          - net: Oversized message from peer
 
-    let locked_rng = Arc::new(Mutex::new(seeded_rng()));
+    let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -1830,13 +1833,20 @@ async fn fuzzing_version_with_incorrect_length_when_node_initiates_handshake() {
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                let mut rng = peer_rng.lock_owned().await;
-                let version = Message::Version(Version::try_from_stream(&peer_stream).unwrap());
-                let mut message_buffer = vec![];
-                let mut header = version.encode(&mut message_buffer).unwrap();
+                let (header, message_buffer) = {
+                    let mut rng = peer_rng.write();
+                    let version = Message::Version(Version::new(
+                        peer_stream.peer_addr().unwrap(),
+                        peer_stream.local_addr().unwrap(),
+                    ));
+                    let mut message_buffer = vec![];
+                    let mut header = version.encode(&mut message_buffer).unwrap();
 
-                // Set the length to a random value which isn't the current value.
-                header.body_length = random_non_valid_u32(&mut rng, header.body_length);
+                    // Set the length to a random value which isn't the current value.
+                    header.body_length = random_non_valid_u32(&mut rng, header.body_length);
+
+                    (header, message_buffer)
+                };
 
                 let _ = header.write_to_stream(&mut peer_stream).await;
                 let _ = peer_stream.write_all(&message_buffer).await;
@@ -1870,7 +1880,7 @@ async fn fuzzing_version_with_incorrect_length_inplace_of_verack_when_node_initi
     // zebra: disconnects immediately.
     // zcashd: Sends GetAddr, Ping and GetHeaders. Appears to ignore bad verack message.
 
-    let locked_rng = Arc::new(Mutex::new(seeded_rng()));
+    let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -1908,13 +1918,20 @@ async fn fuzzing_version_with_incorrect_length_inplace_of_verack_when_node_initi
                 assert_matches!(verack, Message::Verack);
 
                 // send bad version instead of verack
-                let mut rng = peer_rng.lock_owned().await;
-                let version = Message::Version(Version::try_from_stream(&peer_stream).unwrap());
-                let mut message_buffer = vec![];
-                let mut header = version.encode(&mut message_buffer).unwrap();
+                let (header, message_buffer) = {
+                    let mut rng = peer_rng.write();
+                    let version = Message::Version(Version::new(
+                        peer_stream.peer_addr().unwrap(),
+                        peer_stream.local_addr().unwrap(),
+                    ));
+                    let mut message_buffer = vec![];
+                    let mut header = version.encode(&mut message_buffer).unwrap();
 
-                // Set the length to a random value which isn't the current value.
-                header.body_length = random_non_valid_u32(&mut rng, header.body_length);
+                    // Set the length to a random value which isn't the current value.
+                    header.body_length = random_non_valid_u32(&mut rng, header.body_length);
+
+                    (header, message_buffer)
+                };
 
                 let _ = header.write_to_stream(&mut peer_stream).await;
                 let _ = peer_stream.write_all(&message_buffer).await;
@@ -2368,7 +2385,7 @@ fn encode_messages_and_corrupt_body_length_field(
 
             let mut buffer = vec![];
             let mut header = message.encode(&mut buffer).unwrap();
-            header.body_length = random_non_valid_u32(rng, header.checksum);
+            header.body_length = random_non_valid_u32(rng, header.body_length);
             header.encode(&mut buffer).unwrap();
 
             buffer
