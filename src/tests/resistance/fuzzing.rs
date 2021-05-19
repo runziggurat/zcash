@@ -1470,6 +1470,164 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
 }
 
 #[tokio::test]
+async fn fuzzing_incorrect_checksum_inplace_of_version_when_node_initiates_handshake() {
+    // ZG-RESISTANCE-003 (part 5)
+    //
+    // zebra: disconnects immediately.
+    // zcashd: Messages appear to get ignored
+
+    let mut rng = seeded_rng();
+
+    let test_messages = vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, test_messages);
+
+    // create tcp listeners for peer set (port is only assigned on tcp bind)
+    let mut listeners = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    }
+
+    // get list of peer addresses to pass to node
+    let peer_addresses = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect::<Vec<_>>();
+
+    // start peer processes
+    let mut peer_handles = Vec::with_capacity(listeners.len());
+    for peer in listeners {
+        let payload = payloads.pop().unwrap();
+
+        peer_handles.push(tokio::time::timeout(
+            tokio::time::Duration::from_secs(120),
+            tokio::spawn(async move {
+                // Await connection and receive version
+                let (mut peer_stream, _) = peer.accept().await.unwrap();
+                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                assert_matches!(version, Message::Version(..));
+
+                // send bad version
+                let _ = peer_stream.write_all(&payload).await;
+
+                autorespond_and_expect_disconnect(&mut peer_stream).await;
+            }),
+        ));
+    }
+
+    let mut node: Node = Default::default();
+    node.initial_action(Action::None)
+        .initial_peers(peer_addresses)
+        .start()
+        .await;
+
+    // join the peer processes
+    for handle in peer_handles {
+        handle.await.unwrap().unwrap();
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_incorrect_checksum_inplace_of_verack_when_node_initiates_handshake() {
+    // ZG-RESISTANCE-004 (part 5)
+    //
+    // zebra: disconnects immediately.
+    // zcashd: Messages get ignored (some get logged as bad checksum),
+    //         node sends GetAddr, Ping and GetHeaders.
+
+    let mut rng = seeded_rng();
+
+    let test_messages = vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ];
+
+    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, test_messages);
+
+    // create tcp listeners for peer set (port is only assigned on tcp bind)
+    let mut listeners = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    }
+
+    // get list of peer addresses to pass to node
+    let peer_addresses = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect::<Vec<_>>();
+
+    // start peer processes
+    let mut peer_handles = Vec::with_capacity(listeners.len());
+    for peer in listeners {
+        let payload = payloads.pop().unwrap();
+
+        peer_handles.push(tokio::time::timeout(
+            tokio::time::Duration::from_secs(120),
+            tokio::spawn(async move {
+                // Await connection and receive version
+                let (mut peer_stream, _) = peer.accept().await.unwrap();
+                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                assert_matches!(version, Message::Version(..));
+
+                // send version, receive verack
+                Message::Version(Version::new(
+                    peer_stream.peer_addr().unwrap(),
+                    peer_stream.local_addr().unwrap(),
+                ))
+                .write_to_stream(&mut peer_stream)
+                .await
+                .unwrap();
+                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                assert_matches!(verack, Message::Verack);
+
+                // send bad verack
+                let _ = peer_stream.write_all(&payload).await;
+
+                autorespond_and_expect_disconnect(&mut peer_stream).await;
+            }),
+        ));
+    }
+
+    let mut node: Node = Default::default();
+    node.initial_action(Action::None)
+        .initial_peers(peer_addresses)
+        .start()
+        .await;
+
+    // join the peer processes
+    for handle in peer_handles {
+        handle.await.unwrap().unwrap();
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
 async fn fuzzing_incorrect_checksum_post_handshake() {
     // ZG-RESISTANCE-005 (part 5)
     //
@@ -1868,4 +2026,24 @@ fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
     } else {
         random_value + 1
     }
+}
+
+/// Picks `n` random messages from `message_pool`, encodes them and corrupts the checksum bytes.
+fn encode_messages_and_corrupt_checksum(
+    rng: &mut ChaCha8Rng,
+    n: usize,
+    message_pool: Vec<Message>,
+) -> Vec<Vec<u8>> {
+    (0..n)
+        .map(|_| {
+            let message = message_pool.choose(rng).unwrap();
+
+            let mut buffer = vec![];
+            let mut header = message.encode(&mut buffer).unwrap();
+            header.checksum = random_non_valid_u32(rng, header.checksum);
+            header.encode(&mut buffer).unwrap();
+
+            buffer
+        })
+        .collect()
 }
