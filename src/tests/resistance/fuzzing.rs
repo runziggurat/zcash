@@ -2247,7 +2247,6 @@ fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
             let random_len: usize = rng.gen_range(1..(MAX_MESSAGE_LEN * 2));
-            dbg!(random_len);
             vec![0u8; random_len]
         })
         .collect()
