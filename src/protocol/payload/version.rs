@@ -23,6 +23,8 @@ pub struct Version {
 }
 
 impl Version {
+    /// Constructs a [Version], where `addr_recv` is the remote ZCashd/Zebra Node address and
+    /// `addr_from` is our local peer node address.
     pub fn new(addr_recv: SocketAddr, addr_from: SocketAddr) -> Self {
         Self {
             version: ProtocolVersion::current(),

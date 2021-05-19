@@ -78,7 +78,7 @@ Quick overview of the current status, providing implementation progress and test
 | :--------- | :--------------------- |
 | [![resis_001](https://img.shields.io/badge/001-████████░░-red)](SPEC.md#ZG-RESISTANCE-001)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_002](https://img.shields.io/badge/002-████████░░-red)](SPEC.md#ZG-RESISTANCE-002)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
-| [![resis_003](https://img.shields.io/badge/003-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-003)|
-| [![resis_004](https://img.shields.io/badge/004-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-004)|
+| [![resis_003](https://img.shields.io/badge/003-████████░░-red)](SPEC.md#ZG-RESISTANCE-003)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
+| [![resis_004](https://img.shields.io/badge/004-████████░░-red)](SPEC.md#ZG-RESISTANCE-004)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_005](https://img.shields.io/badge/005-████████░░-red)](SPEC.md#ZG-RESISTANCE-005)| :warning: Need to confirm expected behaviour with zcash. Message specific fuzzing isn't implemented for all messages yet.
 | [![resis_006](https://img.shields.io/badge/006-░░░░░░░░░░-inactive)](SPEC.md#ZG-RESISTANCE-006)|
