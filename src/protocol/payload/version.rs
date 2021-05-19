@@ -23,6 +23,8 @@ pub struct Version {
 }
 
 impl Version {
+    /// Constructs a [Version], where `addr_recv` is the remote ZCashd/Zebra Node address and
+    /// `addr_from` is our local peer node address.
     pub fn new(addr_recv: SocketAddr, addr_from: SocketAddr) -> Self {
         Self {
             version: ProtocolVersion::current(),
@@ -43,11 +45,6 @@ impl Version {
             start_height: 0,
             relay: false,
         }
-    }
-
-    /// Constructs a [Version] using the peer and local address of the stream.
-    pub fn try_from_stream(stream: &tokio::net::TcpStream) -> io::Result<Self> {
-        Ok(Self::new(stream.peer_addr()?, stream.local_addr()?))
     }
 
     pub fn with_version(mut self, version: u32) -> Self {
