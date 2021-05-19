@@ -22,6 +22,7 @@ use crate::{
         node::{Action, Node},
     },
 };
+use std::sync::Arc;
 
 use rand::{
     distributions::Standard,
@@ -29,7 +30,11 @@ use rand::{
     thread_rng,
 };
 use rand_chacha::ChaCha8Rng;
-use tokio::{io::AsyncWriteExt, net::TcpStream};
+use tokio::{
+    io::AsyncWriteExt,
+    net::{TcpListener, TcpStream},
+    sync::Mutex,
+};
 
 const ITERATIONS: usize = 100;
 const CORRUPTION_PROBABILITY: f64 = 0.5;
@@ -810,6 +815,143 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
         let _ = peer_stream.write_all(&corrupted_version).await;
 
         autorespond_and_expect_disconnect(&mut peer_stream).await;
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_slightly_corrupted_version_when_node_initiates_handshake() {
+    // ZG-RESISTANCE-003 (part 4, version only)
+    //
+    // This particular case is considered alone because it is at particular risk of causing
+    // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
+    //
+    // zebra: disconnects immediately.
+    // zcashd: Some messages get ignored and timeout. Most cause an immedietely due to
+    //          - main: PROCESSMESSAGE: INVALID MESSAGESTART, or
+    //          - net: Oversized message from peer
+
+    let locked_rng = Arc::new(Mutex::new(seeded_rng()));
+
+    // create tcp listeners for peer set (port is only assigned on tcp bind)
+    let mut listeners = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    }
+
+    // get list of peer addresses to pass to node
+    let peer_addresses = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect::<Vec<_>>();
+
+    // start peer processes
+    let mut peer_handles = Vec::with_capacity(listeners.len());
+    for peer in listeners {
+        let peer_rng = locked_rng.clone();
+        peer_handles.push(tokio::time::timeout(
+            tokio::time::Duration::from_secs(120),
+            tokio::spawn(async move {
+                // Await connection and receive version
+                let (mut peer_stream, _) = peer.accept().await.unwrap();
+                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                assert_matches!(version, Message::Version(..));
+
+                // send bad version
+                let mut rng = peer_rng.lock_owned().await;
+                let version_to_corrupt =
+                    Message::Version(Version::try_from_stream(&peer_stream).unwrap());
+                let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
+                let _ = peer_stream.write_all(&corrupted_version).await;
+
+                autorespond_and_expect_disconnect(&mut peer_stream).await;
+            }),
+        ));
+    }
+
+    let mut node: Node = Default::default();
+    node.initial_action(Action::None)
+        .initial_peers(peer_addresses)
+        .start()
+        .await;
+
+    // join the peer processes
+    for handle in peer_handles {
+        handle.await.unwrap().unwrap();
+    }
+
+    node.stop().await;
+}
+
+#[tokio::test]
+async fn fuzzing_slightly_corrupted_version_inplace_of_verack_when_node_initiates_handshake() {
+    // ZG-RESISTANCE-004 (part 4, version only)
+    //
+    // This particular case is considered alone because it is at particular risk of causing
+    // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
+    //
+    // zebra: disconnects immediately.
+    // zcashd: Sends GetAddr, Ping and GetHeaders. Appears to ignore bad verack message.
+
+    let locked_rng = Arc::new(Mutex::new(seeded_rng()));
+
+    // create tcp listeners for peer set (port is only assigned on tcp bind)
+    let mut listeners = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    }
+
+    // get list of peer addresses to pass to node
+    let peer_addresses = listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap())
+        .collect::<Vec<_>>();
+
+    // start peer processes
+    let mut peer_handles = Vec::with_capacity(listeners.len());
+    for peer in listeners {
+        let peer_rng = locked_rng.clone();
+        peer_handles.push(tokio::time::timeout(
+            tokio::time::Duration::from_secs(120),
+            tokio::spawn(async move {
+                // Await connection and receive version
+                let (mut peer_stream, _) = peer.accept().await.unwrap();
+                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                assert_matches!(version, Message::Version(..));
+
+                // send version, receive verack
+                Message::Version(Version::new(
+                    peer_stream.peer_addr().unwrap(),
+                    peer_stream.local_addr().unwrap(),
+                ))
+                .write_to_stream(&mut peer_stream)
+                .await
+                .unwrap();
+                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                assert_matches!(verack, Message::Verack);
+
+                // send bad version instead of verack
+                let mut rng = peer_rng.lock_owned().await;
+                let version_to_corrupt =
+                    Message::Version(Version::try_from_stream(&peer_stream).unwrap());
+                let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
+                let _ = peer_stream.write_all(&corrupted_version).await;
+
+                autorespond_and_expect_disconnect(&mut peer_stream).await;
+            }),
+        ));
+    }
+
+    let mut node: Node = Default::default();
+    node.initial_action(Action::None)
+        .initial_peers(peer_addresses)
+        .start()
+        .await;
+
+    // join the peer processes
+    for handle in peer_handles {
+        handle.await.unwrap().unwrap();
     }
 
     node.stop().await;
