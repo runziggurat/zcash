@@ -45,6 +45,11 @@ impl Version {
         }
     }
 
+    /// Constructs a [Version] using the peer and local address of the stream.
+    pub fn try_from_stream(stream: &tokio::net::TcpStream) -> io::Result<Self> {
+        Ok(Self::new(stream.peer_addr()?, stream.local_addr()?))
+    }
+
     pub fn with_version(mut self, version: u32) -> Self {
         self.version = ProtocolVersion(version);
         self
