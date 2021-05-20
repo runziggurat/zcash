@@ -11,6 +11,10 @@ impl Inv {
     pub fn new(inventory: Vec<InvHash>) -> Self {
         Self { inventory }
     }
+
+    pub fn empty() -> Self {
+        Self::new(Vec::new())
+    }
 }
 
 impl Codec for Inv {
