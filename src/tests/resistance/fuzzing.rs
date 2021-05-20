@@ -957,7 +957,7 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     ];
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -997,7 +997,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
     ];
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -1041,7 +1041,7 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_version_when_node_initia
     ];
 
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -1115,7 +1115,7 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_verack_when_node_initiat
     ];
 
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -1196,7 +1196,7 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
     ];
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -1437,7 +1437,7 @@ async fn fuzzing_incorrect_checksum_inplace_of_version_when_node_initiates_hands
         // Message::NotFound(Inv));
     ];
 
-    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -1511,7 +1511,7 @@ async fn fuzzing_incorrect_checksum_inplace_of_verack_when_node_initiates_handsh
         // Message::NotFound(Inv));
     ];
 
-    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -2003,7 +2003,7 @@ async fn fuzzing_incorrect_body_length_inplace_of_version_when_node_initiates_ha
     ];
 
     let mut payloads =
-        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, test_messages);
+        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -2080,7 +2080,7 @@ async fn fuzzing_incorrect_body_length_inplace_of_verack_when_node_initiates_han
     ];
 
     let mut payloads =
-        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, test_messages);
+        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -2245,7 +2245,7 @@ fn metadata_compliant_random_bytes(
 fn slightly_corrupted_messages(
     rng: &mut ChaCha8Rng,
     n: usize,
-    messages: Vec<Message>,
+    messages: &[Message],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -2298,7 +2298,7 @@ fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
 fn encode_messages_and_corrupt_checksum(
     rng: &mut ChaCha8Rng,
     n: usize,
-    message_pool: Vec<Message>,
+    message_pool: &[Message],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -2318,7 +2318,7 @@ fn encode_messages_and_corrupt_checksum(
 fn encode_messages_and_corrupt_body_length_field(
     rng: &mut ChaCha8Rng,
     n: usize,
-    message_pool: Vec<Message>,
+    message_pool: &[Message],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
