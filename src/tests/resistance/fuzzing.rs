@@ -1828,7 +1828,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
 
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
-        // Send message with wrong lenght in place of valid Verack.
+        // Send message with wrong length in place of valid Verack.
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
