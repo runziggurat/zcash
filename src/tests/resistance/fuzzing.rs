@@ -39,6 +39,23 @@ use tokio::{
 const ITERATIONS: usize = 100;
 const CORRUPTION_PROBABILITY: f64 = 0.5;
 
+/// List of message commands which contain payload bytes
+const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [
+    VERSION_COMMAND,
+    PING_COMMAND,
+    PONG_COMMAND,
+    ADDR_COMMAND,
+    GETHEADERS_COMMAND,
+    HEADERS_COMMAND,
+    GETBLOCKS_COMMAND,
+    BLOCK_COMMAND,
+    GETDATA_COMMAND,
+    INV_COMMAND,
+    NOTFOUND_COMMAND,
+    TX_COMMAND,
+    REJECT_COMMAND,
+];
+
 #[tokio::test]
 async fn fuzzing_zeroes_pre_handshake() {
     // ZG-RESISTANCE-001 (part 1)
@@ -458,24 +475,8 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     // zcashd: just ignores the message and doesn't disconnect.
 
     // Payloadless messages are omitted.
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
     let mut rng = seeded_rng();
-    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -502,24 +503,8 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
     // zcashd: responds with reject, ccode malformed and doesn't disconnect.
 
     // Payloadless messages are omitted.
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
     let mut rng = seeded_rng();
-    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -549,24 +534,10 @@ async fn fuzzing_metadata_compliant_random_bytes_for_version_when_node_initiates
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let mut payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let mut payloads =
+        metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -627,24 +598,10 @@ async fn fuzzing_metadata_compliant_random_bytes_for_verack_when_node_initiates_
     //
     // Caution: zcashd takes extremely long in this test
 
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let mut payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let mut payloads =
+        metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -712,24 +669,8 @@ async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
     // for instance.
 
     // Payloadless messages are omitted.
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
     let mut rng = seeded_rng();
-    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -2285,7 +2226,7 @@ fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
 fn metadata_compliant_random_bytes(
     rng: &mut ChaCha8Rng,
     n: usize,
-    commands: Vec<[u8; 12]>,
+    commands: &[[u8; 12]],
 ) -> Vec<(MessageHeader, Vec<u8>)> {
     (0..n)
         .map(|_| {
