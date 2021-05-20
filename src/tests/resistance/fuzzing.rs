@@ -15,7 +15,10 @@ use crate::{
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
         message::*,
-        payload::{block::Headers, Addr, Nonce, Version},
+        payload::{
+            block::{Headers, LocatorHashes},
+            Addr, Inv, Nonce, Version,
+        },
     },
     setup::{
         config::new_local_addr,
@@ -966,7 +969,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 4)
     //
     // zebra: responds with verack before disconnecting (however, quite slow running).
-    // zcashd: logs suggest the messages were ignored, doesn't disconnect.
+    // zcashd: Some variants result in a terminated connect, some get ignored.
 
     let test_messages = default_fuzz_messages();
 
@@ -2164,10 +2167,10 @@ fn default_fuzz_messages() -> Vec<Message> {
         Message::GetAddr,
         Message::Addr(Addr::empty()),
         Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
+        Message::GetHeaders(LocatorHashes::empty()),
+        Message::GetBlocks(LocatorHashes::empty()),
+        Message::GetData(Inv::empty()),
+        Message::Inv(Inv::empty()),
+        Message::NotFound(Inv::empty()),
     ]
 }
