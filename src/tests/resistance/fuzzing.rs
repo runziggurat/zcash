@@ -941,20 +941,7 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     // zebra: responds with a version before disconnecting (however, quite slow running).
     // zcashd: just ignores the message and doesn't disconnect.
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
@@ -981,20 +968,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
     // zebra: responds with verack before disconnecting (however, quite slow running).
     // zcashd: logs suggest the messages were ignored, doesn't disconnect.
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
@@ -1025,20 +999,7 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_version_when_node_initia
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
     let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
@@ -1099,20 +1060,7 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_verack_when_node_initiat
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
     let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
@@ -1180,20 +1128,7 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
     // zebra: sends getdata and ignores message.
     // zcashd: disconnects for some messages, hangs for others.
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
@@ -1263,20 +1198,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -1378,20 +1300,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -1422,20 +1331,7 @@ async fn fuzzing_incorrect_checksum_inplace_of_version_when_node_initiates_hands
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
@@ -1496,20 +1392,7 @@ async fn fuzzing_incorrect_checksum_inplace_of_verack_when_node_initiates_handsh
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
@@ -1584,20 +1467,7 @@ async fn fuzzing_incorrect_checksum_post_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -1943,20 +1813,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -1987,20 +1844,7 @@ async fn fuzzing_incorrect_body_length_inplace_of_version_when_node_initiates_ha
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut payloads =
         encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
@@ -2064,20 +1908,7 @@ async fn fuzzing_incorrect_body_length_inplace_of_verack_when_node_initiates_han
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut payloads =
         encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
@@ -2153,20 +1984,7 @@ async fn fuzzing_incorrect_length_post_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -2332,4 +2150,24 @@ fn encode_messages_and_corrupt_body_length_field(
             buffer
         })
         .collect()
+}
+
+/// Returns the set of messages used for fuzz-testing.
+/// This notably excludes [Message::Version] because it is
+/// usually tested separately.
+fn default_fuzz_messages() -> Vec<Message> {
+    vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        // Message::GetHeaders(LocatorHashes)),
+        // Message::GetBlocks(LocatorHashes)),
+        // Message::GetData(Inv));
+        // Message::Inv(Inv));
+        // Message::NotFound(Inv));
+    ]
 }
