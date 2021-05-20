@@ -15,7 +15,10 @@ use crate::{
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
         message::*,
-        payload::{block::Headers, Addr, Nonce, Version},
+        payload::{
+            block::{Headers, LocatorHashes},
+            Addr, Inv, Nonce, Version,
+        },
     },
     setup::{
         config::new_local_addr,
@@ -38,6 +41,23 @@ use tokio::{
 
 const ITERATIONS: usize = 100;
 const CORRUPTION_PROBABILITY: f64 = 0.5;
+
+/// List of message commands which contain payload bytes
+const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [
+    VERSION_COMMAND,
+    PING_COMMAND,
+    PONG_COMMAND,
+    ADDR_COMMAND,
+    GETHEADERS_COMMAND,
+    HEADERS_COMMAND,
+    GETBLOCKS_COMMAND,
+    BLOCK_COMMAND,
+    GETDATA_COMMAND,
+    INV_COMMAND,
+    NOTFOUND_COMMAND,
+    TX_COMMAND,
+    REJECT_COMMAND,
+];
 
 #[tokio::test]
 async fn fuzzing_zeroes_pre_handshake() {
@@ -458,24 +478,8 @@ async fn fuzzing_metadata_compliant_random_bytes_pre_handshake() {
     // zcashd: just ignores the message and doesn't disconnect.
 
     // Payloadless messages are omitted.
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
     let mut rng = seeded_rng();
-    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -502,24 +506,8 @@ async fn fuzzing_metadata_compliant_random_bytes_during_handshake_responder_side
     // zcashd: responds with reject, ccode malformed and doesn't disconnect.
 
     // Payloadless messages are omitted.
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
     let mut rng = seeded_rng();
-    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -549,24 +537,10 @@ async fn fuzzing_metadata_compliant_random_bytes_for_version_when_node_initiates
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let mut payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let mut payloads =
+        metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -627,24 +601,10 @@ async fn fuzzing_metadata_compliant_random_bytes_for_verack_when_node_initiates_
     //
     // Caution: zcashd takes extremely long in this test
 
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let mut payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let mut payloads =
+        metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -712,24 +672,8 @@ async fn fuzzing_metadata_compliant_random_bytes_post_handshake() {
     // for instance.
 
     // Payloadless messages are omitted.
-    let commands = vec![
-        VERSION_COMMAND,
-        PING_COMMAND,
-        PONG_COMMAND,
-        ADDR_COMMAND,
-        GETHEADERS_COMMAND,
-        HEADERS_COMMAND,
-        GETBLOCKS_COMMAND,
-        BLOCK_COMMAND,
-        GETDATA_COMMAND,
-        INV_COMMAND,
-        NOTFOUND_COMMAND,
-        TX_COMMAND,
-        REJECT_COMMAND,
-    ];
-
     let mut rng = seeded_rng();
-    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, commands);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -1000,23 +944,10 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
     // zebra: responds with a version before disconnecting (however, quite slow running).
     // zcashd: just ignores the message and doesn't disconnect.
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -1038,25 +969,12 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 4)
     //
     // zebra: responds with verack before disconnecting (however, quite slow running).
-    // zcashd: logs suggest the messages were ignored, doesn't disconnect.
+    // zcashd: Some variants result in a terminated connect, some get ignored.
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -1084,23 +1002,10 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_version_when_node_initia
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -1158,23 +1063,10 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_verack_when_node_initiat
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(payloads.len());
@@ -1239,23 +1131,10 @@ async fn fuzzing_slightly_corrupted_messages_post_handshake() {
     // zebra: sends getdata and ignores message.
     // zcashd: disconnects for some messages, hangs for others.
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, test_messages);
+    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
@@ -1322,20 +1201,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -1437,20 +1303,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -1481,22 +1334,9 @@ async fn fuzzing_incorrect_checksum_inplace_of_version_when_node_initiates_hands
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
-    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -1555,22 +1395,9 @@ async fn fuzzing_incorrect_checksum_inplace_of_verack_when_node_initiates_handsh
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
-    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, test_messages);
+    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -1643,20 +1470,7 @@ async fn fuzzing_incorrect_checksum_post_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -2002,20 +1816,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -2027,7 +1828,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
 
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
 
-        // Send message with wrong lenght in place of valid Verack.
+        // Send message with wrong length in place of valid Verack.
         let _ = header.write_to_stream(&mut peer_stream).await;
         let _ = peer_stream.write_all(&message_buffer).await;
 
@@ -2046,23 +1847,10 @@ async fn fuzzing_incorrect_body_length_inplace_of_version_when_node_initiates_ha
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut payloads =
-        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, test_messages);
+        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -2123,23 +1911,10 @@ async fn fuzzing_incorrect_body_length_inplace_of_verack_when_node_initiates_han
 
     let mut rng = seeded_rng();
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     let mut payloads =
-        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, test_messages);
+        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::with_capacity(ITERATIONS);
@@ -2212,20 +1987,7 @@ async fn fuzzing_incorrect_length_post_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -2285,7 +2047,7 @@ fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
 fn metadata_compliant_random_bytes(
     rng: &mut ChaCha8Rng,
     n: usize,
-    commands: Vec<[u8; 12]>,
+    commands: &[[u8; 12]],
 ) -> Vec<(MessageHeader, Vec<u8>)> {
     (0..n)
         .map(|_| {
@@ -2304,7 +2066,7 @@ fn metadata_compliant_random_bytes(
 fn slightly_corrupted_messages(
     rng: &mut ChaCha8Rng,
     n: usize,
-    messages: Vec<Message>,
+    messages: &[Message],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -2357,7 +2119,7 @@ fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
 fn encode_messages_and_corrupt_checksum(
     rng: &mut ChaCha8Rng,
     n: usize,
-    message_pool: Vec<Message>,
+    message_pool: &[Message],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -2377,7 +2139,7 @@ fn encode_messages_and_corrupt_checksum(
 fn encode_messages_and_corrupt_body_length_field(
     rng: &mut ChaCha8Rng,
     n: usize,
-    message_pool: Vec<Message>,
+    message_pool: &[Message],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -2391,4 +2153,24 @@ fn encode_messages_and_corrupt_body_length_field(
             buffer
         })
         .collect()
+}
+
+/// Returns the set of messages used for fuzz-testing.
+/// This notably excludes [Message::Version] because it is
+/// usually tested separately.
+fn default_fuzz_messages() -> Vec<Message> {
+    vec![
+        Message::MemPool,
+        Message::Verack,
+        Message::Ping(Nonce::default()),
+        Message::Pong(Nonce::default()),
+        Message::GetAddr,
+        Message::Addr(Addr::empty()),
+        Message::Headers(Headers::empty()),
+        Message::GetHeaders(LocatorHashes::empty()),
+        Message::GetBlocks(LocatorHashes::empty()),
+        Message::GetData(Inv::empty()),
+        Message::Inv(Inv::empty()),
+        Message::NotFound(Inv::empty()),
+    ]
 }
