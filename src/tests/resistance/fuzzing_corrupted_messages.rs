@@ -21,7 +21,7 @@ use tokio::{
 const CORRUPTION_PROBABILITY: f64 = 0.5;
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_version_pre_handshake() {
+async fn corrupted_version_pre_handshake() {
     // ZG-RESISTANCE-001 (part 4)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -58,7 +58,7 @@ async fn fuzzing_slightly_corrupted_version_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
+async fn corrupted_version_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 4)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -92,7 +92,7 @@ async fn fuzzing_slightly_corrupted_version_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_version_when_node_initiates_handshake() {
+async fn corrupted_version_when_node_initiates_handshake() {
     // ZG-RESISTANCE-003 (part 4, version only)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -161,7 +161,7 @@ async fn fuzzing_slightly_corrupted_version_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_version_inplace_of_verack_when_node_initiates_handshake() {
+async fn corrupted_version_inplace_of_verack_when_node_initiates_handshake() {
     // ZG-RESISTANCE-004 (part 4, version only)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -232,7 +232,7 @@ async fn fuzzing_slightly_corrupted_version_inplace_of_verack_when_node_initiate
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_version_post_handshake() {
+async fn corrupted_version_post_handshake() {
     // ZG-RESISTANCE-005 (part 4)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -265,7 +265,7 @@ async fn fuzzing_slightly_corrupted_version_post_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
+async fn corrupted_messages_pre_handshake() {
     // ZG-RESISTANCE-001 (part 4)
     //
     // zebra: responds with a version before disconnecting (however, quite slow running).
@@ -292,7 +292,7 @@ async fn fuzzing_slightly_corrupted_messages_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
+async fn corrupted_messages_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 4)
     //
     // zebra: responds with verack before disconnecting (however, quite slow running).
@@ -321,7 +321,7 @@ async fn fuzzing_slightly_corrupted_messages_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
+async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
     // ZG-RESISTANCE-003 (part 4)
     //
     // zebra: disconnects immediately.
@@ -381,7 +381,7 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_version_when_node_initia
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
+async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
     // ZG-RESISTANCE-004 (part 4)
     //
     // zebra: disconnects immediately.
@@ -452,7 +452,7 @@ async fn fuzzing_slightly_corrupted_messages_inplace_of_verack_when_node_initiat
 }
 
 #[tokio::test]
-async fn fuzzing_slightly_corrupted_messages_post_handshake() {
+async fn corrupted_messages_post_handshake() {
     // ZG-RESISTANCE-005 (part 4)
     //
     // zebra: sends getdata and ignores message.
