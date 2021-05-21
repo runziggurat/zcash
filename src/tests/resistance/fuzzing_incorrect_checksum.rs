@@ -17,7 +17,7 @@ use tokio::{
 };
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
+async fn version_with_incorrect_checksum_pre_handshake() {
     // ZG-RESISTANCE-001 (part 5)
     //
     // zebra: sends version before disconnecting.
@@ -51,7 +51,7 @@ async fn fuzzing_version_with_incorrect_checksum_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_checksum_pre_handshake() {
+async fn incorrect_checksum_pre_handshake() {
     // ZG-RESISTANCE-001 (part 5)
     //
     // zebra: sends a version before disconnecting.
@@ -85,7 +85,7 @@ async fn fuzzing_incorrect_checksum_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side() {
+async fn version_with_incorrect_checksum_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 5)
     //
     // zebra: sends verack before disconnecting.
@@ -120,7 +120,7 @@ async fn fuzzing_version_with_incorrect_checksum_during_handshake_responder_side
 }
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_checksum_post_handshake() {
+async fn version_with_incorrect_checksum_post_handshake() {
     // ZG-RESISTANCE-005 (part 5)
     //
     // zebra: disconnects.
@@ -153,7 +153,7 @@ async fn fuzzing_version_with_incorrect_checksum_post_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
+async fn incorrect_checksum_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 5)
     //
     // zebra: sends a verack before disconnecting.
@@ -189,7 +189,7 @@ async fn fuzzing_incorrect_checksum_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_checksum_inplace_of_version_when_node_initiates_handshake() {
+async fn incorrect_checksum_inplace_of_version_when_node_initiates_handshake() {
     // ZG-RESISTANCE-003 (part 5)
     //
     // zebra: disconnects immediately.
@@ -249,7 +249,7 @@ async fn fuzzing_incorrect_checksum_inplace_of_version_when_node_initiates_hands
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_checksum_inplace_of_verack_when_node_initiates_handshake() {
+async fn incorrect_checksum_inplace_of_verack_when_node_initiates_handshake() {
     // ZG-RESISTANCE-004 (part 5)
     //
     // zebra: disconnects immediately.
@@ -321,7 +321,7 @@ async fn fuzzing_incorrect_checksum_inplace_of_verack_when_node_initiates_handsh
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_checksum_post_handshake() {
+async fn incorrect_checksum_post_handshake() {
     // ZG-RESISTANCE-005 (part 5)
     //
     // zebra: disconnects.

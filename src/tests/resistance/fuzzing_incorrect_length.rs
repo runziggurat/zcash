@@ -23,7 +23,7 @@ use tokio::{
 };
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_length_pre_handshake() {
+async fn version_with_incorrect_length_pre_handshake() {
     // ZG-RESISTANCE-001 (part 6)
     //
     // zebra: sends version before disconnecting.
@@ -57,7 +57,7 @@ async fn fuzzing_version_with_incorrect_length_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_length_pre_handshake() {
+async fn incorrect_length_pre_handshake() {
     // ZG-RESISTANCE-001 (part 6)
     //
     // zebra: disconnects.
@@ -105,7 +105,7 @@ async fn fuzzing_incorrect_length_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side() {
+async fn version_with_incorrect_length_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 6)
     //
     // zebra: sends verack before disconnecting.
@@ -139,7 +139,7 @@ async fn fuzzing_version_with_incorrect_length_during_handshake_responder_side()
 }
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_length_when_node_initiates_handshake() {
+async fn version_with_incorrect_length_when_node_initiates_handshake() {
     // ZG-RESISTANCE-003 (part 6, version only)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -215,7 +215,7 @@ async fn fuzzing_version_with_incorrect_length_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_length_inplace_of_verack_when_node_initiates_handshake() {
+async fn version_with_incorrect_length_inplace_of_verack_when_node_initiates_handshake() {
     // ZG-RESISTANCE-004 (part 6, version only)
     //
     // This particular case is considered alone because it is at particular risk of causing
@@ -300,7 +300,7 @@ async fn fuzzing_version_with_incorrect_length_inplace_of_verack_when_node_initi
 }
 
 #[tokio::test]
-async fn fuzzing_version_with_incorrect_length_post_handshake() {
+async fn version_with_incorrect_length_post_handshake() {
     // ZG-RESISTANCE-005 (part 6, version only)
     //
     // zebra: disconnects.
@@ -333,7 +333,7 @@ async fn fuzzing_version_with_incorrect_length_post_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_length_during_handshake_responder_side() {
+async fn incorrect_length_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 6)
     //
     // zebra: disconnects.
@@ -369,7 +369,7 @@ async fn fuzzing_incorrect_length_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_body_length_inplace_of_version_when_node_initiates_handshake() {
+async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake() {
     // ZG-RESISTANCE-003 (part 6)
     //
     // zebra: disconnects
@@ -430,7 +430,7 @@ async fn fuzzing_incorrect_body_length_inplace_of_version_when_node_initiates_ha
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_body_length_inplace_of_verack_when_node_initiates_handshake() {
+async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake() {
     // ZG-RESISTANCE-004 (part 6)
     //
     // zebra: disconnects, logs:
@@ -505,7 +505,7 @@ async fn fuzzing_incorrect_body_length_inplace_of_verack_when_node_initiates_han
 }
 
 #[tokio::test]
-async fn fuzzing_incorrect_length_post_handshake() {
+async fn incorrect_length_post_handshake() {
     // ZG-RESISTANCE-005 (part 6)
     //
     // zebra: disconnects.

@@ -18,7 +18,7 @@ use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
-async fn fuzzing_zeroes_pre_handshake() {
+async fn zeroes_pre_handshake() {
     // ZG-RESISTANCE-001 (part 1)
     //
     // zebra: sends a version before disconnecting.
@@ -43,7 +43,7 @@ async fn fuzzing_zeroes_pre_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_zeroes_during_handshake_responder_side() {
+async fn zeroes_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 1)
     //
     // zebra: responds with verack before disconnecting.
@@ -70,7 +70,7 @@ async fn fuzzing_zeroes_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn fuzzing_zeroes_for_version_when_node_initiates_handshake() {
+async fn zeroes_for_version_when_node_initiates_handshake() {
     // ZG-RESISTANCE-003 (part 1)
     //
     // zebra: disconnects immediately.
@@ -128,7 +128,7 @@ async fn fuzzing_zeroes_for_version_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_zeroes_for_verack_when_node_initiates_handshake() {
+async fn zeroes_for_verack_when_node_initiates_handshake() {
     // ZG-RESISTANCE-004 (part 1)
     //
     // zebra: disconnects immediately.
@@ -196,7 +196,7 @@ async fn fuzzing_zeroes_for_verack_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn fuzzing_zeroes_post_handshake() {
+async fn zeroes_post_handshake() {
     // ZG-RESISTANCE-005 (part 1)
     //
     // zebra: disconnects.
