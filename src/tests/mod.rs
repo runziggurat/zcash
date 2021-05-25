@@ -1,4 +1,5 @@
 mod conformance;
+mod performance;
 mod resistance;
 
 /// Shorthand for `assert!(matches!(val, pattern), args..)`
