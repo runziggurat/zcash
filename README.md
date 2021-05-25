@@ -71,7 +71,7 @@ Quick overview of the current status, providing implementation progress and test
 
 | Performance | Additional Information |
 | :---------- | :--------------------- |
-| [![perf_001](https://img.shields.io/badge/001-░░░░░░░░░░-inactive)](SPEC.md#ZG-PERFORMANCE-001)|
+| [![perf_001](https://img.shields.io/badge/001-█████░░░░░-red)     ](SPEC.md#ZG-PERFORMANCE-001)| Still requires a data performance test
 | [![perf_002](https://img.shields.io/badge/002-███████░░░-red)     ](SPEC.md#ZG-PERFORMANCE-002)| Still requires initial peers test
 
 | Resistance | Additional Information |
