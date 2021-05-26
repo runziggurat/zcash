@@ -243,16 +243,31 @@ impl Node {
         }
     }
 
-    // FIXME: move to a `Drop` impl on `Node`?
     /// Stops the node instance.
     ///
     /// The stop command will only be run if provided in the `config.toml` file as it may not be
     /// necessary to shutdown a node (killing the process is sometimes sufficient).
     pub async fn stop(&mut self) {
         let mut child = self.process.take().unwrap();
-        child.kill().await.expect("failed to kill process");
+
+        // Stop node process, and check for crash
+        // (needs to happen before cleanup)
+        let crashed = match child.try_wait().unwrap() {
+            None => {
+                child.kill().await.unwrap();
+                None
+            }
+            Some(exit_code) if exit_code.success() => {
+                Some("but exited successfully somehow".to_string())
+            }
+            Some(exit_code) => Some(format!("crashed with {}", exit_code)),
+        };
 
         self.cleanup();
+
+        if let Some(crash_msg) = crashed {
+            panic!("Node exited early, {}", crash_msg);
+        }
     }
 
     fn generate_config_file(&self) {
