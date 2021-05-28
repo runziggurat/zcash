@@ -146,7 +146,7 @@ async fn ping_pong_latency() {
                     loop {
                         match timeout(PING_TIMEOUT, filter.read_from_stream(&mut stream)).await {
                             Err(_elapsed) => latencies.push(PING_TIMEOUT),
-                            Ok(Ok(mesage)) if mesage == expected => latencies.push(now.elapsed()),
+                            Ok(Ok(message)) if message == expected => latencies.push(now.elapsed()),
                             // If the nonce doesn't match then we treat it as a response to an already timed out Ping
                             // (which has already been handled, so we skip it).
                             Ok(Ok(Message::Pong(_))) => continue,
