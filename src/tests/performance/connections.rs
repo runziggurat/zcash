@@ -243,7 +243,7 @@ async fn incoming_active_connections() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn outgoing_active_connections() {
-    // ZG-PERFORMANCE-002, when the node initiate the connection
+    // ZG-PERFORMANCE-002, when the node initiates the connection
     //
     // The node sheds or rejects connections when necessary.
     //
