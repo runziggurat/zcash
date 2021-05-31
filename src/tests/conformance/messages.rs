@@ -564,21 +564,24 @@ async fn eagerly_crawls_network_for_peers() {
     node.stop().await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn correctly_lists_peers() {
     // ZG-CONFORMANCE-013
     //
     // The node responds to a `GetAddr` with a list of peers it’s connected to. This command
     // should only be sent once, and by the node initiating the connection.
     //
-    // Test procedure
-    //  Start a node, and sequentially for each peer `i` of `N`:
-    //      1. Initiate a connection and complete the handshake
-    //      2. Send `GetAddr` request
-    //      3. Receive `Addr` response
-    //      4. Verify `Addr` contains list of previous `i-1` peers
+    // In addition, this test case exercises the known zebra bug: https://github.com/ZcashFoundation/zebra/pull/2120
     //
-    // This test currently fails for zcashd and zebra passes.
+    // Test procedure
+    //      1. Establish N peer listeners
+    //      2. Start node which connects to these N peers
+    //      3. Create i..M new connections which,
+    //          a) Connect to the node
+    //          b) Query GetAddr
+    //          c) Receive Addr == N peer addresses
+    //
+    // This test currently fails for both zcashd and zebra.
     //
     // Current behaviour:
     //
@@ -586,45 +589,84 @@ async fn correctly_lists_peers() {
     //          the connection. If the node initiates the connection then the command is recoginized,
     //          but likely ignored (because only the initiating node is supposed to send it).
     //
-    //  zebra:  Infinitely spams `GetAddr` and `GetData`. Can be coaxed into responding correctly if
-    //          all its peer connections have responded to `GetAddr` with a non-empty list.
+    //  zebra:  Never responds: "zebrad::components::inbound: ignoring `Peers` request from remote peer during network setup"
+    //
+    //          Can be coaxed into responding by sending a non-empty Addr in
+    //          response to node's GetAddr. This still fails as it includes previous inbound
+    //          connections in its address book (as in the bug listed above).
+    //
 
-    // Create a node and main connection
+    // Establish N listener peer nodes
+    const PEERS: usize = 5;
+    let mut peers = Vec::with_capacity(PEERS);
+    for _ in 0..PEERS {
+        peers.push(TcpListener::bind(new_local_addr()).await.unwrap())
+    }
+    let mut peer_addrs = peers
+        .iter()
+        .map(|peer| peer.local_addr().unwrap())
+        .collect::<Vec<_>>();
+    peer_addrs.sort_unstable();
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for peer in peers {
+        peer_handles.push(tokio::spawn(async move {
+            peer.accept().await.unwrap();
+        }));
+    }
+
+    // Start node with an initial set of peers to connect to
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::None)
+        .initial_peers(peer_addrs.clone())
         .start()
         .await;
 
-    let mut peers = Vec::new();
+    // wait for all peers to get connected to
+    for handle in peer_handles {
+        handle.await.unwrap();
+    }
 
-    for i in 0u8..5 {
-        let mut new_peer = initiate_handshake(node.addr()).await.unwrap();
-        let filter = MessageFilter::with_all_auto_reply().enable_logging();
+    // List of inbound peer addresses (from the nodes perspective).
+    // This is used to test that the node does not gossip these addresses.
+    // (this exercises a known Zebra bug: https://github.com/ZcashFoundation/zebra/pull/2120)
+    let mut inbound = Vec::new();
 
-        Message::GetAddr
-            .write_to_stream(&mut new_peer)
-            .await
-            .unwrap();
+    // Connect to node and request GetAddr.
+    // We perform multiple iterations in order to exercise the above Zebra bug.
+    for i in 0..5 {
+        let mut stream = initiate_handshake(node.addr()).await.unwrap();
+        inbound.push(stream.local_addr().unwrap());
 
-        match filter.read_from_stream(&mut new_peer).await {
-            Ok(Message::Addr(addresses)) => {
-                // We need to sort the lists so we can compare them
-                let mut expected = peers
-                    .iter()
-                    .map(|p: &tokio::net::TcpStream| p.local_addr().unwrap())
-                    .collect::<Vec<_>>();
-                expected.sort_unstable();
+        Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
 
+        let filter = MessageFilter::with_all_auto_reply();
+
+        match tokio::time::timeout(
+            tokio::time::Duration::from_secs(5),
+            filter.read_from_stream(&mut stream),
+        )
+        .await
+        {
+            Ok(Ok(Message::Addr(addresses))) => {
                 let mut node_peers = addresses.iter().map(|net| net.addr).collect::<Vec<_>>();
                 node_peers.sort_unstable();
 
-                assert_eq!(expected, node_peers, "Testing node {}", i);
-            }
-            result => panic!("Peer {}: expected Ok(Addr), but got {:?}", i, result),
-        }
+                // Check that ephemeral connections were not gossiped. The next check would also catch this, but
+                // this lets us add a more specific message.
+                inbound.iter().for_each(|addr| {
+                    assert!(
+                        !node_peers.contains(addr),
+                        "Iteration {}: Addr contains inbound peer address",
+                        i
+                    )
+                });
 
-        // list updated after check since current peer is not expecting to be part of the node's peer list
-        peers.push(new_peer);
+                // Only the original peer listeners should be advertised
+                assert_eq!(peer_addrs, node_peers, "Iteration {}:", i);
+            }
+            Ok(result) => panic!("Iteration {}: expected Ok(Addr), but got {:?}", i, result),
+            Err(_timed_out) => panic!("Iteration {}: timeout waiting for `Addr`", i),
+        }
     }
 
     node.stop().await;
