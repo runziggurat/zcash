@@ -1,5 +1,5 @@
 use crate::protocol::{
-    message::{filter::MessageFilter, Message},
+    message::{constants::HEADER_LEN, filter::MessageFilter, Message},
     payload::{codec::Codec, Version},
 };
 
@@ -82,7 +82,7 @@ impl InnerNode {
         let header = message.encode(&mut payload)?;
 
         // Encode the header and append the message to it.
-        let mut buffer = Vec::with_capacity(24 + header.body_length as usize);
+        let mut buffer = Vec::with_capacity(HEADER_LEN + header.body_length as usize);
         header.encode(&mut buffer)?;
         buffer.append(&mut payload);
 
