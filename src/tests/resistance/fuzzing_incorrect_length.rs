@@ -2,8 +2,8 @@ use crate::{
     assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
-        message::*,
-        payload::{block::Headers, Addr, Nonce, Version},
+        message::Message,
+        payload::{block::Headers, codec::Codec, Addr, Nonce, Version},
     },
     setup::{
         config::new_local_addr,

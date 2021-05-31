@@ -5,7 +5,7 @@ mod fuzzing_random_bytes;
 mod fuzzing_zeroes;
 
 use crate::protocol::{
-    message::*,
+    message::{constants::*, Message},
     payload::{
         block::{Headers, LocatorHashes},
         Addr, Inv, Nonce,

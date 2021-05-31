@@ -1,6 +1,6 @@
 use crate::{
     helpers::{initiate_handshake, is_termination_error},
-    protocol::message::{Message, MessageFilter},
+    protocol::message::{filter::MessageFilter, Message},
     setup::{
         config::new_local_addr,
         node::{Action, Node},
