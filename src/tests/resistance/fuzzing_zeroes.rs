@@ -1,7 +1,10 @@
 use crate::{
     assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
-    protocol::{message::*, payload::Version},
+    protocol::{
+        message::{constants::MAX_MESSAGE_LEN, Message},
+        payload::Version,
+    },
     setup::{
         config::new_local_addr,
         node::{Action, Node},

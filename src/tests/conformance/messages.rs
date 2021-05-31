@@ -2,7 +2,10 @@ use crate::{
     assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake},
     protocol::{
-        message::{Filter, Message, MessageFilter},
+        message::{
+            filter::{Filter, MessageFilter},
+            Message,
+        },
         payload::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
@@ -514,7 +517,7 @@ async fn eagerly_crawls_network_for_peers() {
     // wait for the `GetAddr`, filter out all other queries.
     let filter = MessageFilter::with_all_auto_reply()
         .enable_logging()
-        .with_getaddr_filter(crate::protocol::message::Filter::Disabled);
+        .with_getaddr_filter(Filter::Disabled);
 
     // reply with list of peer addresses
     match filter.read_from_stream(&mut stream).await.unwrap() {

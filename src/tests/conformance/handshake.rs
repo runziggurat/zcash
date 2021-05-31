@@ -2,7 +2,10 @@ use crate::{
     assert_matches,
     helpers::is_termination_error,
     protocol::{
-        message::{Filter, Message, MessageFilter},
+        message::{
+            filter::{Filter, MessageFilter},
+            Message,
+        },
         payload::{
             block::{Block, LocatorHashes},
             Addr, Hash, Inv, Nonce, Version,

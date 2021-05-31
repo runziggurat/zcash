@@ -1,7 +1,7 @@
 use crate::{
     helpers::respond_to_handshake,
     protocol::{
-        message::{Filter, MessageFilter},
+        message::filter::{Filter, MessageFilter},
         payload::{
             block::{Block, Headers},
             Hash, Inv, Nonce,
