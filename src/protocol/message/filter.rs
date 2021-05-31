@@ -132,13 +132,13 @@ impl MessageFilter {
     }
 
     // FIXME: duplication for refactor.
-    pub fn reply_message(&self, message: Message) -> Option<Message> {
-        match self.message_filter_type(&message) {
+    pub fn reply_message(&self, message: &Message) -> Option<Message> {
+        match self.message_filter_type(message) {
             Filter::AutoReply => Some(match message {
-                Message::Ping(nonce) => Message::Pong(nonce),
+                Message::Ping(nonce) => Message::Pong(*nonce),
                 Message::GetAddr => Message::Addr(Addr::empty()),
                 Message::GetHeaders(_) => Message::Headers(Headers::empty()),
-                Message::GetData(inv) => Message::NotFound(inv),
+                Message::GetData(inv) => Message::NotFound(inv.clone()),
                 _ => unimplemented!(),
             }),
 
