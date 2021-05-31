@@ -119,10 +119,8 @@ impl Reading for InnerNode {
         // FIXME: remove clone
         if let Some(response) = self.message_filter.reply_message(message.clone()) {
             self.send_direct_message(source, response).await?;
-        } else {
-            if let Err(_) = self.inbound_tx.send(message).await {
-                panic!("receiver dropped!");
-            };
+        } else if self.inbound_tx.send(message).await.is_err() {
+            panic!("receiver dropped!");
         }
 
         Ok(())
