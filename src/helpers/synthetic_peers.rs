@@ -1,5 +1,5 @@
 use crate::protocol::{
-    message::{Message, MessageHeader, MessageWithHeader},
+    message::{filter::MessageFilter, Message, MessageHeader, MessageWithHeader},
     payload::{codec::Codec, Version},
 };
 
@@ -18,14 +18,14 @@ use std::{
 
 pub struct SyntheticNode {
     inner_node: InnerNode,
-    inbound_rx: Receiver<MessageWithHeader>,
+    inbound_rx: Receiver<Message>,
 }
 
 impl SyntheticNode {
-    pub fn new(node: Node, enable_handshaking: bool) -> Self {
+    pub fn new(node: Node, enable_handshaking: bool, message_filter: MessageFilter) -> Self {
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
-        let inner_node = InnerNode::new(node, tx);
+        let inner_node = InnerNode::new(node, tx, message_filter);
 
         // Enable the read and write protocols, handshake is enabled on a per-case basis.
         inner_node.enable_reading();
@@ -47,19 +47,15 @@ impl SyntheticNode {
         Ok(())
     }
 
+    pub async fn recv_message(&mut self) -> Message {
+        match self.inbound_rx.recv().await {
+            Some(message) => message,
+            None => panic!("all senders dropped!"),
+        }
+    }
+
     pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
-        let mut payload = vec![];
-        let header = message.encode(&mut payload)?;
-
-        // Encode the header and append the message to it.
-        let mut buffer = Vec::with_capacity(24 + header.body_length as usize);
-        header.encode(&mut buffer)?;
-        buffer.append(&mut payload);
-
-        self.inner_node
-            .node()
-            .send_direct_message(target, buffer.into())
-            .await?;
+        self.inner_node.send_direct_message(target, message).await?;
 
         Ok(())
     }
@@ -68,15 +64,33 @@ impl SyntheticNode {
 #[derive(Clone)]
 struct InnerNode {
     node: Node,
-    inbound_tx: Sender<MessageWithHeader>,
+    inbound_tx: Sender<Message>,
+    message_filter: MessageFilter,
 }
 
 impl InnerNode {
-    fn new(node: Node, tx: Sender<MessageWithHeader>) -> Self {
+    fn new(node: Node, tx: Sender<Message>, message_filter: MessageFilter) -> Self {
         Self {
             node,
             inbound_tx: tx,
+            message_filter,
         }
+    }
+
+    async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
+        let mut payload = vec![];
+        let header = message.encode(&mut payload)?;
+
+        // Encode the header and append the message to it.
+        let mut buffer = Vec::with_capacity(24 + header.body_length as usize);
+        header.encode(&mut buffer)?;
+        buffer.append(&mut payload);
+
+        self.node()
+            .send_direct_message(target, buffer.into())
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -88,7 +102,7 @@ impl Pea2Pea for InnerNode {
 
 #[async_trait::async_trait]
 impl Reading for InnerNode {
-    type Message = MessageWithHeader;
+    type Message = Message;
 
     fn read_message(
         &self,
@@ -96,20 +110,20 @@ impl Reading for InnerNode {
         buffer: &[u8],
     ) -> Result<Option<(Self::Message, usize)>> {
         let mut bytes = Cursor::new(buffer);
-        let header = MessageHeader::decode(&mut bytes)?;
         let message = Message::decode(&mut bytes)?;
 
-        let message_with_header = MessageWithHeader { header, message };
-
-        Ok(Some((message_with_header, bytes.position() as usize)))
+        Ok(Some((message, bytes.position() as usize)))
     }
 
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
-        // FIXME: implement with message filter.
-
-        if let Err(_) = self.inbound_tx.send(message).await {
-            panic!("synthetic node receiver dropped");
-        };
+        // FIXME: remove clone
+        if let Some(response) = self.message_filter.reply_message(message.clone()) {
+            self.send_direct_message(source, response).await?;
+        } else {
+            if let Err(_) = self.inbound_tx.send(message).await {
+                panic!("receiver dropped!");
+            };
+        }
 
         Ok(())
     }
@@ -122,7 +136,7 @@ impl Writing for InnerNode {
         payload: &[u8],
         buffer: &mut [u8],
     ) -> Result<usize> {
-        buffer.copy_from_slice(&payload);
+        buffer[..payload.len()].copy_from_slice(&payload);
         Ok(payload.len())
     }
 }

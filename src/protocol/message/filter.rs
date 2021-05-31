@@ -31,6 +31,7 @@ pub enum Filter {
 /// For a list of responses see the documentation on [MessageFilter::read_from_stream].
 ///
 /// Can optionally log filter events to console, logging is disabled by default.
+#[derive(Clone)]
 pub struct MessageFilter {
     ping: Filter,
     getheaders: Filter,
@@ -128,6 +129,23 @@ impl MessageFilter {
             Message::GetData(inv) => Message::NotFound(inv).write_to_stream(stream).await,
             _ => unimplemented!(),
         }
+    }
+
+    // FIXME: duplication for refactor.
+    pub fn reply_message(&self, message: Message) -> Option<Message> {
+        let response = match self.message_filter_type(&message) {
+            Filter::AutoReply => Some(match message {
+                Message::Ping(nonce) => Message::Pong(nonce),
+                Message::GetAddr => Message::Addr(Addr::empty()),
+                Message::GetHeaders(_) => Message::Headers(Headers::empty()),
+                Message::GetData(inv) => Message::NotFound(inv),
+                _ => unimplemented!(),
+            }),
+
+            _ => None,
+        };
+
+        response
     }
 
     // returns the Filter of the message type
