@@ -1,5 +1,4 @@
 use crate::{
-    assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::payload::{codec::Codec, Version},
     setup::{
@@ -11,6 +10,7 @@ use crate::{
 
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use parking_lot::RwLock;
 use rand::prelude::{Rng, SliceRandom};
 use rand_chacha::ChaCha8Rng;

@@ -1,5 +1,4 @@
 use crate::{
-    assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
         message::Message,
@@ -12,6 +11,7 @@ use crate::{
     tests::resistance::{default_fuzz_messages, random_non_valid_u32, seeded_rng, ITERATIONS},
 };
 
+use assert_matches::assert_matches;
 use rand::prelude::SliceRandom;
 use rand_chacha::ChaCha8Rng;
 use tokio::{

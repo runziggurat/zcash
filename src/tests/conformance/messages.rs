@@ -1,5 +1,4 @@
 use crate::{
-    assert_matches,
     helpers::{
         autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
         synthetic_peers::SyntheticNode,
@@ -21,9 +20,9 @@ use crate::{
         config::new_local_addr,
         node::{Action, Node},
     },
-    wait_until,
 };
 
+use assert_matches::assert_matches;
 use tokio::{
     net::TcpListener,
     time::{timeout, Duration},
@@ -54,7 +53,7 @@ async fn ping_pong() {
 
     // Recieve pong and verify the nonce matches.
     let message = synthetic_node.recv_message().await;
-    assert!(matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce));
+    assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
 
     node.stop().await;
 }
