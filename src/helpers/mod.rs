@@ -1,5 +1,7 @@
+pub mod synthetic_peers;
+
 use crate::protocol::{
-    message::{Message, MessageFilter},
+    message::{filter::MessageFilter, Message},
     payload::Version,
 };
 
