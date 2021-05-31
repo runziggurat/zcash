@@ -13,7 +13,7 @@ use crate::protocol::{
 
 use sha2::{Digest, Sha256};
 
-use std::io::{Cursor, Read, Result, Write};
+use std::io::{Cursor, Result, Write};
 
 #[derive(Debug, Default)]
 pub struct MessageHeader {

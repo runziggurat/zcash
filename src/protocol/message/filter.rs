@@ -1,16 +1,9 @@
 use crate::protocol::{
     message::Message,
-    payload::{
-        block::{Block, Headers, LocatorHashes},
-        codec::Codec,
-        read_n_bytes, Addr, FilterAdd, FilterLoad, Inv, Nonce, Reject, Tx, Version,
-    },
+    payload::{block::Headers, Addr},
 };
 
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, Result},
-    net::TcpStream,
-};
+use tokio::{io::Result, net::TcpStream};
 
 /// Controls the filter response of [MessageFilter] to messages it reads.
 #[derive(Debug, Clone, Copy, PartialEq)]
