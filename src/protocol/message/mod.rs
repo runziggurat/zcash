@@ -34,14 +34,12 @@ impl Codec for MessageHeader {
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> Result<Self> {
-        let mut header: MessageHeader = Default::default();
-
-        header.magic = read_n_bytes(bytes)?;
-        header.command = read_n_bytes(bytes)?;
-        header.body_length = u32::from_le_bytes(read_n_bytes(bytes)?);
-        header.checksum = u32::from_le_bytes(read_n_bytes(bytes)?);
-
-        Ok(header)
+        Ok(MessageHeader {
+            magic: read_n_bytes(bytes)?,
+            command: read_n_bytes(bytes)?,
+            body_length: u32::from_le_bytes(read_n_bytes(bytes)?),
+            checksum: u32::from_le_bytes(read_n_bytes(bytes)?),
+        })
     }
 }
 

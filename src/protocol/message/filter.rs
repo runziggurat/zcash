@@ -133,7 +133,7 @@ impl MessageFilter {
 
     // FIXME: duplication for refactor.
     pub fn reply_message(&self, message: Message) -> Option<Message> {
-        let response = match self.message_filter_type(&message) {
+        match self.message_filter_type(&message) {
             Filter::AutoReply => Some(match message {
                 Message::Ping(nonce) => Message::Pong(nonce),
                 Message::GetAddr => Message::Addr(Addr::empty()),
@@ -143,9 +143,7 @@ impl MessageFilter {
             }),
 
             _ => None,
-        };
-
-        response
+        }
     }
 
     // returns the Filter of the message type
