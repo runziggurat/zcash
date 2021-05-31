@@ -18,7 +18,7 @@ use std::io::{Cursor, Result, Write};
 #[derive(Debug, Clone)]
 pub struct MessageWithHeader {
     pub header: MessageHeader,
-    pub message: Message,
+    pub payload: Message,
 }
 
 #[derive(Debug, Default, Clone)]
