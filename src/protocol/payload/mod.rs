@@ -170,7 +170,7 @@ impl Codec for Hash {
     }
 }
 
-fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8; N]> {
+pub fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8; N]> {
     let mut buffer = [0u8; N];
     bytes.read_exact(&mut buffer)?;
 
