@@ -2,12 +2,12 @@ use std::io::{self, Cursor, ErrorKind, Read, Write};
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes};
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct FilterAdd {
     data: Vec<u8>,
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct FilterLoad {
     filter: Vec<u8>,
     hash_fn_count: u32,
