@@ -3,12 +3,12 @@ use crate::protocol::{
     payload::{codec::Codec, Version},
 };
 
+use assert_matches::assert_matches;
 use pea2pea::{
     connections::ConnectionSide,
     protocols::{Handshaking, Reading, Writing},
     Connection, Node, Pea2Pea,
 };
-
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use std::{
@@ -116,8 +116,7 @@ impl Reading for InnerNode {
     }
 
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
-        // FIXME: remove clone
-        if let Some(response) = self.message_filter.reply_message(message.clone()) {
+        if let Some(response) = self.message_filter.reply_message(&message) {
             self.send_direct_message(source, response).await?;
         } else if self.inbound_tx.send(message).await.is_err() {
             panic!("receiver dropped!");
@@ -150,27 +149,27 @@ impl Handshaking for InnerNode {
                     .await?;
 
                 let version = Message::read_from_stream(conn.reader()).await?;
-                assert!(matches!(version, Message::Version(..)));
+                assert_matches!(version, Message::Version(..));
 
                 // Send and receive Verack.
                 Message::Verack.write_to_stream(conn.writer()).await?;
 
                 let verack = Message::read_from_stream(conn.reader()).await?;
-                assert!(matches!(verack, Message::Verack));
+                assert_matches!(verack, Message::Verack);
             }
 
             ConnectionSide::Responder => {
-                // Receiev and send Version.
+                // Receive and send Version.
                 let version = Message::read_from_stream(conn.reader()).await?;
-                assert!(matches!(version, Message::Version(..)));
+                assert_matches!(version, Message::Version(..));
 
                 Message::Version(Version::new(self.node().listening_addr(), conn.addr))
                     .write_to_stream(conn.writer())
                     .await?;
 
-                // Receieve and send Verack.
+                // Receive and send Verack.
                 let verack = Message::read_from_stream(conn.reader()).await?;
-                assert!(matches!(verack, Message::Verack));
+                assert_matches!(verack, Message::Verack);
 
                 Message::Verack.write_to_stream(conn.writer()).await?;
             }

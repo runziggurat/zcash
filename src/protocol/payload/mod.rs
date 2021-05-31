@@ -142,7 +142,7 @@ impl VarStr {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Hash([u8; 32]);
 
 impl Hash {

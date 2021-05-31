@@ -29,7 +29,7 @@ impl Codec for Inv {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct InvHash {
     kind: ObjectKind,
     hash: Hash,
