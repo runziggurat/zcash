@@ -15,6 +15,12 @@ use sha2::{Digest, Sha256};
 
 use std::io::{Cursor, Result, Write};
 
+#[derive(Debug)]
+pub struct MessageWithHeader {
+    pub header: MessageHeader,
+    pub message: Message,
+}
+
 #[derive(Debug, Default)]
 pub struct MessageHeader {
     magic: [u8; 4],
@@ -80,6 +86,7 @@ pub enum Message {
 }
 
 impl Message {
+    // FIXME: implement Codec?
     pub fn encode(&self, buffer: &mut Vec<u8>) -> Result<MessageHeader> {
         let header = match self {
             Self::Version(version) => {
