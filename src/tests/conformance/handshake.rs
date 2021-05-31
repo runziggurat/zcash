@@ -1,5 +1,4 @@
 use crate::{
-    assert_matches,
     helpers::is_termination_error,
     protocol::{
         message::{
@@ -17,6 +16,7 @@ use crate::{
     },
 };
 
+use assert_matches::assert_matches;
 use tokio::net::{TcpListener, TcpStream};
 
 #[tokio::test]
