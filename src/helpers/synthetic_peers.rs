@@ -1,5 +1,5 @@
 use crate::protocol::{
-    message::{filter::MessageFilter, Message, MessageHeader, MessageWithHeader},
+    message::{filter::MessageFilter, Message},
     payload::{codec::Codec, Version},
 };
 

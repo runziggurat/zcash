@@ -15,12 +15,6 @@ use sha2::{Digest, Sha256};
 
 use std::io::{Cursor, Result, Write};
 
-#[derive(Debug, Clone)]
-pub struct MessageWithHeader {
-    pub header: MessageHeader,
-    pub payload: Message,
-}
-
 #[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
     magic: [u8; 4],
