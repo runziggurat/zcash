@@ -2,7 +2,7 @@ use crate::protocol::payload::{codec::Codec, read_n_bytes, VarStr};
 
 use std::io::{self, Cursor, Read, Write};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Reject {
     message: VarStr,
     pub ccode: CCode,

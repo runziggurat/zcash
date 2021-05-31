@@ -122,7 +122,7 @@ impl Codec for VarInt {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct VarStr(String);
 
 impl VarStr {

@@ -15,13 +15,13 @@ use sha2::{Digest, Sha256};
 
 use std::io::{Cursor, Result, Write};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MessageWithHeader {
     pub header: MessageHeader,
     pub message: Message,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
     magic: [u8; 4],
     command: [u8; 12],
@@ -62,7 +62,7 @@ impl MessageHeader {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Message {
     Version(Version),
     Verack,
