@@ -3,7 +3,7 @@ use crate::protocol::{
     payload::{
         block::{Block, Headers, LocatorHashes},
         codec::Codec,
-        read_n_bytes, Addr, FilterAdd, FilterLoad, Inv, Nonce, Reject, Tx, Version,
+        Addr, Inv, Nonce, Reject, Tx, Version,
     },
 };
 
