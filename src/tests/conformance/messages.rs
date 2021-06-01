@@ -74,6 +74,7 @@ async fn reject_invalid_messages() {
     //      FilterClear (Obsolete)
     //
     // TBD: Inv         (Invalid -- with multiple advertised blocks)
+    //      [todo: feedback from zcashd as to what the correct behaviour]
     //
     // Test procedure:
     //      For each test message:
@@ -91,26 +92,31 @@ async fn reject_invalid_messages() {
     //
     // Current behaviour (if we initiate the connection):
     //  ZCashd:
-    //      Version:        passes
-    //      Verack:         ignored
-    //      Mixed Inv:      ignored
-    //      FilterLoad:     Reject(Malformed) - needs investigation
-    //      FilterAdd:      Reject(Malformed) - needs investigation
-    //      FilterClear:    ignored
-    //      FilterClear:    ignored
+    //      Version:            passes
+    //      Verack:             ignored
+    //      Mixed Inv:          ignored
+    //      Multi-Block Inv:    ignored
+    //      FilterLoad:         Reject(Malformed) - needs investigation
+    //      FilterAdd:          Reject(Malformed) - needs investigation
+    //      FilterClear:        ignored
+    //      FilterClear:        ignored
     //
     //  Zebra:
     //      All result in a terminated connection (no reject sent).
 
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .log_to_stdout(true)
         .start()
         .await;
 
     // generate a mixed Inventory hash set
     let genesis_block = Block::testnet_genesis();
     let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
+    let multi_block_inv = vec![
+        genesis_block.inv_hash(),
+        genesis_block.inv_hash(),
+        genesis_block.inv_hash(),
+    ];
 
     // list of test messages and their expected Reject kind
     let cases = vec![
@@ -120,6 +126,7 @@ async fn reject_invalid_messages() {
         ),
         (Message::Verack, CCode::Duplicate),
         (Message::Inv(Inv::new(mixed_inv)), CCode::Invalid),
+        (Message::Inv(Inv::new(multi_block_inv)), CCode::Invalid),
         (Message::FilterLoad(FilterLoad::default()), CCode::Obsolete),
         (Message::FilterAdd(FilterAdd::default()), CCode::Obsolete),
         (Message::FilterClear, CCode::Obsolete),
@@ -232,7 +239,7 @@ async fn basic_query_response() {
     //          GetData(tx) returns NotFound (which is correct),
     //          because we currently can't seed a mempool.
     //
-    //  zebra: DDoS spam due to auto-response
+    //  zebra: DoS `GetData` spam due to auto-response
 
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks {
@@ -461,7 +468,7 @@ async fn eagerly_crawls_network_for_peers() {
     //  4. Send set of peer listener node addresses
     //  5. Expect the node to connect to each peer in the set
     //
-    // This test currently fails for zcashd; zebra passes (with a caveat).
+    // This test currently fails for zcashd; zebra fails (with a caveat).
     //
     // Current behaviour:
     //
@@ -471,9 +478,9 @@ async fn eagerly_crawls_network_for_peers() {
     //          If the node initiates then it does send GetAddr, but it never connects
     //          to the peers.
     //
-    // zebra:   Passes with flying colors, so long as we keep responding on the main connection.
-    //          If we do not keep responding, then the peer connections take really long to establish,
-    //          sometimes even spuriously failing the test completely.
+    // zebra:   Fails, unless we keep responding on the main connection.
+    //          If we do not keep responding then the peer connections take really long to establish,
+    //          failing the test completely.
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::new();
@@ -493,13 +500,13 @@ async fn eagerly_crawls_network_for_peers() {
         .start()
         .await;
 
-    // start peer listeners which "pass" once they've accepted a connection, and
-    // "fail" if the timeout expires. Timeout must be quite long, seems to take around
-    // 20-60 seconds for zebra.
+    // Start peer listeners which "pass" once they've accepted a connection, and
+    // "fail" if the timeout expires. We expect this to happen quite quickly since
+    // the node currently has very few active peers.
     let mut peer_handles = Vec::with_capacity(listeners.len());
     for listener in listeners {
         peer_handles.push(tokio::time::timeout(
-            tokio::time::Duration::from_secs(120),
+            tokio::time::Duration::from_secs(20),
             tokio::spawn(async move {
                 respond_to_handshake(listener).await.unwrap();
             }),
@@ -530,33 +537,9 @@ async fn eagerly_crawls_network_for_peers() {
         message => panic!("Expected Message::GetAddr, but got {:?}", message),
     }
 
-    // turn waiting for peer futures into a single future
-    let wait_for_peers = tokio::spawn(async move {
-        for handle in peer_handles {
-            handle.await.unwrap().unwrap();
-        }
-    });
-
-    // We need to keep responding to ping requests on the main connection,
-    // otherwise it may get marked as unreliable (and the peer list gets ignored).
-    //
-    // Without this, zebra takes forever to connect and spuriously fails as well.
-    // TBC - this is all speculation.
-    let main_responder = tokio::spawn(async move {
-        let filter = MessageFilter::with_all_auto_reply().enable_logging();
-
-        // we don't expect to receive any messages
-        let message = filter.read_from_stream(&mut stream).await.unwrap();
-        panic!(
-            "Unexpected message received by main connection: {:?}",
-            message
-        );
-    });
-
-    // wait for peer connections to complete, or main connection to break
-    tokio::select! {
-        result = main_responder => result.unwrap(),
-        result = wait_for_peers => result.unwrap(),
+    // Wait for peer futures to complete
+    for handle in peer_handles {
+        handle.await.unwrap().unwrap();
     }
 
     node.stop().await;
@@ -693,13 +676,14 @@ async fn get_blocks() {
     //
     // Current behaviour:
     //
-    //  zcashd: Fails because it ignores requests when the last hash is the last hash it knows of. We expect it to return
-    //          an empty Inv.
+    //  zcashd: Passes
     //
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
     //
-    // Note: zcashd also excludes the `stop_hash` from the range, whereas the spec states that it should be inclusive.
+    // Note: zcashd excludes the `stop_hash` from the range, whereas the spec states that it should be inclusive.
     //       We are taking current behaviour as correct.
+    //
+    // Note: zcashd ignores requests for the final block in the chain
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
@@ -707,7 +691,6 @@ async fn get_blocks() {
         socket_addr: new_local_addr(),
         block_count: 3,
     })
-    .log_to_stdout(true)
     .start()
     .await;
 
@@ -717,9 +700,11 @@ async fn get_blocks() {
     let filter = MessageFilter::with_all_auto_reply();
 
     // Test unlimited range queries, where given the hash for block i we expect all
-    // of its children as a reply.
-    // i.e. GetBlocks(i) -> Inv(i+1..)
-    for (i, block) in blocks.iter().enumerate() {
+    // of its children as a reply. This does not apply for the last block in the chain,
+    // so we skip it.
+    //
+    // i.e. Test that GetBlocks(i) -> Inv(i+1..)
+    for (i, block) in blocks.iter().enumerate().take(2) {
         Message::GetBlocks(LocatorHashes::new(
             vec![block.double_sha256().unwrap()],
             Hash::zeroed(),
@@ -738,6 +723,26 @@ async fn get_blocks() {
             message => panic!("Expected Inv, but got {:?}", message),
         }
     }
+
+    // Test that we get no response for the final block in the known-chain
+    // (this is the behaviour exhibited by zcashd - a more well-formed response
+    // might be sending an empty inventory instead).
+    //
+    // Test message is ignored by sending Ping and receiving Pong.
+    Message::GetBlocks(LocatorHashes::new(
+        vec![blocks.last().unwrap().double_sha256().unwrap()],
+        Hash::zeroed(),
+    ))
+    .write_to_stream(&mut stream)
+    .await
+    .unwrap();
+    let nonce = Nonce::default();
+    Message::Ping(nonce)
+        .write_to_stream(&mut stream)
+        .await
+        .unwrap();
+    let reply = filter.read_from_stream(&mut stream).await.unwrap();
+    assert_eq!(reply, Message::Pong(nonce));
 
     // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
     Message::GetBlocks(LocatorHashes::new(
@@ -830,9 +835,9 @@ async fn correctly_lists_blocks() {
 
     // locator hashes are stored in reverse order
     let locator = vec![
-        vec![hashes[0].clone()],
-        vec![hashes[1].clone(), hashes[0].clone()],
-        vec![hashes[2].clone(), hashes[1].clone(), hashes[0].clone()],
+        vec![hashes[0]],
+        vec![hashes[1], hashes[0]],
+        vec![hashes[2], hashes[1], hashes[0]],
     ];
 
     // Establish a peer node
@@ -860,13 +865,10 @@ async fn correctly_lists_blocks() {
     // Query for all possible valid ranges
     let ranges: Vec<(usize, usize)> = vec![(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)];
     for (start, stop) in ranges {
-        Message::GetHeaders(LocatorHashes::new(
-            locator[start].clone(),
-            hashes[stop].clone(),
-        ))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
+        Message::GetHeaders(LocatorHashes::new(locator[start].clone(), hashes[stop]))
+            .write_to_stream(&mut stream)
+            .await
+            .unwrap();
 
         // We use start+1 because Headers should list the blocks starting *after* the
         // final location in GetHeaders, and up (and including) the stop-hash.
@@ -969,7 +971,7 @@ async fn get_data_blocks() {
 
     // Query for a non-existant block
     let non_existant = InvHash::new(ObjectKind::Block, Hash::new([17; 32]));
-    let non_existant_inv = Inv::new(vec![non_existant.clone()]);
+    let non_existant_inv = Inv::new(vec![non_existant]);
     Message::GetData(non_existant_inv.clone())
         .write_to_stream(&mut stream)
         .await
@@ -981,8 +983,8 @@ async fn get_data_blocks() {
 
     // Query a mixture of existing and non-existing blocks
     let mut mixed_blocks = inv_blocks;
-    mixed_blocks.insert(1, non_existant.clone());
-    mixed_blocks.push(non_existant.clone());
+    mixed_blocks.insert(1, non_existant);
+    mixed_blocks.push(non_existant);
 
     let expected = vec![
         Message::Block(Box::new(Block::testnet_genesis())),
