@@ -31,7 +31,7 @@ async fn getdata_blocks_latency() {
     //         Otherwise performs consistently up to around 200 concurrent peers.
     //
     // Zebra: Chokes right out of the gate, likely to the DoS behaviour of spamming GetAddr and GetData.
-    //        The spam can be seem by enabling logging on the filter.
+    //        The spam can be seen by enabling logging on the filter.
     //
     // Example test result (with percentile latencies):
     //  *NOTE* run with `cargo test --release tests::performance::blocks::getdata_blocks_latency -- --nocapture`
