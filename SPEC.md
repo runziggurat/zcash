@@ -95,11 +95,11 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
 ### ZG-CONFORMANCE-003
 
-    The node rejects non-`Version` messages before the handshake has been performed.
+    The node ignores non-`Version` messages before the handshake has been performed.
 
     1. Connect to the node under test.
     2. Send non-`Version` messages.
-    3. Assert the node rejected the connection (rpc: `getconnectioncount` and/or `getpeerinfo`), asserting the connection was dropped may be sufficient.
+    3. Verify that this message was ignored by completing the handshake
 
 ### ZG-CONFORMANCE-004
 
