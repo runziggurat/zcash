@@ -70,21 +70,7 @@ async fn incorrect_length_pre_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::GetAddr,
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
