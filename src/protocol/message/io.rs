@@ -12,6 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, Result};
 use std::io::Cursor;
 
 impl MessageHeader {
+    /// Writes the message header to the stream.
     pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> Result<()> {
         let mut buffer = Vec::with_capacity(24);
         self.encode(&mut buffer)?;
@@ -21,6 +22,7 @@ impl MessageHeader {
         Ok(())
     }
 
+    /// Reads a message header from the stream.
     pub async fn read_from_stream<T: AsyncReadExt + Unpin>(stream: &mut T) -> Result<Self> {
         let mut header: MessageHeader = Default::default();
 
@@ -34,6 +36,7 @@ impl MessageHeader {
 }
 
 impl Message {
+    /// Writes the message to the stream.
     pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> Result<()> {
         // Buffer for the message payload.
         let mut buffer = vec![];
@@ -45,6 +48,7 @@ impl Message {
         Ok(())
     }
 
+    /// Reads a message from the stream.
     pub async fn read_from_stream<T: AsyncReadExt + Unpin>(stream: &mut T) -> Result<Self> {
         let header = MessageHeader::read_from_stream(stream).await?;
 
