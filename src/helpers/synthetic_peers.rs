@@ -16,12 +16,17 @@ use std::{
     net::SocketAddr,
 };
 
+/// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
 pub struct SyntheticNode {
     inner_node: InnerNode,
     inbound_rx: Receiver<Message>,
 }
 
 impl SyntheticNode {
+    /// Creates a new synthetic node from a `pea2pea` node.
+    ///
+    /// The handshake protocol can also optionally enabled and the message filter must be set for
+    /// reads.
     pub fn new(node: Node, enable_handshaking: bool, message_filter: MessageFilter) -> Self {
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
@@ -41,12 +46,18 @@ impl SyntheticNode {
         }
     }
 
+    /// Connects to the target address.
+    ///
+    /// If the handshake protocol is enabled it will be executed as well.
     pub async fn connect(&self, target: SocketAddr) -> Result<()> {
         self.inner_node.node().connect(target).await?;
 
         Ok(())
     }
 
+    /// Reads a message from the inbound (internal) queue of the node.
+    ///
+    /// Messages are sent to the queue when unfiltered by the message filter.
     pub async fn recv_message(&mut self) -> Message {
         match self.inbound_rx.recv().await {
             Some(message) => message,
@@ -54,6 +65,7 @@ impl SyntheticNode {
         }
     }
 
+    /// Sends a direct message to the target address.
     pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
         self.inner_node.send_direct_message(target, message).await?;
 
