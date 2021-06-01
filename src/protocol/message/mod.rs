@@ -18,7 +18,7 @@ use std::io::{Cursor, Result, Write};
 #[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
     magic: [u8; 4],
-    command: [u8; 12],
+    pub command: [u8; 12],
     pub body_length: u32,
     pub checksum: u32,
 }
@@ -150,11 +150,8 @@ impl Message {
         Ok(header)
     }
 
-    pub fn decode(bytes: &mut Cursor<&[u8]>) -> Result<Self> {
-        // FIXME: constrain length of read to 24 + header.body_len().
-        let header = MessageHeader::decode(bytes)?;
-
-        let message = match header.command {
+    pub fn decode(command: [u8; 12], bytes: &mut Cursor<&[u8]>) -> Result<Self> {
+        let message = match command {
             VERSION_COMMAND => Self::Version(Version::decode(bytes)?),
             VERACK_COMMAND => Self::Verack,
             PING_COMMAND => Self::Ping(Nonce::decode(bytes)?),

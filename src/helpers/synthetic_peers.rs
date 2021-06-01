@@ -1,5 +1,5 @@
 use crate::protocol::{
-    message::{constants::HEADER_LEN, filter::MessageFilter, Message},
+    message::{constants::HEADER_LEN, filter::MessageFilter, Message, MessageHeader},
     payload::{codec::Codec, Version},
 };
 
@@ -12,7 +12,7 @@ use pea2pea::{
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use std::{
-    io::{Cursor, Result},
+    io::{Cursor, ErrorKind, Result},
     net::SocketAddr,
 };
 
@@ -121,10 +121,26 @@ impl Reading for InnerNode {
         _source: SocketAddr,
         buffer: &[u8],
     ) -> Result<Option<(Self::Message, usize)>> {
-        let mut bytes = Cursor::new(buffer);
-        let message = Message::decode(&mut bytes)?;
+        // Check buffer contains a full header.
+        if buffer.len() <= HEADER_LEN {
+            return Ok(None);
+        }
 
-        Ok(Some((message, bytes.position() as usize)))
+        // Decode header.
+        let header_bytes = &buffer[..HEADER_LEN];
+        let header = MessageHeader::decode(&mut Cursor::new(header_bytes))?;
+
+        // Check buffer contains the announce message lenght.
+        if buffer.len() <= HEADER_LEN + header.body_length as usize {
+            return Err(ErrorKind::InvalidData.into());
+        }
+
+        // Decode message.
+        let mut bytes = Cursor::new(&buffer[HEADER_LEN..][..header.body_length as usize]);
+        let message = Message::decode(header.command, &mut bytes)?;
+
+        // Read the position from the cursor.
+        Ok(Some((message, HEADER_LEN + bytes.position() as usize)))
     }
 
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
