@@ -9,7 +9,7 @@ use std::{
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Addr {
     addrs: Vec<NetworkAddr>,
 }

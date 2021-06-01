@@ -1,8 +1,10 @@
 use crate::{
-    assert_matches,
     helpers::is_termination_error,
     protocol::{
-        message::{Filter, Message, MessageFilter},
+        message::{
+            filter::{Filter, MessageFilter},
+            Message,
+        },
         payload::{
             block::{Block, LocatorHashes},
             Addr, Hash, Inv, Nonce, Version,
@@ -14,6 +16,7 @@ use crate::{
     },
 };
 
+use assert_matches::assert_matches;
 use tokio::net::{TcpListener, TcpStream};
 
 #[tokio::test]

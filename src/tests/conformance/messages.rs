@@ -1,8 +1,13 @@
 use crate::{
-    assert_matches,
-    helpers::{autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake},
+    helpers::{
+        autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
+        synthetic_peers::SyntheticNode,
+    },
     protocol::{
-        message::{Filter, Message, MessageFilter},
+        message::{
+            filter::{Filter, MessageFilter},
+            Message,
+        },
         payload::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
@@ -15,9 +20,9 @@ use crate::{
         config::new_local_addr,
         node::{Action, Node},
     },
-    wait_until,
 };
 
+use assert_matches::assert_matches;
 use tokio::{
     net::TcpListener,
     time::{timeout, Duration},
@@ -25,37 +30,30 @@ use tokio::{
 
 #[tokio::test]
 async fn ping_pong() {
-    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
+    // Create a pea2pea backed synthetic node and enable handshaking.
+    let filter = MessageFilter::with_all_auto_reply();
+    let mut synthetic_node =
+        SyntheticNode::new(pea2pea::Node::new(None).await.unwrap(), true, filter);
 
     // Create a node and set the listener as an initial peer.
     let mut node: Node = Default::default();
-    node.initial_peers(vec![listener.local_addr().unwrap()])
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    // Receive the connection and perform the handshake once the node is started.
-    let mut peer_stream = respond_to_handshake(listener).await.unwrap();
+    // Connect to the node and handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-    let nonce = Nonce::default();
-    Message::Ping(nonce)
-        .write_to_stream(&mut peer_stream)
+    // Send Ping.
+    let ping_nonce = Nonce::default();
+    synthetic_node
+        .send_direct_message(node.addr(), Message::Ping(ping_nonce))
         .await
         .unwrap();
 
-    wait_until!(10, {
-        // Ignore queries from the node.
-        let auto_responder = MessageFilter::with_all_auto_reply();
-        if let Ok(Message::Pong(returned_nonce)) =
-            auto_responder.read_from_stream(&mut peer_stream).await
-        {
-            // We received a pong and the nonce matches.
-            assert_eq!(nonce, returned_nonce);
-            true
-        } else {
-            // We didn't receive a pong.
-            false
-        }
-    });
+    // Recieve pong and verify the nonce matches.
+    let message = synthetic_node.recv_message().await;
+    assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
 
     node.stop().await;
 }
@@ -514,7 +512,7 @@ async fn eagerly_crawls_network_for_peers() {
     // wait for the `GetAddr`, filter out all other queries.
     let filter = MessageFilter::with_all_auto_reply()
         .enable_logging()
-        .with_getaddr_filter(crate::protocol::message::Filter::Disabled);
+        .with_getaddr_filter(Filter::Disabled);
 
     // reply with list of peer addresses
     match filter.read_from_stream(&mut stream).await.unwrap() {

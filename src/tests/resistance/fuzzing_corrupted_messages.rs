@@ -1,16 +1,17 @@
 use crate::{
-    assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
-    protocol::{message::*, payload::Version},
+    protocol::payload::{codec::Codec, Version},
     setup::{
         config::new_local_addr,
         node::{Action, Node},
     },
-    tests::resistance::{default_fuzz_messages, seeded_rng, ITERATIONS},
+    tests::resistance::{default_fuzz_messages, seeded_rng, Message, ITERATIONS},
 };
-use parking_lot::RwLock;
+
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
+use parking_lot::RwLock;
 use rand::prelude::{Rng, SliceRandom};
 use rand_chacha::ChaCha8Rng;
 use tokio::{
