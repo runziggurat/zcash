@@ -1,7 +1,9 @@
 use crate::{
-    assert_matches,
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
-    protocol::{message::*, payload::Version},
+    protocol::{
+        message::{constants::MAX_MESSAGE_LEN, Message},
+        payload::Version,
+    },
     setup::{
         config::new_local_addr,
         node::{Action, Node},
@@ -9,13 +11,13 @@ use crate::{
     tests::resistance::{seeded_rng, ITERATIONS},
 };
 
+use assert_matches::assert_matches;
+use rand::Rng;
+use rand_chacha::ChaCha8Rng;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
 };
-
-use rand::Rng;
-use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
 async fn zeroes_pre_handshake() {

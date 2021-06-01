@@ -6,7 +6,7 @@ use tokio::time::{timeout, Duration};
 use crate::{
     helpers::initiate_handshake,
     protocol::{
-        message::{Message, MessageFilter},
+        message::{filter::MessageFilter, Message},
         payload::{block::Block, Inv},
     },
     setup::{
