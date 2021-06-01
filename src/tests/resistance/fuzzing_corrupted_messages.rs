@@ -239,7 +239,7 @@ async fn corrupted_version_post_handshake() {
     // This particular case is considered alone because it is at particular risk of causing
     // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
     //
-    // zebra: spams getdata, doesn't disconnect.
+    // zebra: disconnects
     // zcashd: disconnects for some messages, hangs for others.
 
     let mut rng = seeded_rng();
