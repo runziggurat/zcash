@@ -44,6 +44,14 @@ Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --t
 
 ## Test Status
 
+Short overview of test cases and their current status.
+
+| Legend | |
+| :----: |--|
+| ✓ | pass |
+| ✖ | fail |
+| - | uimplemented |
+
 ### Conformance
 
 | Test Case                         | ZCashd | Zebra | Additional Information |
