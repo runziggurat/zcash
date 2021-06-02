@@ -7,14 +7,21 @@ use assert_matches::assert_matches;
 use pea2pea::{
     connections::ConnectionSide,
     protocols::{Handshaking, Reading, Writing},
-    Connection, Node, Pea2Pea,
+    Connection, Node, NodeConfig, Pea2Pea,
 };
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use std::{
     io::{Cursor, ErrorKind, Result},
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
 };
+
+#[derive(Default)]
+pub struct SyntheticNodeConfig {
+    pub network_config: Option<NodeConfig>,
+    pub enable_handshaking: bool,
+    pub message_filter: MessageFilter,
+}
 
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
 pub struct SyntheticNode {
@@ -27,23 +34,35 @@ impl SyntheticNode {
     ///
     /// The handshake protocol can also optionally enabled and the message filter must be set for
     /// reads.
-    pub fn new(node: Node, enable_handshaking: bool, message_filter: MessageFilter) -> Self {
+    pub async fn new(config: SyntheticNodeConfig) -> Result<Self> {
+        // Set localhost as default if no pea2pea config is provided.
+        let network_config = match config.network_config {
+            Some(config) => Some(config),
+            None => Some(NodeConfig {
+                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+                ..Default::default()
+            }),
+        };
+
+        // Create the pea2pea node from the config.
+        let node = Node::new(network_config).await?;
+
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
-        let inner_node = InnerNode::new(node, tx, message_filter);
+        let inner_node = InnerNode::new(node, tx, config.message_filter);
 
         // Enable the read and write protocols, handshake is enabled on a per-case basis.
         inner_node.enable_reading();
         inner_node.enable_writing();
 
-        if enable_handshaking {
+        if config.enable_handshaking {
             inner_node.enable_handshaking();
         }
 
-        Self {
+        Ok(Self {
             inner_node,
             inbound_rx: rx,
-        }
+        })
     }
 
     /// Connects to the target address.

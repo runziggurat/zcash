@@ -1,7 +1,7 @@
 use crate::{
     helpers::{
         autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
-        synthetic_peers::SyntheticNode,
+        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
     },
     protocol::{
         message::{
@@ -30,10 +30,13 @@ use tokio::{
 
 #[tokio::test]
 async fn ping_pong() {
-    // Create a pea2pea backed synthetic node and enable handshaking.
-    let filter = MessageFilter::with_all_auto_reply();
-    let mut synthetic_node =
-        SyntheticNode::new(pea2pea::Node::new(None).await.unwrap(), true, filter);
+    // Create a synthetic node and enable handshaking.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
     // Create a node and set the listener as an initial peer.
     let mut node: Node = Default::default();
