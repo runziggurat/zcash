@@ -481,6 +481,9 @@ async fn eagerly_crawls_network_for_peers() {
     // zebra:   Fails, unless we keep responding on the main connection.
     //          If we do not keep responding then the peer connections take really long to establish,
     //          failing the test completely.
+    //
+    //          Related issues: https://github.com/ZcashFoundation/zebra/pull/2154
+    //                          https://github.com/ZcashFoundation/zebra/issues/2163
 
     // create tcp listeners for peer set (port is only assigned on tcp bind)
     let mut listeners = Vec::new();
