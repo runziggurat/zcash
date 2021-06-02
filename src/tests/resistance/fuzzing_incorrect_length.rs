@@ -2,7 +2,7 @@ use crate::{
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
         message::Message,
-        payload::{block::Headers, codec::Codec, Addr, Nonce, Version},
+        payload::{codec::Codec, Version},
     },
     setup::{
         config::new_local_addr,
@@ -24,7 +24,7 @@ use tokio::{
 
 #[tokio::test]
 async fn version_with_incorrect_length_pre_handshake() {
-    // ZG-RESISTANCE-001 (part 6)
+    // ZG-RESISTANCE-001 (part 6, version only)
     //
     // zebra: sends version before disconnecting.
     // zcashd: disconnects.
@@ -60,7 +60,7 @@ async fn version_with_incorrect_length_pre_handshake() {
 async fn incorrect_length_pre_handshake() {
     // ZG-RESISTANCE-001 (part 6)
     //
-    // zebra: disconnects.
+    // zebra: sends version before disconnecting.
     // zcashd: disconnects.
 
     let mut rng = seeded_rng();
@@ -70,21 +70,7 @@ async fn incorrect_length_pre_handshake() {
         .start()
         .await;
 
-    let test_messages = vec![
-        Message::GetAddr,
-        Message::MemPool,
-        Message::Verack,
-        Message::Ping(Nonce::default()),
-        Message::Pong(Nonce::default()),
-        Message::GetAddr,
-        Message::Addr(Addr::empty()),
-        Message::Headers(Headers::empty()),
-        // Message::GetHeaders(LocatorHashes)),
-        // Message::GetBlocks(LocatorHashes)),
-        // Message::GetData(Inv));
-        // Message::Inv(Inv));
-        // Message::NotFound(Inv));
-    ];
+    let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
@@ -106,7 +92,7 @@ async fn incorrect_length_pre_handshake() {
 
 #[tokio::test]
 async fn version_with_incorrect_length_during_handshake_responder_side() {
-    // ZG-RESISTANCE-002 (part 6)
+    // ZG-RESISTANCE-002 (part 6, version only)
     //
     // zebra: sends verack before disconnecting.
     // zcashd: disconnects (after sending verack, ping, getheaders).
@@ -146,9 +132,7 @@ async fn version_with_incorrect_length_when_node_initiates_handshake() {
     // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
     //
     // zebra: disconnects immediately.
-    // zcashd: Some messages get ignored and timeout. Most cause an immedietely due to
-    //          - main: PROCESSMESSAGE: INVALID MESSAGESTART, or
-    //          - net: Oversized message from peer
+    // zcashd: disconnects, but quite slow running
 
     let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
@@ -222,7 +206,7 @@ async fn version_with_incorrect_length_inplace_of_verack_when_node_initiates_han
     // troublesome behaviour, as seen with the valid metadata fuzzing against zebra.
     //
     // zebra: disconnects immediately.
-    // zcashd: Sends GetAddr, Ping and GetHeaders. Appears to ignore bad verack message.
+    // zcashd: Sends GetAddr and disconnects
 
     let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
@@ -304,7 +288,7 @@ async fn version_with_incorrect_length_post_handshake() {
     // ZG-RESISTANCE-005 (part 6, version only)
     //
     // zebra: disconnects.
-    // zcashd: disconnects (after sending ping and getheaders), sometimes hangs.
+    // zcashd: disconnects (sometimes sending ping and getheaders)
 
     let mut rng = seeded_rng();
     let mut node: Node = Default::default();
@@ -337,7 +321,7 @@ async fn incorrect_length_during_handshake_responder_side() {
     // ZG-RESISTANCE-002 (part 6)
     //
     // zebra: disconnects.
-    // zcashd: disconnects (after sending verack, ping, getheaders).
+    // zcashd: disconnects (after sending verack).
 
     let mut rng = seeded_rng();
 
@@ -373,7 +357,7 @@ async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake(
     // ZG-RESISTANCE-003 (part 6)
     //
     // zebra: disconnects
-    // zcashd: disconnects
+    // zcashd: disconnects, very slow running
 
     let mut rng = seeded_rng();
 
@@ -509,7 +493,7 @@ async fn incorrect_length_post_handshake() {
     // ZG-RESISTANCE-005 (part 6)
     //
     // zebra: disconnects.
-    // zcashd: disconnects (after ping and getheaders) but sometimes hangs.
+    // zcashd: disconnects (sometimes sends ping and getheaders)
 
     let mut rng = seeded_rng();
     let mut node: Node = Default::default();

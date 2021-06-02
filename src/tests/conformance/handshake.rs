@@ -84,10 +84,10 @@ async fn handshake_initiator_side() {
 }
 
 #[tokio::test]
-async fn reject_non_version_before_handshake() {
+async fn ignores_non_version_before_handshake() {
     // ZG-CONFORMANCE-003
     //
-    // The node should reject non-Version messages before the handshake has been performed.
+    // The node should ignore non-Version messages before the handshake has been performed.
     //
     // A node can react in one of the following ways:
     //
@@ -96,7 +96,8 @@ async fn reject_non_version_before_handshake() {
     //  c) responds to our message
     //  d) becomes unersponsive to future communications
     //
-    // of which only (a) and (b) are valid responses. This test operates in the following manner:
+    // of which only (a) is a valid responses (this is taken from ZCashd behaviour).
+    // This test operates in the following manner:
     //
     // for each non-version message:
     //
@@ -114,6 +115,10 @@ async fn reject_non_version_before_handshake() {
     //      (4) may also succeed or fail. (5) will definitely fail.
     //  c) Messages received in (4, 5) will not match (version, verack)
     //  d) steps (3, 4) or (5) cause time out
+    //
+    // ZCashd: passes
+    //
+    // Zebra: fails as it terminates the connection instead of ignoring the message
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
@@ -148,28 +153,18 @@ async fn reject_non_version_before_handshake() {
         message.write_to_stream(&mut stream).await.unwrap();
 
         // (3) send version message
-        match Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
+        Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
             .write_to_stream(&mut stream)
             .await
-        {
-            Ok(_) => {}
-            Err(err) if is_termination_error(&err) => continue,
-            Err(err) => panic!("Unexpected error while sending version: {:?}", err),
-        };
+            .unwrap();
 
         // (4) read version
-        match Message::read_from_stream(&mut stream).await {
-            Ok(message) => assert_matches!(message, Message::Version(..)),
-            Err(err) if is_termination_error(&err) => continue,
-            Err(err) => panic!("Unexpected error while receiving version: {:?}", err),
-        };
+        let reply = Message::read_from_stream(&mut stream).await.unwrap();
+        assert_matches!(reply, Message::Version(..));
 
         // (5) read verack
-        match Message::read_from_stream(&mut stream).await {
-            Ok(message) => assert_matches!(message, Message::Verack),
-            Err(err) if is_termination_error(&err) => continue,
-            Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
-        }
+        let reply = Message::read_from_stream(&mut stream).await.unwrap();
+        assert_matches!(reply, Message::Verack);
     }
 
     node.stop().await;
@@ -458,21 +453,19 @@ async fn reject_obsolete_versions() {
     // This test currently fails as neither Zebra nor ZCashd currently fully comply
     // with this behaviour, so we may need to revise our expectations.
     //
-    // TODO: confirm expected behaviour.
-    //
     // Current behaviour (if we initiate the connection):
     //  ZCashd:
     //      1. We send `version` with an obsolete version number
     //      2. Node sends `Reject(Obsolete)`
-    //      3. Node sends `Ping`
-    //      4. Node sends `GetHeaders`
+    //      3. Node sends `Ping` (this is unexpected)
+    //      4. Node sends `GetHeaders` (this is unexpected)
     //      5. Node terminates the connection
     //
     //  Zebra:
     //      1. We send `version` with an obsolete version number
     //      2. Node sends `version`
     //      3. Node sends `verack`
-    //      4. Node terminates the connection
+    //      4. Node terminates the connection (no `Reject(Obsolete)` sent)
 
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
