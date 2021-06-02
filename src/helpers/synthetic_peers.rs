@@ -16,11 +16,24 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
-#[derive(Default)]
 pub struct SyntheticNodeConfig {
     pub network_config: Option<NodeConfig>,
     pub enable_handshaking: bool,
     pub message_filter: MessageFilter,
+}
+
+impl Default for SyntheticNodeConfig {
+    fn default() -> Self {
+        Self {
+            network_config: Some(NodeConfig {
+                // Set localhost as the default IP.
+                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+                ..Default::default()
+            }),
+            enable_handshaking: false,
+            message_filter: MessageFilter::with_all_disabled(),
+        }
+    }
 }
 
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
@@ -35,17 +48,8 @@ impl SyntheticNode {
     /// The handshake protocol can also optionally enabled and the message filter must be set for
     /// reads.
     pub async fn new(config: SyntheticNodeConfig) -> Result<Self> {
-        // Set localhost as default if no pea2pea config is provided.
-        let network_config = match config.network_config {
-            Some(config) => Some(config),
-            None => Some(NodeConfig {
-                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
-                ..Default::default()
-            }),
-        };
-
         // Create the pea2pea node from the config.
-        let node = Node::new(network_config).await?;
+        let node = Node::new(config.network_config).await?;
 
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
