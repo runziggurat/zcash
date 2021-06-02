@@ -78,6 +78,10 @@ impl SyntheticNode {
         Ok(())
     }
 
+    pub fn is_connected(&self, addr: SocketAddr) -> bool {
+        self.inner_node.node().is_connected(addr)
+    }
+
     /// Reads a message from the inbound (internal) queue of the node.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
@@ -145,7 +149,7 @@ impl Reading for InnerNode {
         buffer: &[u8],
     ) -> Result<Option<(Self::Message, usize)>> {
         // Check buffer contains a full header.
-        if buffer.len() <= HEADER_LEN {
+        if buffer.len() < HEADER_LEN {
             return Ok(None);
         }
 
@@ -154,7 +158,7 @@ impl Reading for InnerNode {
         let header = MessageHeader::decode(&mut Cursor::new(header_bytes))?;
 
         // Check buffer contains the announce message lenght.
-        if buffer.len() <= HEADER_LEN + header.body_length as usize {
+        if buffer.len() < HEADER_LEN + header.body_length as usize {
             return Err(ErrorKind::InvalidData.into());
         }
 
