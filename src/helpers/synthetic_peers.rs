@@ -69,6 +69,11 @@ impl SyntheticNode {
         })
     }
 
+    /// Returns the listening address of the node.
+    pub fn listening_addr(&self) -> SocketAddr {
+        self.inner_node.node().listening_addr()
+    }
+
     /// Connects to the target address.
     ///
     /// If the handshake protocol is enabled it will be executed as well.
@@ -80,6 +85,10 @@ impl SyntheticNode {
 
     pub fn is_connected(&self, addr: SocketAddr) -> bool {
         self.inner_node.node().is_connected(addr)
+    }
+
+    pub fn num_connected(&self) -> usize {
+        self.inner_node.node().num_connected()
     }
 
     /// Reads a message from the inbound (internal) queue of the node.
