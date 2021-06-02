@@ -1,5 +1,8 @@
 use crate::{
-    helpers::is_termination_error,
+    helpers::{
+        is_termination_error,
+        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+    },
     protocol::{
         message::{
             filter::{Filter, MessageFilter},
@@ -14,6 +17,7 @@ use crate::{
         config::new_local_addr,
         node::{Action, Node},
     },
+    wait_until,
 };
 
 use assert_matches::assert_matches;
@@ -23,29 +27,26 @@ use tokio::net::{TcpListener, TcpStream};
 async fn handshake_responder_side() {
     // ZG-CONFORMANCE-001
 
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
+        .log_to_stdout(true)
         .start()
         .await;
 
-    // Connect to the node and initiate handshake.
-    let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+    // Create a synthetic node and enable handshaking.
+    let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+    // Connect to the node and initiate the handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert_matches!(version, Message::Version(..));
-
-    Message::Verack
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
-
-    let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert_matches!(verack, Message::Verack);
+    // This is only set post-handshake (if enabled).
+    assert!(synthetic_node.is_connected(node.addr()));
 
     node.stop().await;
 }
@@ -53,32 +54,26 @@ async fn handshake_responder_side() {
 #[tokio::test]
 async fn handshake_initiator_side() {
     // ZG-CONFORMANCE-002
+    use crate::helpers::enable_tracing;
+    enable_tracing();
 
-    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
+    // Create a synthetic node and enable handshaking.
+    let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    // Create a node and set the listener as an initial peer.
+    // Spin up a node and set the synthetic node as an initial peer.
     let mut node: Node = Default::default();
-    node.initial_peers(vec![listener.local_addr().unwrap()])
+    node.initial_peers(vec![synthetic_node.listening_addr()])
         .start()
         .await;
 
-    // Expect the node to initiate the handshake.
-    let (mut peer_stream, addr) = listener.accept().await.unwrap();
-    let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert_matches!(version, Message::Version(..));
-
-    Message::Version(Version::new(addr, listener.local_addr().unwrap()))
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
-
-    let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
-    assert_matches!(verack, Message::Verack);
-
-    Message::Verack
-        .write_to_stream(&mut peer_stream)
-        .await
-        .unwrap();
+    // Check the connection has been established (this is only set post-handshake). We can't check
+    // for the addr as nodes use ephemeral addresses when initiating connections.
+    wait_until!(1, synthetic_node.num_connected() == 1);
 
     node.stop().await;
 }
