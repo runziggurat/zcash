@@ -43,6 +43,12 @@ pub struct MessageFilter {
     logging: bool,
 }
 
+impl Default for MessageFilter {
+    fn default() -> Self {
+        Self::with_all_disabled()
+    }
+}
+
 impl MessageFilter {
     /// Constructs a [MessageFilter] which will filter no messages, and with logging disabled.
     pub fn with_all_disabled() -> Self {
