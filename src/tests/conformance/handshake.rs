@@ -48,6 +48,8 @@ async fn handshake_responder_side() {
     // This is only set post-handshake (if enabled).
     assert!(synthetic_node.is_connected(node.addr()));
 
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
@@ -75,6 +77,8 @@ async fn handshake_initiator_side() {
     // for the addr as nodes use ephemeral addresses when initiating connections.
     wait_until!(1, synthetic_node.num_connected() == 1);
 
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
@@ -150,6 +154,7 @@ async fn ignore_non_version_before_handshake() {
         synthetic_node.shut_down();
     }
 
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
