@@ -186,17 +186,23 @@ async fn ignores_unsolicited_responses() {
     //      2. Send a ping request
     //      3. Receive a pong response
 
-    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
-
-    // Create a node and set the listener as an initial peer.
+    // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_peers(vec![listener.local_addr().unwrap()])
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    let mut stream = crate::helpers::respond_to_handshake(listener)
-        .await
-        .unwrap();
+    // Create a synthetic node.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    // Connect and initiate the handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     let test_messages = vec![
         Message::Pong(Nonce::default()),
@@ -207,21 +213,17 @@ async fn ignores_unsolicited_responses() {
         Message::Tx(Block::testnet_2().txs[0].clone()),
     ];
 
-    let filter = MessageFilter::with_all_auto_reply();
-
     for message in test_messages {
-        message.write_to_stream(&mut stream).await.unwrap();
-
-        let nonce = Nonce::default();
-        Message::Ping(nonce)
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(node.addr(), message)
             .await
             .unwrap();
 
-        let pong = filter.read_from_stream(&mut stream).await.unwrap();
-        assert_matches!(pong, Message::Pong(..));
+        // A response to ping would indicate the previous message was ignored.
+        synthetic_node.assert_ping_pong(node.addr()).await;
     }
 
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
