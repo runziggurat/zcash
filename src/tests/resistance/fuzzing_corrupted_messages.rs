@@ -482,7 +482,7 @@ async fn corrupted_messages_post_handshake() {
 }
 
 // Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.
-fn slightly_corrupted_messages(
+pub fn slightly_corrupted_messages(
     rng: &mut ChaCha8Rng,
     n: usize,
     messages: &[Message],
