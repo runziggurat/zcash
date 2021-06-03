@@ -79,41 +79,13 @@ async fn handshake_initiator_side() {
 }
 
 #[tokio::test]
-async fn ignores_non_version_before_handshake() {
+async fn ignore_non_version_before_handshake() {
     // ZG-CONFORMANCE-003
     //
     // The node should ignore non-Version messages before the handshake has been performed.
     //
-    // A node can react in one of the following ways:
-    //
-    //  a) the message is ignored
-    //  b) the connection is terminated
-    //  c) responds to our message
-    //  d) becomes unersponsive to future communications
-    //
-    // of which only (a) is a valid responses (this is taken from ZCashd behaviour).
-    // This test operates in the following manner:
-    //
-    // for each non-version message:
-    //
-    //  1. connect to the node
-    //  2. send the message
-    //  3. send the version message
-    //  4. receive version
-    //  5. receive verack
-    //
-    // We expect the following to occur for each of the possible node reactions:
-    //
-    //  a) (2) is ignored so we expect to complete the handshake - (3,4,5) should succeed
-    //  b) The connection should terminate after the node has processed (2), which implies (3) may or may not
-    //      succeed depending on the timing. The node may also already have sent its `version` eagerly, so
-    //      (4) may also succeed or fail. (5) will definitely fail.
-    //  c) Messages received in (4, 5) will not match (version, verack)
-    //  d) steps (3, 4) or (5) cause time out
-    //
-    // ZCashd: passes
-    //
-    // Zebra: fails as it terminates the connection instead of ignoring the message
+    // zebra: closes the connection.
+    // zcashd:
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
@@ -135,31 +107,47 @@ async fn ignores_non_version_before_handshake() {
         Message::NotFound(block_inv),
     ];
 
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
+    // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
+    let config: SyntheticNodeConfig = Default::default();
+
     for message in test_messages {
-        // (1) connect to node
-        let mut stream = TcpStream::connect(node.addr()).await.unwrap();
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
 
-        // (2) send non-version message
-        message.write_to_stream(&mut stream).await.unwrap();
+        // Connect to the node, don't handshake.
+        synthetic_node.connect(node.addr()).await.unwrap();
 
-        // (3) send version message
-        Message::Version(Version::new(node.addr(), stream.local_addr().unwrap()))
-            .write_to_stream(&mut stream)
+        // Send a non-version message.
+        synthetic_node
+            .send_direct_message(node.addr(), message)
             .await
             .unwrap();
 
-        // (4) read version
-        let reply = Message::read_from_stream(&mut stream).await.unwrap();
-        assert_matches!(reply, Message::Version(..));
+        // Expect the node to ignore the previous message, verify by completing the handshake.
+        // Read Version.
+        let version = synthetic_node.recv_message_timeout(2).await.unwrap();
+        assert_matches!(version, Message::Version(..));
 
-        // (5) read verack
-        let reply = Message::read_from_stream(&mut stream).await.unwrap();
-        assert_matches!(reply, Message::Verack);
+        // Send Version.
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::Version(Version::new(synthetic_node.listening_addr(), node.addr())),
+            )
+            .await
+            .unwrap();
+
+        // Read Verack.
+        let verack = synthetic_node.recv_message_timeout(2).await.unwrap();
+        assert_matches!(verack, Message::Verack);
+
+        // Gracefully shut down the synthetic node.
+        synthetic_node.shut_down();
     }
 
     node.stop().await;
