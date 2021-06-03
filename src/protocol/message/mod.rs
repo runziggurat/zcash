@@ -168,7 +168,12 @@ impl Message {
             MEMPOOL_COMMAND => Self::MemPool,
             TX_COMMAND => Self::Tx(Tx::decode(bytes)?),
             REJECT_COMMAND => Self::Reject(Reject::decode(bytes)?),
-            _ => unimplemented!(),
+            cmd => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("Unknown command string: {:?}", cmd),
+                ))
+            }
         };
 
         Ok(message)
