@@ -1,5 +1,5 @@
 use crate::{
-    helpers::{initiate_handshake, is_termination_error},
+    helpers::{initiate_handshake, is_rejection_error, is_termination_error},
     protocol::message::{filter::MessageFilter, Message},
     setup::{
         config::new_local_addr,
@@ -147,22 +147,13 @@ async fn incoming_active_connections() {
         peer_exits.push(exit_tx);
 
         peer_handles.push(tokio::spawn(async move {
-            use std::io::ErrorKind;
             // Establish peer connection
             let mut stream = match initiate_handshake(node_addr).await {
                 Ok(stream) => {
                     let _ = peer_send.send(PeerEvent::Connected).await;
                     stream
                 }
-                Err(err)
-                    if matches!(
-                        err.kind(),
-                        ErrorKind::ConnectionRefused
-                            | ErrorKind::BrokenPipe
-                            | ErrorKind::ConnectionReset
-                            | ErrorKind::UnexpectedEof
-                    ) =>
-                {
+                Err(err) if is_rejection_error(&err) => {
                     let _ = peer_send.send(PeerEvent::Rejected).await;
                     return;
                 }

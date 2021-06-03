@@ -106,6 +106,16 @@ pub fn is_termination_error(err: &std::io::Error) -> bool {
     )
 }
 
+// Returns true if the error kind is one that indicates that the connection has
+// been rejected.
+pub fn is_rejection_error(err: &std::io::Error) -> bool {
+    use std::io::ErrorKind::*;
+    matches!(
+        err.kind(),
+        ConnectionRefused | BrokenPipe | ConnectionReset | UnexpectedEof
+    )
+}
+
 // Autoresponds to a maximum of 10 messages while expecting the stream to disconnect.
 pub async fn autorespond_and_expect_disconnect(stream: &mut TcpStream) {
     let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
