@@ -524,7 +524,7 @@ async fn incorrect_length_post_handshake() {
 }
 
 /// Picks `n` random messages from `message_pool`, encodes them and corrupts the body-length field
-fn encode_messages_and_corrupt_body_length_field(
+pub fn encode_messages_and_corrupt_body_length_field(
     rng: &mut ChaCha8Rng,
     n: usize,
     message_pool: &[Message],

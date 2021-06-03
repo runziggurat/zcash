@@ -359,7 +359,7 @@ async fn incorrect_checksum_post_handshake() {
 }
 
 /// Picks `n` random messages from `message_pool`, encodes them and corrupts the checksum bytes.
-fn encode_messages_and_corrupt_checksum(
+pub fn encode_messages_and_corrupt_checksum(
     rng: &mut ChaCha8Rng,
     n: usize,
     message_pool: &[Message],
