@@ -23,10 +23,9 @@ use crate::{
 };
 
 use assert_matches::assert_matches;
-use tokio::{
-    net::TcpListener,
-    time::{timeout, Duration},
-};
+use tokio::{net::TcpListener, time::timeout};
+
+use std::time::Duration;
 
 #[tokio::test]
 async fn ping_pong() {
@@ -38,7 +37,7 @@ async fn ping_pong() {
     .await
     .unwrap();
 
-    // Create a node and set the listener as an initial peer.
+    // Spin up a node.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
@@ -47,7 +46,7 @@ async fn ping_pong() {
     // Connect to the node and handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
 
-    // Send Ping.
+    // Send ping.
     let ping_nonce = Nonce::default();
     synthetic_node
         .send_direct_message(node.addr(), Message::Ping(ping_nonce))
@@ -107,12 +106,13 @@ async fn reject_invalid_messages() {
     //  Zebra:
     //      All result in a terminated connection (no reject sent).
 
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    // generate a mixed Inventory hash set
+    // Generate a mixed Inventory hash set.
     let genesis_block = Block::testnet_genesis();
     let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
     let multi_block_inv = vec![
@@ -121,7 +121,7 @@ async fn reject_invalid_messages() {
         genesis_block.inv_hash(),
     ];
 
-    // list of test messages and their expected Reject kind
+    // List of test messages and their expected Reject kind.
     let cases = vec![
         (
             Message::Version(Version::new(node.addr(), new_local_addr())),
@@ -135,27 +135,36 @@ async fn reject_invalid_messages() {
         (Message::FilterClear, CCode::Obsolete),
     ];
 
-    let filter = MessageFilter::with_all_auto_reply().enable_logging();
-
     for (test_message, expected_ccode) in cases {
-        let mut stream = initiate_handshake(node.addr()).await.unwrap();
+        // Start a synthetic node.
+        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
 
-        test_message.write_to_stream(&mut stream).await.unwrap();
-        // sending a ping which will let us see if `test_message` was ignored
-        let nonce = Nonce::default();
-        Message::Ping(nonce)
-            .write_to_stream(&mut stream)
+        // Connect and initiate handshake.
+        synthetic_node.connect(node.addr()).await.unwrap();
+
+        // Send the test message.
+        synthetic_node
+            .send_direct_message(node.addr(), test_message.clone())
             .await
             .unwrap();
 
-        // Expect a Reject(Invalid) message
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Reject(reject) if reject.ccode == expected_ccode => {}
-            Message::Pong(n) if n == nonce => panic!("Message was ignored: {:?}", test_message),
-            message => panic!(
-                "Expected Reject({:?}), but got: {:?}",
-                expected_ccode, message
-            ),
+        // Expect a Reject(Invalid) message.
+        match timeout(Duration::from_secs(2), synthetic_node.recv_message()).await {
+            Ok(message) => {
+                // A reject message was sent.
+                assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode)
+            }
+
+            Err(e) => {
+                // No message could be read.
+                panic!("no message received: {}", e)
+            }
         }
     }
 
