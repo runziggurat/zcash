@@ -7,7 +7,7 @@ use assert_matches::assert_matches;
 use pea2pea::{
     connections::ConnectionSide,
     protocols::{Handshaking, Reading, Writing},
-    Connection, Node, NodeConfig, Pea2Pea,
+    Connection, KnownPeers, Node, NodeConfig, Pea2Pea,
 };
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
@@ -91,6 +91,10 @@ impl SyntheticNode {
         self.inner_node.node().num_connected()
     }
 
+    pub fn known_peers(&self) -> &KnownPeers {
+        self.inner_node.node().known_peers()
+    }
+
     /// Reads a message from the inbound (internal) queue of the node.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
@@ -106,6 +110,32 @@ impl SyntheticNode {
         self.inner_node.send_direct_message(target, message).await?;
 
         Ok(())
+    }
+
+    /// Sends a ping, expecting a timely pong response.
+    ///
+    /// Panics if a correct pong isn't sent before the timeout.
+    pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
+        use crate::protocol::payload::Nonce;
+        use std::time::Duration;
+        use tokio::time::timeout;
+
+        let ping_nonce = Nonce::default();
+        self.send_direct_message(target, Message::Ping(ping_nonce))
+            .await
+            .unwrap();
+
+        match timeout(Duration::from_secs(2), self.recv_message()).await {
+            Ok(message) => {
+                // Recieve pong and verify the nonce matches.
+                assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce)
+            }
+            Err(e) => panic!("no pong response received: {}", e),
+        }
+    }
+
+    pub fn shut_down(&self) {
+        self.inner_node.node().shut_down()
     }
 }
 
