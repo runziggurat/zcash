@@ -9,13 +9,18 @@ use pea2pea::{
     protocols::{Handshaking, Reading, Writing},
     Connection, KnownPeers, Node, NodeConfig, Pea2Pea,
 };
-use tokio::sync::mpsc::{self, Receiver, Sender};
-
-use std::{
-    io::{Cursor, ErrorKind, Result},
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+use tokio::{
+    sync::mpsc::{self, Receiver, Sender},
+    time::timeout,
 };
 
+use std::{
+    io::{Cursor, Error, ErrorKind, Result},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
+
+#[derive(Clone)]
 pub struct SyntheticNodeConfig {
     pub network_config: Option<NodeConfig>,
     pub enable_handshaking: bool,
@@ -105,6 +110,18 @@ impl SyntheticNode {
         }
     }
 
+    // Attempts to read a message from the inbound (internal) queue of the node before the timeout
+    // duration has elapsed (seconds).
+    pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<Message> {
+        match timeout(Duration::from_secs(secs), self.recv_message()).await {
+            Ok(message) => Ok(message),
+            Err(_e) => Err(Error::new(
+                ErrorKind::TimedOut,
+                format!("could not read message after {}s", secs),
+            )),
+        }
+    }
+
     /// Sends a direct message to the target address.
     pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
         self.inner_node.send_direct_message(target, message).await?;
@@ -117,8 +134,6 @@ impl SyntheticNode {
     /// Panics if a correct pong isn't sent before the timeout.
     pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
         use crate::protocol::payload::Nonce;
-        use std::time::Duration;
-        use tokio::time::timeout;
 
         let ping_nonce = Nonce::default();
         self.send_direct_message(target, Message::Ping(ping_nonce))
