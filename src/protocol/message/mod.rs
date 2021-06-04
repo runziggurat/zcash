@@ -173,6 +173,30 @@ impl Message {
 
         Ok(message)
     }
+
+    pub fn command(&self) -> [u8; 12] {
+        match self {
+            Message::Version(_) => VERSION_COMMAND,
+            Message::Verack => VERACK_COMMAND,
+            Message::Ping(_) => PING_COMMAND,
+            Message::Pong(_) => PONG_COMMAND,
+            Message::GetAddr => GETADDR_COMMAND,
+            Message::Addr(_) => ADDR_COMMAND,
+            Message::GetHeaders(_) => GETHEADERS_COMMAND,
+            Message::Headers(_) => HEADERS_COMMAND,
+            Message::GetBlocks(_) => GETBLOCKS_COMMAND,
+            Message::Block(_) => BLOCK_COMMAND,
+            Message::GetData(_) => GETDATA_COMMAND,
+            Message::Inv(_) => INV_COMMAND,
+            Message::NotFound(_) => NOTFOUND_COMMAND,
+            Message::MemPool => MEMPOOL_COMMAND,
+            Message::Tx(_) => TX_COMMAND,
+            Message::Reject(_) => REJECT_COMMAND,
+            Message::FilterLoad(_) => todo!(),
+            Message::FilterAdd(_) => todo!(),
+            Message::FilterClear => todo!(),
+        }
+    }
 }
 
 fn checksum(bytes: &[u8]) -> u32 {

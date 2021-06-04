@@ -1,10 +1,14 @@
 use crate::{
     helpers::respond_to_handshake,
     protocol::{
-        message::filter::{Filter, MessageFilter},
+        message::{
+            filter::{Filter, MessageFilter},
+            Message,
+        },
         payload::{
-            block::{Block, Headers},
-            Hash, Inv, Nonce,
+            addr::NetworkAddr,
+            block::{Block, Headers, LocatorHashes},
+            Addr, Hash, Inv, Nonce,
         },
     },
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
@@ -13,9 +17,10 @@ use crate::{
 use tokio::{
     net::TcpListener,
     process::{Child, Command},
+    sync::Mutex,
 };
 
-use std::{fs, net::SocketAddr, process::Stdio};
+use std::{fs, net::SocketAddr, process::Stdio, sync::Arc};
 
 const ZEBRA_CONFIG: &str = "zebra.toml";
 const ZCASHD_CONFIG: &str = "zcash.conf";
@@ -165,16 +170,110 @@ impl Node {
             }
             Action::SeedWithTestnetBlocks {
                 socket_addr: _,
-                block_count: _,
+                block_count,
             } if self.meta.kind == NodeKind::Zebra => {
                 // not supported for zebra yet, so we just wait for connection at least
-                listener.unwrap().accept().await.unwrap();
+                respond_to_handshake(listener.unwrap()).await.unwrap();
+                // if no blocks need to get sent, no further action is required
+                if block_count == 0 {
+                    return;
+                }
+
+                let addr = self.addr();
+
+                let mut handles = Vec::new();
+
+                // Check which blocks we have sent, so that we can know when we are done.
+                let blocks_sent = Arc::new(Mutex::new(vec![false; block_count]));
+
+                // Spin up four concurrent peers - this seems to be the magic number to get Zebra out of
+                // network-setup stage - which means it will actually request Block data.
+                for _ in 0..4 {
+                    let sent = blocks_sent.clone();
+                    handles.push(tokio::spawn(async move {
+                        let mut stream = crate::helpers::initiate_handshake(addr).await.unwrap();
+
+                        let genesis_block = Block::testnet_genesis();
+                        let genesis_loc = LocatorHashes::new(
+                            vec![genesis_block.double_sha256().unwrap()],
+                            Hash::zeroed(),
+                        );
+
+                        let seed_blocks = Block::initial_testnet_blocks()
+                            .into_iter()
+                            .take(block_count)
+                            .collect::<Vec<_>>();
+                        let seed_inv = seed_blocks
+                            .iter()
+                            .map(|block| block.inv_hash())
+                            .collect::<Vec<_>>();
+                        let seed_msg = Message::Inv(Inv::new(seed_inv.clone()));
+
+                        for block in seed_blocks.iter() {
+                            let hash = block.inv_hash();
+                            let msg = Message::Inv(Inv::new(vec![hash]));
+                            msg.write_to_stream(&mut stream).await.unwrap();
+                        }
+
+                        loop {
+                            match Message::read_from_stream(&mut stream).await.unwrap() {
+                                Message::Ping(nonce) => {
+                                    Message::Pong(nonce)
+                                        .write_to_stream(&mut stream)
+                                        .await
+                                        .unwrap();
+                                }
+                                Message::GetAddr => {
+                                    Message::Addr(Addr::new(vec![NetworkAddr::new(
+                                        crate::setup::config::new_local_addr(),
+                                    )]))
+                                    .write_to_stream(&mut stream)
+                                    .await
+                                    .unwrap();
+                                }
+                                Message::GetBlocks(locator) if locator == genesis_loc => {
+                                    seed_msg.write_to_stream(&mut stream).await.unwrap()
+                                }
+                                Message::GetData(inv) => {
+                                    for hash in inv.inventory {
+                                        let index = seed_inv
+                                            .iter()
+                                            .position(|seed_hash| *seed_hash == hash)
+                                            .unwrap();
+                                        Message::Block(seed_blocks[index].clone().into())
+                                            .write_to_stream(&mut stream)
+                                            .await
+                                            .unwrap();
+
+                                        let mut blocks_sent = sent.lock().await;
+                                        blocks_sent[index] = true;
+                                    }
+                                }
+                                message => {
+                                    panic!(
+                                        "Zebra seeding unexpected message: {:?}",
+                                        message.command()
+                                    );
+                                }
+                            }
+
+                            // check if we are done sending it all
+                            let blocks_sent = sent.lock().await;
+                            if blocks_sent.iter().all(|b| *b) {
+                                break;
+                            }
+                        }
+                    }));
+                }
+
+                for h in handles {
+                    let _ = h.await.unwrap();
+                }
             }
             Action::SeedWithTestnetBlocks {
                 socket_addr: _,
                 block_count,
             } => {
-                use crate::protocol::message::Message;
                 let mut stream = respond_to_handshake(listener.unwrap()).await.unwrap();
 
                 let filter = MessageFilter::with_all_auto_reply()
