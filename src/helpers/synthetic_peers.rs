@@ -44,7 +44,7 @@ impl Default for SyntheticNodeConfig {
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
 pub struct SyntheticNode {
     inner_node: InnerNode,
-    inbound_rx: Receiver<Message>,
+    inbound_rx: Receiver<(SocketAddr, Message)>,
 }
 
 impl SyntheticNode {
@@ -103,7 +103,7 @@ impl SyntheticNode {
     /// Reads a message from the inbound (internal) queue of the node.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
-    pub async fn recv_message(&mut self) -> Message {
+    pub async fn recv_message(&mut self) -> (SocketAddr, Message) {
         match self.inbound_rx.recv().await {
             Some(message) => message,
             None => panic!("all senders dropped!"),
@@ -112,7 +112,7 @@ impl SyntheticNode {
 
     // Attempts to read a message from the inbound (internal) queue of the node before the timeout
     // duration has elapsed (seconds).
-    pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<Message> {
+    pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<(SocketAddr, Message)> {
         match timeout(Duration::from_secs(secs), self.recv_message()).await {
             Ok(message) => Ok(message),
             Err(_e) => Err(Error::new(
@@ -141,7 +141,7 @@ impl SyntheticNode {
             .unwrap();
 
         match timeout(Duration::from_secs(2), self.recv_message()).await {
-            Ok(message) => {
+            Ok((_, message)) => {
                 // Recieve pong and verify the nonce matches.
                 assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce)
             }
@@ -157,12 +157,12 @@ impl SyntheticNode {
 #[derive(Clone)]
 struct InnerNode {
     node: Node,
-    inbound_tx: Sender<Message>,
+    inbound_tx: Sender<(SocketAddr, Message)>,
     message_filter: MessageFilter,
 }
 
 impl InnerNode {
-    fn new(node: Node, tx: Sender<Message>, message_filter: MessageFilter) -> Self {
+    fn new(node: Node, tx: Sender<(SocketAddr, Message)>, message_filter: MessageFilter) -> Self {
         Self {
             node,
             inbound_tx: tx,
@@ -227,7 +227,7 @@ impl Reading for InnerNode {
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
         if let Some(response) = self.message_filter.reply_message(&message) {
             self.send_direct_message(source, response).await?;
-        } else if self.inbound_tx.send(message).await.is_err() {
+        } else if self.inbound_tx.send((source, message)).await.is_err() {
             panic!("receiver dropped!");
         }
 
@@ -272,6 +272,8 @@ impl Handshaking for InnerNode {
                 let version = Message::read_from_stream(conn.reader()).await?;
                 assert_matches!(version, Message::Version(..));
 
+                // FIXME: send the node addr with its listener port, not the ephemeral port
+                // created for the connection.
                 Message::Version(Version::new(self.node().listening_addr(), conn.addr))
                     .write_to_stream(conn.writer())
                     .await?;
