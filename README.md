@@ -59,7 +59,7 @@ Short overview of test cases and their current status.
 | [001](SPEC.md#ZG-CONFORMANCE-001) |   ✓    |   ✓   |
 | [002](SPEC.md#ZG-CONFORMANCE-002) |   ✓    |   ✓   |
 | [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✖   |
-| [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✓   |
+| [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✖   |
 | [005](SPEC.md#ZG-CONFORMANCE-005) |   ✖    |   ✖   |
 | [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✓   |
 | [007](SPEC.md#ZG-CONFORMANCE-007) |   ✖    |   ✖   |
