@@ -145,7 +145,7 @@ async fn ignore_non_version_before_handshake() {
             .unwrap();
 
         // Read Version.
-        let version = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let (_, version) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_matches!(version, Message::Version(..));
 
         // Send Verack.
@@ -155,7 +155,7 @@ async fn ignore_non_version_before_handshake() {
             .unwrap();
 
         // Read Verack.
-        let verack = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let (_, verack) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_matches!(verack, Message::Verack);
 
         // Gracefully shut down the synthetic node.
@@ -167,43 +167,21 @@ async fn ignore_non_version_before_handshake() {
 }
 
 #[tokio::test]
-async fn reject_non_version_replies_to_version() {
+async fn ignore_non_version_replies_to_version() {
     // ZG-CONFORMANCE-004
     //
-    // The node should reject non-Version messages in response to the initial Version it sent.
-    //
-    // A node can react in one of the following ways:
-    //
-    //  a) the message is ignored
-    //  b) the connection is terminated
-    //  c) responds to our message
-    //  d) becomes unersponsive to future communications
-    //
-    // of which only (a) and (b) are valid responses. This test operates in the following manner:
-    //
-    // For each non-version message, create a peer node and
-    //
-    //  1) wait for the incoming `version` message
-    //  2) send a non-version message
-    //  3) send the version message
-    //  4) receive a response
-    //
-    // We expect the following to occur for each of the possible node reactions:
-    //
-    //  a) (2) is ignored, therefore (3) should succeed, and (4) should be `verack`
-    //  b) Node terminates the connection upon processing the message sent in (2),
-    //     so either step (3) or at latest (4) should fail (timing dependent on node)
-    //  c) message received in (4) is not `verack`
-    //  d) steps (3) or (4) cause time out
+    // The node should ignore non-Version messages in response to the initial Version it sent.
     //
     // Due to how we instrument the test node, we need to have the list of peers ready when we start the node.
-    // This implies we need each test message to operate on a separate connection concurrently.
+    //
+    // zebra:
+    // zcashd:
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
     let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
     let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
-    let mut test_messages = vec![
+    let test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
         Message::Verack,
@@ -219,61 +197,64 @@ async fn reject_non_version_replies_to_version() {
         Message::NotFound(block_inv),
     ];
 
-    // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
-    let mut listeners = Vec::with_capacity(test_messages.len());
-    for _ in test_messages.iter() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
-    }
-
-    let addrs = listeners
-        .iter()
-        .map(|listener| listener.local_addr().unwrap())
-        .collect();
+    // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
+    let config: SyntheticNodeConfig = Default::default();
+    // Instantiate a node instance without starting it (so we have access to its addr).
     let mut node: Node = Default::default();
-    node.initial_peers(addrs);
+    let node_addr = node.addr();
 
+    // Store the listening addresses of the synthetic nodes so they can be set as initial peers of
+    // the node.
+    let mut listeners = Vec::with_capacity(test_messages.len());
+
+    // Create a future for each message.
     let mut handles = Vec::with_capacity(test_messages.len());
 
-    // create and start a future for each test message
-    for _ in 0..test_messages.len() {
-        let listener = listeners.pop().unwrap();
-        let message = test_messages.pop().unwrap();
+    for message in test_messages {
+        // Create a synthetic node and store its address.
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        listeners.push(synthetic_node.listening_addr());
 
-        handles.push(tokio::spawn(async move {
-            let (mut stream, addr) = listener.accept().await.unwrap();
-
-            // (1) receive incoming `version`
-            let version = Message::read_from_stream(&mut stream).await.unwrap();
+        let handle = tokio::spawn(async move {
+            // Receive Version.
+            let (source, version) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
             assert_matches!(version, Message::Version(..));
 
-            // (2) send non-version message
-            message.write_to_stream(&mut stream).await.unwrap();
-
-            // (3) send `version` to start our end of the handshake
-            match Message::Version(Version::new(addr, listener.local_addr().unwrap()))
-                .write_to_stream(&mut stream)
+            // Send non-version.
+            synthetic_node
+                .send_direct_message(source, message)
                 .await
-            {
-                Ok(_) => {}
-                Err(err) if is_termination_error(&err) => return,
-                Err(err) => panic!("Unexpected error while sending version: {:?}", err),
-            }
+                .unwrap();
 
-            // (4) receive `verack` in response to our `version`
-            match Message::read_from_stream(&mut stream).await {
-                Ok(message) => assert_matches!(message, Message::Verack),
-                Err(err) if is_termination_error(&err) => {}
-                Err(err) => panic!("Unexpected error while receiving verack: {:?}", err),
-            }
-        }));
+            // Initiate the handshake by sending a Version.
+            synthetic_node
+                .send_direct_message(
+                    source,
+                    Message::Version(Version::new(synthetic_node.listening_addr(), node_addr)),
+                )
+                .await
+                .unwrap();
+
+            // Receiving a Verack indicates the non-version message was ignored.
+            let (_, verack) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+            assert_matches!(verack, Message::Verack);
+
+            // Gracefully shut down the synthetic node.
+            synthetic_node.shut_down();
+        });
+
+        handles.push(handle);
     }
 
-    node.start().await;
+    // Start the node instance with the initial peers.
+    node.initial_peers(listeners).start().await;
 
+    // Run each future to completion.
     for handle in handles {
         handle.await.unwrap();
     }
 
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
