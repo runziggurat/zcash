@@ -23,6 +23,9 @@ use crate::{
 use assert_matches::assert_matches;
 use tokio::net::{TcpListener, TcpStream};
 
+// Default timeout for connection reads in seconds.
+const TIMEOUT: u64 = 2;
+
 #[tokio::test]
 async fn handshake_responder_side() {
     // ZG-CONFORMANCE-001
@@ -133,10 +136,6 @@ async fn ignore_non_version_before_handshake() {
             .unwrap();
 
         // Expect the node to ignore the previous message, verify by completing the handshake.
-        // Read Version.
-        let version = synthetic_node.recv_message_timeout(2).await.unwrap();
-        assert_matches!(version, Message::Version(..));
-
         // Send Version.
         synthetic_node
             .send_direct_message(
@@ -146,8 +145,12 @@ async fn ignore_non_version_before_handshake() {
             .await
             .unwrap();
 
+        // Read Version.
+        let version = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(version, Message::Version(..));
+
         // Read Verack.
-        let verack = synthetic_node.recv_message_timeout(2).await.unwrap();
+        let verack = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_matches!(verack, Message::Verack);
 
         // Gracefully shut down the synthetic node.
