@@ -259,37 +259,24 @@ async fn ignore_non_version_replies_to_version() {
 }
 
 #[tokio::test]
-async fn reject_non_verack_replies_to_verack() {
+async fn ignore_non_verack_replies_to_verack() {
     // Conformance test 005.
     //
-    // The node rejects non-Verack message as a response to initial Verack it sent.
+    // The node ignores non-Verack message as a response to initial Verack it sent.
     //
-    // Test procedure:
-    //  For each non-verack message,
-    //
-    //  1. Expect `Version`
-    //  2. Send `Version`
-    //  3. Expect `Verack`
-    //  4. Send test message
-    //  5. Expect `Reject(Invalid)`
-    //  6. Expect connection to be terminated
-    //
-    // This test currently fails as neither Zebra nor ZCashd currently fully comply
-    // with this behaviour, so we may need to revise our expectations.
-    //
-    // ZCashd node eagerly sends messages before handshake has been concluded.
-    // Zebra node does not send Reject, but terminates the connection.
-    //
-    // TODO: confirm expected behaviour
+    // zebra: disconnects.
+    // zcashd:
+
+    crate::helpers::enable_tracing();
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
     let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
     let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
-    let mut test_messages = vec![
-        Message::Version(Version::new(new_local_addr(), new_local_addr())),
+    let test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
+        Message::Verack,
         Message::Ping(Nonce::default()),
         Message::Pong(Nonce::default()),
         Message::GetAddr,
@@ -302,67 +289,73 @@ async fn reject_non_verack_replies_to_verack() {
         Message::NotFound(block_inv),
     ];
 
-    // Create and bind TCP listeners (so we have the ports ready for instantiating the node)
-    let mut listeners = Vec::with_capacity(test_messages.len());
-    for _ in test_messages.iter() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
-    }
-
-    let addrs = listeners
-        .iter()
-        .map(|listener| listener.local_addr().unwrap())
-        .collect();
+    // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
+    let config: SyntheticNodeConfig = Default::default();
+    // Instantiate a node instance without starting it (so we have access to its addr).
     let mut node: Node = Default::default();
-    node.initial_peers(addrs);
+    let node_addr = node.addr();
 
+    // Store the listening addresses of the synthetic nodes so they can be set as initial peers of
+    // the node.
+    let mut listeners = Vec::with_capacity(test_messages.len());
+
+    // Create a future for each message.
     let mut handles = Vec::with_capacity(test_messages.len());
 
-    // create and start a future for each test message
-    for _ in 0..test_messages.len() {
-        let listener = listeners.pop().unwrap();
-        let message = test_messages.pop().unwrap();
+    for message in test_messages {
+        // Create a synthetic node and store its address.
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        listeners.push(synthetic_node.listening_addr());
 
-        handles.push(tokio::spawn(async move {
-            let (mut stream, addr) = listener.accept().await.unwrap();
-
-            // (1) receive incoming `version`
-            let version = Message::read_from_stream(&mut stream).await.unwrap();
+        let handle = tokio::spawn(async move {
+            // Receive Version.
+            let (source, version) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
             assert_matches!(version, Message::Version(..));
 
-            // (2) send `version`
-            Message::Version(Version::new(addr, listener.local_addr().unwrap()))
-                .write_to_stream(&mut stream)
+            // Respond with Version.
+            synthetic_node
+                .send_direct_message(
+                    source,
+                    Message::Version(Version::new(synthetic_node.listening_addr(), node_addr)),
+                )
                 .await
                 .unwrap();
 
-            // (3) receive `verack`
-            let verack = Message::read_from_stream(&mut stream).await.unwrap();
+            // Receive Verack.
+            let (_, verack) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
             assert_matches!(verack, Message::Verack);
 
-            // (4) send test message
-            message.write_to_stream(&mut stream).await.unwrap();
+            // Send non-version.
+            synthetic_node
+                .send_direct_message(source, message)
+                .await
+                .unwrap();
 
-            // (5) receive Reject(Invalid)
-            let reject = Message::read_from_stream(&mut stream).await.unwrap();
-            match reject {
-                Message::Reject(reject) if reject.ccode.is_invalid() => {}
-                reply => panic!("Expected Reject(Invalid), but got {:?}", reply),
-            }
+            // Send Verack to complete the handshake.
+            synthetic_node
+                .send_direct_message(source, Message::Verack)
+                .await
+                .unwrap();
 
-            // (6) check that connection has been terminated
-            match Message::read_from_stream(&mut stream).await {
-                Err(err) if is_termination_error(&err) => {}
-                result => panic!("Expected terminated connection but got: {:?}", result),
-            }
-        }));
+            // Ping/Pong exchange to verify the non-version message was ignored.
+            synthetic_node.assert_ping_pong(source).await;
+
+            // Gracefully shut down the synthetic node.
+            synthetic_node.shut_down();
+        });
+
+        handles.push(handle);
     }
 
-    node.start().await;
+    // Start the node instance with the initial peers.
+    node.initial_peers(listeners).start().await;
 
+    // Run each future to completion.
     for handle in handles {
         handle.await.unwrap();
     }
 
+    // Gracefully shut down the node.
     node.stop().await;
 }
 

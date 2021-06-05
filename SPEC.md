@@ -111,12 +111,12 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
 ### ZG-CONFORMANCE-005
 
-    The node rejects non-`Verack` message as a response to initial `Verack` it sent.
+    The node ignores non-`Verack` message as a response to initial `Verack` it sent.
 
     1. The node under test initiates a connection (rpc: `addnode`).
     2. Respond to `Version`, expect `Verack`.
     3. Respond to `Verack` with non-`Verack` messages.
-    4. Assert the node rejected the connection.
+    4. Assert the node ignored the message by completing the handshake.
 
 ### ZG-CONFORMANCE-006
 
