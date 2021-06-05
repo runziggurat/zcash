@@ -24,7 +24,7 @@ use assert_matches::assert_matches;
 use tokio::net::{TcpListener, TcpStream};
 
 // Default timeout for connection reads in seconds.
-const TIMEOUT: u64 = 2;
+const TIMEOUT: u64 = 5;
 
 #[tokio::test]
 async fn handshake_responder_side() {
@@ -33,7 +33,6 @@ async fn handshake_responder_side() {
     // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .log_to_stdout(true)
         .start()
         .await;
 
@@ -91,8 +90,8 @@ async fn ignore_non_version_before_handshake() {
     //
     // The node should ignore non-Version messages before the handshake has been performed.
     //
-    // zebra: closes the connection.
-    // zcashd:
+    // zebra: eagerly sends version but doesn't respnd to verack and disconnects.
+    // zcashd: ignores the message and completes the handshake.
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
@@ -148,6 +147,12 @@ async fn ignore_non_version_before_handshake() {
         // Read Version.
         let version = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_matches!(version, Message::Version(..));
+
+        // Send Verack.
+        synthetic_node
+            .send_direct_message(node.addr(), Message::Verack)
+            .await
+            .unwrap();
 
         // Read Verack.
         let verack = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
