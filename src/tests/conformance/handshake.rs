@@ -75,7 +75,7 @@ async fn handshake_initiator_side() {
 
     // Check the connection has been established (this is only set post-handshake). We can't check
     // for the addr as nodes use ephemeral addresses when initiating connections.
-    wait_until!(1, synthetic_node.num_connected() == 1);
+    wait_until!(5, synthetic_node.num_connected() == 1);
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
