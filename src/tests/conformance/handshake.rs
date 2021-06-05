@@ -265,7 +265,7 @@ async fn ignore_non_verack_replies_to_verack() {
     // The node ignores non-Verack message as a response to initial Verack it sent.
     //
     // zebra: disconnects.
-    // zcashd:
+    // zcashd: completes the handshake and sends a few messages handled by the filter.
 
     crate::helpers::enable_tracing();
 
@@ -289,8 +289,13 @@ async fn ignore_non_verack_replies_to_verack() {
         Message::NotFound(block_inv),
     ];
 
-    // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
-    let config: SyntheticNodeConfig = Default::default();
+    // Configuration to be used by all synthetic nodes, no handshaking with filtering enabled so we
+    // can assert on a ping pong exchange at the end of the test.
+    let config = SyntheticNodeConfig {
+        message_filter: MessageFilter::with_all_enabled(),
+        ..Default::default()
+    };
+
     // Instantiate a node instance without starting it (so we have access to its addr).
     let mut node: Node = Default::default();
     let node_addr = node.addr();
@@ -337,7 +342,8 @@ async fn ignore_non_verack_replies_to_verack() {
                 .await
                 .unwrap();
 
-            // Ping/Pong exchange to verify the non-version message was ignored.
+            // A ping/pong exchange indicates the node completed the handshake and ignored the
+            // unsolicited message.
             synthetic_node.assert_ping_pong(source).await;
 
             // Gracefully shut down the synthetic node.
