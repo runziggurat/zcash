@@ -54,8 +54,8 @@ async fn ping_pong() {
         .unwrap();
 
     // Recieve pong and verify the nonce matches.
-    let message = synthetic_node.recv_message().await;
-    assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
+    let (_, pong) = synthetic_node.recv_message().await;
+    assert_matches!(pong, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
 
     node.stop().await;
 }
@@ -155,17 +155,8 @@ async fn reject_invalid_messages() {
             .unwrap();
 
         // Expect a Reject(Invalid) message.
-        match timeout(Duration::from_secs(2), synthetic_node.recv_message()).await {
-            Ok(message) => {
-                // A reject message was sent.
-                assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode)
-            }
-
-            Err(e) => {
-                // No message could be read.
-                panic!("no message received: {}", e)
-            }
-        }
+        let (_, message) = synthetic_node.recv_message_timeout(2).await.unwrap();
+        assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode);
     }
 
     node.stop().await;
