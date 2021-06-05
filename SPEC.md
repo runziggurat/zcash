@@ -99,15 +99,15 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     1. Connect to the node under test.
     2. Send non-`Version` messages.
-    3. Verify that this message was ignored by completing the handshake
+    3. Assert the node ignored the message by completing the handshake.
 
 ### ZG-CONFORMANCE-004
 
-    The node rejects non-`Version` messages in response to the initial `Version` it sent.
+    The node ignores non-`Version` messages in response to the initial `Version` it sent.
 
     1. The node under test initiates a connection (rpc: `addnode`).
     2. Respond to `Version` with non-`Version` messages.
-    3. Assert the node rejected the connection.
+    3. Assert the node ignored the message by completing the handshake.
 
 ### ZG-CONFORMANCE-005
 
