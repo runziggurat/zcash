@@ -24,7 +24,7 @@ use assert_matches::assert_matches;
 use tokio::net::{TcpListener, TcpStream};
 
 // Default timeout for connection reads in seconds.
-const TIMEOUT: u64 = 5;
+const TIMEOUT: u64 = 10;
 
 #[tokio::test]
 async fn handshake_responder_side() {
@@ -174,8 +174,8 @@ async fn ignore_non_version_replies_to_version() {
     //
     // Due to how we instrument the test node, we need to have the list of peers ready when we start the node.
     //
-    // zebra:
-    // zcashd:
+    // zebra: doesn't respond to verack and disconnects.
+    // zcashd: ignores the message and completes the handshake.
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
