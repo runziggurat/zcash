@@ -83,68 +83,68 @@ impl Message {
         let header = match self {
             Self::Version(version) => {
                 version.encode(buffer)?;
-                MessageHeader::new(VERSION_COMMAND, &buffer)
+                MessageHeader::new(VERSION_COMMAND, buffer)
             }
-            Self::Verack => MessageHeader::new(VERACK_COMMAND, &buffer),
+            Self::Verack => MessageHeader::new(VERACK_COMMAND, buffer),
             Self::Ping(nonce) => {
                 nonce.encode(buffer)?;
-                MessageHeader::new(PING_COMMAND, &buffer)
+                MessageHeader::new(PING_COMMAND, buffer)
             }
             Self::Pong(nonce) => {
                 nonce.encode(buffer)?;
-                MessageHeader::new(PONG_COMMAND, &buffer)
+                MessageHeader::new(PONG_COMMAND, buffer)
             }
-            Self::GetAddr => MessageHeader::new(GETADDR_COMMAND, &buffer),
+            Self::GetAddr => MessageHeader::new(GETADDR_COMMAND, buffer),
             Self::Addr(addr) => {
                 addr.encode(buffer)?;
-                MessageHeader::new(ADDR_COMMAND, &buffer)
+                MessageHeader::new(ADDR_COMMAND, buffer)
             }
             Self::GetHeaders(locator_hashes) => {
                 locator_hashes.encode(buffer)?;
-                MessageHeader::new(GETHEADERS_COMMAND, &buffer)
+                MessageHeader::new(GETHEADERS_COMMAND, buffer)
             }
             Self::Headers(headers) => {
                 headers.encode(buffer)?;
-                MessageHeader::new(HEADERS_COMMAND, &buffer)
+                MessageHeader::new(HEADERS_COMMAND, buffer)
             }
             Self::GetBlocks(locator_hashes) => {
                 locator_hashes.encode(buffer)?;
-                MessageHeader::new(GETBLOCKS_COMMAND, &buffer)
+                MessageHeader::new(GETBLOCKS_COMMAND, buffer)
             }
             Self::Block(block) => {
                 block.encode(buffer)?;
-                MessageHeader::new(BLOCK_COMMAND, &buffer)
+                MessageHeader::new(BLOCK_COMMAND, buffer)
             }
             Self::GetData(inv) => {
                 inv.encode(buffer)?;
-                MessageHeader::new(GETDATA_COMMAND, &buffer)
+                MessageHeader::new(GETDATA_COMMAND, buffer)
             }
             Self::Inv(inv) => {
                 inv.encode(buffer)?;
-                MessageHeader::new(INV_COMMAND, &buffer)
+                MessageHeader::new(INV_COMMAND, buffer)
             }
             Self::NotFound(inv) => {
                 inv.encode(buffer)?;
-                MessageHeader::new(NOTFOUND_COMMAND, &buffer)
+                MessageHeader::new(NOTFOUND_COMMAND, buffer)
             }
-            Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, &buffer),
+            Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, buffer),
             Self::Tx(tx) => {
                 tx.encode(buffer)?;
-                MessageHeader::new(TX_COMMAND, &buffer)
+                MessageHeader::new(TX_COMMAND, buffer)
             }
             Self::Reject(reject) => {
                 reject.encode(buffer)?;
-                MessageHeader::new(REJECT_COMMAND, &buffer)
+                MessageHeader::new(REJECT_COMMAND, buffer)
             }
             Self::FilterLoad(filter_load) => {
                 filter_load.encode(buffer)?;
-                MessageHeader::new(FILTERLOAD_COMMAND, &buffer)
+                MessageHeader::new(FILTERLOAD_COMMAND, buffer)
             }
             Self::FilterAdd(filter) => {
                 filter.encode(buffer)?;
-                MessageHeader::new(FILTERADD_COMMAND, &buffer)
+                MessageHeader::new(FILTERADD_COMMAND, buffer)
             }
-            Self::FilterClear => MessageHeader::new(FILTERCLEAR_COMMAND, &buffer),
+            Self::FilterClear => MessageHeader::new(FILTERCLEAR_COMMAND, buffer),
         };
 
         Ok(header)
