@@ -406,7 +406,7 @@ async fn reject_obsolete_versions() {
     // zebra: doesn't send reject, sends version before closing the write half of the stream,
     // doesn't close the socket.
     //
-    // zcashd:
+    // zcashd: sends reject before closing the write half of the stream, doesn't close the socket.
 
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
