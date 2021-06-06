@@ -1,15 +1,10 @@
 use crate::{
-    helpers::{
-        is_termination_error,
-        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
-    },
+    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
     protocol::{
-        message::{
-            filter::{Filter, MessageFilter},
-            Message,
-        },
+        message::{filter::MessageFilter, Message},
         payload::{
             block::{Block, LocatorHashes},
+            reject::CCode,
             Addr, Hash, Inv, Nonce, Version,
         },
     },
@@ -21,7 +16,6 @@ use crate::{
 };
 
 use assert_matches::assert_matches;
-use tokio::net::{TcpListener, TcpStream};
 
 // Default timeout for connection reads in seconds.
 const TIMEOUT: u64 = 10;
@@ -396,7 +390,7 @@ async fn reject_version_reusing_nonce() {
         .unwrap();
 
     // Assert on disconnect.
-    wait_until!(10, synthetic_node.num_connected() == 0);
+    wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
@@ -409,60 +403,50 @@ async fn reject_obsolete_versions() {
     //
     // The node rejects connections with obsolete node versions.
     //
-    // We expect the following behaviour, regardless of who initiates the connection:
+    // zebra: doesn't send reject, sends version before closing the write half of the stream,
+    // doesn't close the socket.
     //
-    //  1. We send `version` with an obsolete version number
-    //  2. The node responds with `Reject(Obsolete)`
-    //  3. The node terminates the connection
-    //
-    // This test currently fails as neither Zebra nor ZCashd currently fully comply
-    // with this behaviour, so we may need to revise our expectations.
-    //
-    // Current behaviour (if we initiate the connection):
-    //  ZCashd:
-    //      1. We send `version` with an obsolete version number
-    //      2. Node sends `Reject(Obsolete)`
-    //      3. Node sends `Ping` (this is unexpected)
-    //      4. Node sends `GetHeaders` (this is unexpected)
-    //      5. Node terminates the connection
-    //
-    //  Zebra:
-    //      1. We send `version` with an obsolete version number
-    //      2. Node sends `version`
-    //      3. Node sends `verack`
-    //      4. Node terminates the connection (no `Reject(Obsolete)` sent)
+    // zcashd:
 
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    for obsolete_version_number in obsolete_version_numbers {
-        // open connection
-        let mut stream = TcpStream::connect(node.addr()).await.unwrap();
+    // Configuration for all synthetic nodes, no handshake, no message filter.
+    let config: SyntheticNodeConfig = Default::default();
 
-        // send obsolete version
-        let obsolete_version = Version::new(node.addr(), stream.local_addr().unwrap())
-            .with_version(obsolete_version_number);
-        Message::Version(obsolete_version)
-            .write_to_stream(&mut stream)
+    for obsolete_version_number in obsolete_version_numbers {
+        // Create a synthetic node.
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+
+        // Connect to the node and send a Version with an obsolete version.
+        synthetic_node.connect(node.addr()).await.unwrap();
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::Version(
+                    Version::new(node.addr(), synthetic_node.listening_addr())
+                        .with_version(obsolete_version_number),
+                ),
+            )
             .await
             .unwrap();
 
-        // expect Reject(Obsolete)
-        match Message::read_from_stream(&mut stream).await.unwrap() {
-            Message::Reject(reject) => assert!(reject.ccode.is_obsolete()),
-            message => panic!("Expected Message::Reject(Obsolete), but got {:?}", message),
-        }
+        // Expect a reject message.
+        let (_, reject) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(reject, Message::Reject(reject) if reject.ccode == CCode::Obsolete);
 
-        // check that connection has been terminated
-        match Message::read_from_stream(&mut stream).await {
-            Err(err) if is_termination_error(&err) => {}
-            result => panic!("Expected terminated connection but got: {:?}", result),
-        }
+        // Expect the connection to be dropped.
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+
+        // Gracefull shut down the synthetic node.
+        synthetic_node.shut_down();
     }
 
+    // Gracefully shut down the node.
     node.stop().await;
 }
