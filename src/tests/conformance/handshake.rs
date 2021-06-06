@@ -267,8 +267,6 @@ async fn ignore_non_verack_replies_to_verack() {
     // zebra: disconnects.
     // zcashd: completes the handshake and sends a few messages handled by the filter.
 
-    crate::helpers::enable_tracing();
-
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
     let block_inv = Inv::new(vec![genesis_block.inv_hash()]);
@@ -292,7 +290,7 @@ async fn ignore_non_verack_replies_to_verack() {
     // Configuration to be used by all synthetic nodes, no handshaking with filtering enabled so we
     // can assert on a ping pong exchange at the end of the test.
     let config = SyntheticNodeConfig {
-        message_filter: MessageFilter::with_all_enabled(),
+        message_filter: MessageFilter::with_all_auto_reply(),
         ..Default::default()
     };
 
@@ -374,43 +372,38 @@ async fn reject_version_reusing_nonce() {
     // 1. Wait for node to send version
     // 2. Send back version with same nonce
     // 3. Connection should be terminated
+    //
+    // zebra: doesn't disconnect.
+    // zcashd:
 
-    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
-
-    let mut node: Node = Default::default();
-    node.initial_peers(vec![listener.local_addr().unwrap()])
-        .start()
-        .await;
-
-    let (mut stream, _) = listener.accept().await.unwrap();
-
-    let version = match Message::read_from_stream(&mut stream).await.unwrap() {
-        Message::Version(version) => version,
-        message => panic!("Expected version but received: {:?}", message),
-    };
-
-    let mut bad_version = Version::new(node.addr(), stream.local_addr().unwrap());
-    bad_version.nonce = version.nonce;
-    Message::Version(bad_version)
-        .write_to_stream(&mut stream)
+    // Create a synthetic node, no handshake, no message filters.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig::default())
         .await
         .unwrap();
 
-    // This is required because the zcashd node eagerly sends `ping` and `getheaders` even though
-    // our version message is broken.
-    // TODO: tbd if this is desired behaviour or if this should fail the test.
-    let filter = MessageFilter::with_all_disabled()
-        .with_ping_filter(Filter::Enabled)
-        .with_getheaders_filter(Filter::Enabled);
+    // Spin up a node instance with the synthetic node set as an initial peer.
+    let mut node: Node = Default::default();
+    node.initial_peers(vec![synthetic_node.listening_addr()])
+        .start()
+        .await;
 
-    match filter.read_from_stream(&mut stream).await {
-        Err(err) if is_termination_error(&err) => {}
-        result => panic!(
-            "Expected terminated connection error, but received: {:?}",
-            result
-        ),
-    }
+    // Receive a Version.
+    let (source, version) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let nonce = assert_matches!(version, Message::Version(version) => version.nonce);
 
+    // Send a Version.
+    let mut bad_version = Version::new(node.addr(), synthetic_node.listening_addr());
+    bad_version.nonce = nonce;
+    synthetic_node
+        .send_direct_message(source, Message::Version(bad_version))
+        .await
+        .unwrap();
+
+    // Assert on disconnect.
+    wait_until!(10, synthetic_node.num_connected() == 0);
+
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
