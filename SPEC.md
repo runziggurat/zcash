@@ -124,7 +124,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     1. The node under test initiates a connection (rpc: `addnode`).
     2. Respond to received `Version` with the node’s nonce.
-    3. Assert the node rejected the connection.
+    3. Assert the node closed the connection.
 
 ### ZG-CONFORMANCE-007
 

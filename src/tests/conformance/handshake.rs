@@ -369,12 +369,8 @@ async fn reject_version_reusing_nonce() {
     //
     // The node rejects connections reusing its nonce (usually indicative of self-connection).
     //
-    // 1. Wait for node to send version
-    // 2. Send back version with same nonce
-    // 3. Connection should be terminated
-    //
-    // zebra: doesn't disconnect.
-    // zcashd:
+    // zebra: closes the write half of the stream, doesn't close the socket.
+    // zcashd: closes the write half of the stream, doesn't close the socket.
 
     // Create a synthetic node, no handshake, no message filters.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig::default())
