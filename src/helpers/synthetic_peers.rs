@@ -7,19 +7,44 @@ use assert_matches::assert_matches;
 use pea2pea::{
     connections::ConnectionSide,
     protocols::{Handshaking, Reading, Writing},
-    Connection, Node, Pea2Pea,
+    Connection, KnownPeers, Node, NodeConfig, Pea2Pea,
 };
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::{
+    sync::mpsc::{self, Receiver, Sender},
+    time::timeout,
+};
 
 use std::{
-    io::{Cursor, ErrorKind, Result},
-    net::SocketAddr,
+    io::{Cursor, Error, ErrorKind, Result},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
 };
+
+#[derive(Clone)]
+pub struct SyntheticNodeConfig {
+    pub network_config: Option<NodeConfig>,
+    pub enable_handshaking: bool,
+    pub message_filter: MessageFilter,
+}
+
+impl Default for SyntheticNodeConfig {
+    fn default() -> Self {
+        Self {
+            network_config: Some(NodeConfig {
+                // Set localhost as the default IP.
+                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+                ..Default::default()
+            }),
+            enable_handshaking: false,
+            message_filter: MessageFilter::with_all_disabled(),
+        }
+    }
+}
 
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
 pub struct SyntheticNode {
     inner_node: InnerNode,
-    inbound_rx: Receiver<Message>,
+    inbound_rx: Receiver<(SocketAddr, Message)>,
 }
 
 impl SyntheticNode {
@@ -27,23 +52,31 @@ impl SyntheticNode {
     ///
     /// The handshake protocol can also optionally enabled and the message filter must be set for
     /// reads.
-    pub fn new(node: Node, enable_handshaking: bool, message_filter: MessageFilter) -> Self {
+    pub async fn new(config: SyntheticNodeConfig) -> Result<Self> {
+        // Create the pea2pea node from the config.
+        let node = Node::new(config.network_config).await?;
+
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
-        let inner_node = InnerNode::new(node, tx, message_filter);
+        let inner_node = InnerNode::new(node, tx, config.message_filter);
 
         // Enable the read and write protocols, handshake is enabled on a per-case basis.
         inner_node.enable_reading();
         inner_node.enable_writing();
 
-        if enable_handshaking {
+        if config.enable_handshaking {
             inner_node.enable_handshaking();
         }
 
-        Self {
+        Ok(Self {
             inner_node,
             inbound_rx: rx,
-        }
+        })
+    }
+
+    /// Returns the listening address of the node.
+    pub fn listening_addr(&self) -> SocketAddr {
+        self.inner_node.node().listening_addr()
     }
 
     /// Connects to the target address.
@@ -55,13 +88,37 @@ impl SyntheticNode {
         Ok(())
     }
 
+    pub fn is_connected(&self, addr: SocketAddr) -> bool {
+        self.inner_node.node().is_connected(addr)
+    }
+
+    pub fn num_connected(&self) -> usize {
+        self.inner_node.node().num_connected()
+    }
+
+    pub fn known_peers(&self) -> &KnownPeers {
+        self.inner_node.node().known_peers()
+    }
+
     /// Reads a message from the inbound (internal) queue of the node.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
-    pub async fn recv_message(&mut self) -> Message {
+    pub async fn recv_message(&mut self) -> (SocketAddr, Message) {
         match self.inbound_rx.recv().await {
             Some(message) => message,
             None => panic!("all senders dropped!"),
+        }
+    }
+
+    // Attempts to read a message from the inbound (internal) queue of the node before the timeout
+    // duration has elapsed (seconds).
+    pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<(SocketAddr, Message)> {
+        match timeout(Duration::from_secs(secs), self.recv_message()).await {
+            Ok(message) => Ok(message),
+            Err(_e) => Err(Error::new(
+                ErrorKind::TimedOut,
+                format!("could not read message after {}s", secs),
+            )),
         }
     }
 
@@ -71,17 +128,41 @@ impl SyntheticNode {
 
         Ok(())
     }
+
+    /// Sends a ping, expecting a timely pong response.
+    ///
+    /// Panics if a correct pong isn't sent before the timeout.
+    pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
+        use crate::protocol::payload::Nonce;
+
+        let ping_nonce = Nonce::default();
+        self.send_direct_message(target, Message::Ping(ping_nonce))
+            .await
+            .unwrap();
+
+        match timeout(Duration::from_secs(2), self.recv_message()).await {
+            Ok((_, message)) => {
+                // Recieve pong and verify the nonce matches.
+                assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce)
+            }
+            Err(e) => panic!("no pong response received: {}", e),
+        }
+    }
+
+    pub fn shut_down(&self) {
+        self.inner_node.node().shut_down()
+    }
 }
 
 #[derive(Clone)]
 struct InnerNode {
     node: Node,
-    inbound_tx: Sender<Message>,
+    inbound_tx: Sender<(SocketAddr, Message)>,
     message_filter: MessageFilter,
 }
 
 impl InnerNode {
-    fn new(node: Node, tx: Sender<Message>, message_filter: MessageFilter) -> Self {
+    fn new(node: Node, tx: Sender<(SocketAddr, Message)>, message_filter: MessageFilter) -> Self {
         Self {
             node,
             inbound_tx: tx,
@@ -122,7 +203,7 @@ impl Reading for InnerNode {
         buffer: &[u8],
     ) -> Result<Option<(Self::Message, usize)>> {
         // Check buffer contains a full header.
-        if buffer.len() <= HEADER_LEN {
+        if buffer.len() < HEADER_LEN {
             return Ok(None);
         }
 
@@ -130,8 +211,8 @@ impl Reading for InnerNode {
         let header_bytes = &buffer[..HEADER_LEN];
         let header = MessageHeader::decode(&mut Cursor::new(header_bytes))?;
 
-        // Check buffer contains the announce message lenght.
-        if buffer.len() <= HEADER_LEN + header.body_length as usize {
+        // Check buffer contains the announced message length.
+        if buffer.len() < HEADER_LEN + header.body_length as usize {
             return Err(ErrorKind::InvalidData.into());
         }
 
@@ -146,7 +227,7 @@ impl Reading for InnerNode {
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
         if let Some(response) = self.message_filter.reply_message(&message) {
             self.send_direct_message(source, response).await?;
-        } else if self.inbound_tx.send(message).await.is_err() {
+        } else if self.inbound_tx.send((source, message)).await.is_err() {
             panic!("receiver dropped!");
         }
 
@@ -161,7 +242,7 @@ impl Writing for InnerNode {
         payload: &[u8],
         buffer: &mut [u8],
     ) -> Result<usize> {
-        buffer[..payload.len()].copy_from_slice(&payload);
+        buffer[..payload.len()].copy_from_slice(payload);
         Ok(payload.len())
     }
 }
@@ -191,6 +272,8 @@ impl Handshaking for InnerNode {
                 let version = Message::read_from_stream(conn.reader()).await?;
                 assert_matches!(version, Message::Version(..));
 
+                // FIXME: send the node addr with its listener port, not the ephemeral port
+                // created for the connection.
                 Message::Version(Version::new(self.node().listening_addr(), conn.addr))
                     .write_to_stream(conn.writer())
                     .await?;

@@ -1,7 +1,7 @@
 use crate::{
     helpers::{
         autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
-        synthetic_peers::SyntheticNode,
+        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
     },
     protocol::{
         message::{
@@ -23,19 +23,21 @@ use crate::{
 };
 
 use assert_matches::assert_matches;
-use tokio::{
-    net::TcpListener,
-    time::{timeout, Duration},
-};
+use tokio::{net::TcpListener, time::timeout};
+
+use std::time::Duration;
 
 #[tokio::test]
 async fn ping_pong() {
-    // Create a pea2pea backed synthetic node and enable handshaking.
-    let filter = MessageFilter::with_all_auto_reply();
-    let mut synthetic_node =
-        SyntheticNode::new(pea2pea::Node::new(None).await.unwrap(), true, filter);
+    // Create a synthetic node and enable handshaking.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    // Create a node and set the listener as an initial peer.
+    // Spin up a node.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
@@ -44,7 +46,7 @@ async fn ping_pong() {
     // Connect to the node and handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
 
-    // Send Ping.
+    // Send ping.
     let ping_nonce = Nonce::default();
     synthetic_node
         .send_direct_message(node.addr(), Message::Ping(ping_nonce))
@@ -52,8 +54,8 @@ async fn ping_pong() {
         .unwrap();
 
     // Recieve pong and verify the nonce matches.
-    let message = synthetic_node.recv_message().await;
-    assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
+    let (_, pong) = synthetic_node.recv_message().await;
+    assert_matches!(pong, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
 
     node.stop().await;
 }
@@ -104,12 +106,13 @@ async fn reject_invalid_messages() {
     //  Zebra:
     //      All result in a terminated connection (no reject sent).
 
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    // generate a mixed Inventory hash set
+    // Generate a mixed Inventory hash set.
     let genesis_block = Block::testnet_genesis();
     let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
     let multi_block_inv = vec![
@@ -118,7 +121,7 @@ async fn reject_invalid_messages() {
         genesis_block.inv_hash(),
     ];
 
-    // list of test messages and their expected Reject kind
+    // List of test messages and their expected Reject kind.
     let cases = vec![
         (
             Message::Version(Version::new(node.addr(), new_local_addr())),
@@ -132,28 +135,28 @@ async fn reject_invalid_messages() {
         (Message::FilterClear, CCode::Obsolete),
     ];
 
-    let filter = MessageFilter::with_all_auto_reply().enable_logging();
-
     for (test_message, expected_ccode) in cases {
-        let mut stream = initiate_handshake(node.addr()).await.unwrap();
+        // Start a synthetic node.
+        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
 
-        test_message.write_to_stream(&mut stream).await.unwrap();
-        // sending a ping which will let us see if `test_message` was ignored
-        let nonce = Nonce::default();
-        Message::Ping(nonce)
-            .write_to_stream(&mut stream)
+        // Connect and initiate handshake.
+        synthetic_node.connect(node.addr()).await.unwrap();
+
+        // Send the test message.
+        synthetic_node
+            .send_direct_message(node.addr(), test_message.clone())
             .await
             .unwrap();
 
-        // Expect a Reject(Invalid) message
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Reject(reject) if reject.ccode == expected_ccode => {}
-            Message::Pong(n) if n == nonce => panic!("Message was ignored: {:?}", test_message),
-            message => panic!(
-                "Expected Reject({:?}), but got: {:?}",
-                expected_ccode, message
-            ),
-        }
+        // Expect a Reject(Invalid) message.
+        let (_, message) = synthetic_node.recv_message_timeout(2).await.unwrap();
+        assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode);
     }
 
     node.stop().await;
@@ -174,17 +177,23 @@ async fn ignores_unsolicited_responses() {
     //      2. Send a ping request
     //      3. Receive a pong response
 
-    let listener = TcpListener::bind(new_local_addr()).await.unwrap();
-
-    // Create a node and set the listener as an initial peer.
+    // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_peers(vec![listener.local_addr().unwrap()])
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    let mut stream = crate::helpers::respond_to_handshake(listener)
-        .await
-        .unwrap();
+    // Create a synthetic node.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    // Connect and initiate the handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     let test_messages = vec![
         Message::Pong(Nonce::default()),
@@ -195,21 +204,17 @@ async fn ignores_unsolicited_responses() {
         Message::Tx(Block::testnet_2().txs[0].clone()),
     ];
 
-    let filter = MessageFilter::with_all_auto_reply();
-
     for message in test_messages {
-        message.write_to_stream(&mut stream).await.unwrap();
-
-        let nonce = Nonce::default();
-        Message::Ping(nonce)
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(node.addr(), message)
             .await
             .unwrap();
 
-        let pong = filter.read_from_stream(&mut stream).await.unwrap();
-        assert_matches!(pong, Message::Pong(..));
+        // A response to ping would indicate the previous message was ignored.
+        synthetic_node.assert_ping_pong(node.addr()).await;
     }
 
+    synthetic_node.shut_down();
     node.stop().await;
 }
 

@@ -44,7 +44,7 @@ Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --t
 
 ## Test Status
 
-Short overview of test cases and their current status.
+Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
 
 | Legend | |
 | :----: |--|
@@ -58,10 +58,10 @@ Short overview of test cases and their current status.
 | :-------------------------------: | :----: | :---: | :--------------------- |
 | [001](SPEC.md#ZG-CONFORMANCE-001) |   ✓    |   ✓   |
 | [002](SPEC.md#ZG-CONFORMANCE-002) |   ✓    |   ✓   |
-| [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✓   |
-| [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✓   |
+| [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✖   |
+| [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✖   |
 | [005](SPEC.md#ZG-CONFORMANCE-005) |   ✖    |   ✖   |
-| [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✓   |
+| [006](SPEC.md#ZG-CONFORMANCE-006) |   ✖    |   ✖   |
 | [007](SPEC.md#ZG-CONFORMANCE-007) |   ✖    |   ✖   |
 | [008](SPEC.md#ZG-CONFORMANCE-008) |   ✖    |   ✖   | ⚠ filter's may need work (malformed), ⚠ require zcashd feedback
 | [009](SPEC.md#ZG-CONFORMANCE-009) |   ✓    |   ✓   |
