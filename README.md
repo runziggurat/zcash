@@ -61,8 +61,8 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✖   |
 | [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✖   |
 | [005](SPEC.md#ZG-CONFORMANCE-005) |   ✖    |   ✖   |
-| [006](SPEC.md#ZG-CONFORMANCE-006) |   ✖    |   ✖   |
-| [007](SPEC.md#ZG-CONFORMANCE-007) |   ✖    |   ✖   |
+| [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✓   |
+| [007](SPEC.md#ZG-CONFORMANCE-007) |   ✓    |   ✖   |
 | [008](SPEC.md#ZG-CONFORMANCE-008) |   ✖    |   ✖   | ⚠ filter's may need work (malformed), ⚠ require zcashd feedback
 | [009](SPEC.md#ZG-CONFORMANCE-009) |   ✓    |   ✓   |
 | [010](SPEC.md#ZG-CONFORMANCE-010) |   ✖    |   ✖   | ⚠ todo: mempool seeding
