@@ -211,7 +211,7 @@ impl Reading for InnerNode {
         let header_bytes = &buffer[..HEADER_LEN];
         let header = MessageHeader::decode(&mut Cursor::new(header_bytes))?;
 
-        // Check buffer contains the announce message lenght.
+        // Check buffer contains the announced message length.
         if buffer.len() < HEADER_LEN + header.body_length as usize {
             return Err(ErrorKind::InvalidData.into());
         }
