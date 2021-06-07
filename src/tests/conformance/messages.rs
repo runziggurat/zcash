@@ -218,7 +218,7 @@ async fn ignores_unsolicited_responses() {
 }
 
 #[tokio::test]
-async fn basic_query_response() {
+async fn basic_query_response_seeded() {
     // ZG-CONFORMANCE-010, node is seeded with data
     //
     // The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
@@ -231,20 +231,19 @@ async fn basic_query_response() {
     // `GetData(block_hash)` expects `Blocks`.
     // `GetHeaders` expects `Headers`.
     //
-    // The test currently fails for zcashd and zebra.
+    // zebra: DoS `GetData` spam due to auto-response
+    // zcashd: ignores the following messages
+    //             - GetAddr
+    //             - MemPool
+    //             - GetBlocks
     //
-    // Current behaviour:
+    //         GetData(tx) returns NotFound (which is correct),
+    //         because we currently can't seed a mempool.
     //
-    //  zcashd: Ignores the following messages
-    //              - GetAddr
-    //              - MemPool
-    //              - GetBlocks
-    //
-    //          GetData(tx) returns NotFound (which is correct),
-    //          because we currently can't seed a mempool.
-    //
-    //  zebra: DoS `GetData` spam due to auto-response
 
+    let genesis_block = Block::testnet_genesis();
+
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks {
         socket_addr: new_local_addr(),
@@ -253,59 +252,117 @@ async fn basic_query_response() {
     .start()
     .await;
 
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
-    let genesis_block = Block::testnet_genesis();
-
-    Message::Ping(Nonce::default())
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Pong(..));
-
-    Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Addr(..));
-
-    Message::MemPool.write_to_stream(&mut stream).await.unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Inv(..));
-
-    Message::GetBlocks(LocatorHashes::new(
-        vec![genesis_block.double_sha256().unwrap()],
-        Hash::zeroed(),
-    ))
-    .write_to_stream(&mut stream)
+    // Create a synthetic node.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
     .await
     .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Inv(..));
 
-    Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Tx(..));
+    // Connect to the node and initiate handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-    Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Block(..));
+    // Ping/Pong.
+    {
+        let ping_nonce = Nonce::default();
+        synthetic_node
+            .send_direct_message(node.addr(), Message::Ping(ping_nonce))
+            .await
+            .unwrap();
 
-    Message::GetHeaders(LocatorHashes::new(
-        vec![genesis_block.double_sha256().unwrap()],
-        Hash::zeroed(),
-    ))
-    .write_to_stream(&mut stream)
-    .await
-    .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Headers(..));
+        // Verify the nonce matches.
+        let (_, pong) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(pong, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
+    }
 
+    // GetAddr/Addr.
+    {
+        synthetic_node
+            .send_direct_message(node.addr(), Message::GetAddr)
+            .await
+            .unwrap();
+
+        let (_, addr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(addr, Message::Addr(..));
+    }
+
+    // MemPool/Inv.
+    {
+        synthetic_node
+            .send_direct_message(node.addr(), Message::MemPool)
+            .await
+            .unwrap();
+
+        let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(inv, Message::Inv(..));
+    }
+
+    // GetBlocks/Inv (requesting testnet genesis).
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetBlocks(LocatorHashes::new(
+                    vec![genesis_block.double_sha256().unwrap()],
+                    Hash::zeroed(),
+                )),
+            )
+            .await
+            .unwrap();
+
+        let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(inv, Message::Inv(..));
+    }
+
+    // GetData/Tx.
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+            )
+            .await
+            .unwrap();
+
+        let (_, tx) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(tx, Message::Tx(..));
+    }
+
+    // GetData/Block.
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()])),
+            )
+            .await
+            .unwrap();
+
+        let (_, block) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(block, Message::Block(..));
+    }
+
+    // GetHeaders/Headers.
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetHeaders(LocatorHashes::new(
+                    vec![genesis_block.double_sha256().unwrap()],
+                    Hash::zeroed(),
+                )),
+            )
+            .await
+            .unwrap();
+
+        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(headers, Message::Headers(..));
+    }
+
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
