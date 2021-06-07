@@ -257,7 +257,7 @@ async fn ignore_non_verack_replies_to_verack() {
     // The node ignores non-Verack message as a response to initial Verack it sent.
     //
     // zebra: disconnects.
-    // zcashd: completes the handshake and sends a few messages handled by the filter.
+    // zcashd: responds to the unsolicited message.
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
