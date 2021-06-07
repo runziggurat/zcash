@@ -281,7 +281,7 @@ async fn ignore_non_verack_replies_to_verack() {
     // Configuration to be used by all synthetic nodes, no handshaking with filtering enabled so we
     // can assert on a ping pong exchange at the end of the test.
     let config = SyntheticNodeConfig {
-        message_filter: MessageFilter::with_all_auto_reply(),
+        message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     };
 
