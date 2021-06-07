@@ -52,8 +52,6 @@ async fn handshake_responder_side() {
 #[tokio::test]
 async fn handshake_initiator_side() {
     // ZG-CONFORMANCE-002
-    use crate::helpers::enable_tracing;
-    enable_tracing();
 
     // Create a synthetic node and enable handshaking.
     let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
@@ -259,7 +257,7 @@ async fn ignore_non_verack_replies_to_verack() {
     // The node ignores non-Verack message as a response to initial Verack it sent.
     //
     // zebra: disconnects.
-    // zcashd: completes the handshake and sends a few messages handled by the filter.
+    // zcashd: responds to the unsolicited message.
 
     let genesis_block = Block::testnet_genesis();
     let block_hash = genesis_block.double_sha256().unwrap();
@@ -283,7 +281,7 @@ async fn ignore_non_verack_replies_to_verack() {
     // Configuration to be used by all synthetic nodes, no handshaking with filtering enabled so we
     // can assert on a ping pong exchange at the end of the test.
     let config = SyntheticNodeConfig {
-        message_filter: MessageFilter::with_all_auto_reply(),
+        message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     };
 
@@ -402,9 +400,7 @@ async fn reject_obsolete_versions() {
     //
     // The node rejects connections with obsolete node versions.
     //
-    // zebra: doesn't send reject, sends version before closing the write half of the stream,
-    // doesn't close the socket.
-    //
+    // zebra: doesn't send a reject, closes the write half of the stream, doesn't close the socket.
     // zcashd: sends reject before closing the write half of the stream, doesn't close the socket.
 
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
