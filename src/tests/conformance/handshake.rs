@@ -1,5 +1,8 @@
 use crate::{
-    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+    helpers::{
+        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+        TIMEOUT,
+    },
     protocol::{
         message::{filter::MessageFilter, Message},
         payload::{
@@ -16,9 +19,6 @@ use crate::{
 };
 
 use assert_matches::assert_matches;
-
-// Default timeout for connection reads in seconds.
-const TIMEOUT: u64 = 10;
 
 #[tokio::test]
 async fn handshake_responder_side() {
