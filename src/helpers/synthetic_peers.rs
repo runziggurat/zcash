@@ -1,5 +1,9 @@
 use crate::protocol::{
-    message::{constants::HEADER_LEN, filter::MessageFilter, Message, MessageHeader},
+    message::{
+        constants::HEADER_LEN,
+        filter::{Filter, MessageFilter},
+        Message, MessageHeader,
+    },
     payload::{codec::Codec, Version},
 };
 
@@ -225,10 +229,25 @@ impl Reading for InnerNode {
     }
 
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
-        if let Some(response) = self.message_filter.reply_message(&message) {
-            self.send_direct_message(source, response).await?;
-        } else if self.inbound_tx.send((source, message)).await.is_err() {
-            panic!("receiver dropped!");
+        match self.message_filter.message_filter_type(&message) {
+            Filter::AutoReply => {
+                // Autoreply with the appropriate response.
+                let response = self.message_filter.reply_message(&message);
+                self.send_direct_message(source, response).await?;
+            }
+
+            Filter::Disabled => {
+                // Send the message to the node's inbound queue.
+                self.inbound_tx
+                    .send((source, message))
+                    .await
+                    .expect("receiver dropped!");
+            }
+
+            Filter::Enabled => {
+                // Ignore the message.
+                // FIXME: logging?
+            }
         }
 
         Ok(())
