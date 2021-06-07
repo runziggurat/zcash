@@ -268,7 +268,6 @@ async fn ignore_non_verack_replies_to_verack() {
     let test_messages = vec![
         Message::GetAddr,
         Message::MemPool,
-        Message::Verack,
         Message::Ping(Nonce::default()),
         Message::Pong(Nonce::default()),
         Message::GetAddr,
