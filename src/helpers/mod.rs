@@ -13,6 +13,15 @@ use tokio::{
 
 use std::{net::SocketAddr, time::Duration};
 
+pub fn enable_tracing() {
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    fmt()
+        .with_test_writer()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+}
+
 /// Waits until an expression is true or times out.
 ///
 /// Uses polling to cut down on time otherwise used by calling `sleep` in tests.
