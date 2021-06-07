@@ -52,8 +52,6 @@ async fn handshake_responder_side() {
 #[tokio::test]
 async fn handshake_initiator_side() {
     // ZG-CONFORMANCE-002
-    use crate::helpers::enable_tracing;
-    enable_tracing();
 
     // Create a synthetic node and enable handshaking.
     let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
@@ -402,9 +400,7 @@ async fn reject_obsolete_versions() {
     //
     // The node rejects connections with obsolete node versions.
     //
-    // zebra: doesn't send reject, sends version before closing the write half of the stream,
-    // doesn't close the socket.
-    //
+    // zebra: doesn't send a reject, closes the write half of the stream, doesn't close the socket.
     // zcashd: sends reject before closing the write half of the stream, doesn't close the socket.
 
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
