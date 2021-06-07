@@ -2,6 +2,7 @@ use crate::{
     helpers::{
         autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
         synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+        TIMEOUT,
     },
     protocol::{
         message::{
@@ -68,18 +69,16 @@ async fn reject_invalid_messages() {
     //
     // The following messages should be rejected post-handshake:
     //
-    //      Version     (Duplicate)
-    //      Verack      (Duplicate)
-    //      Inv         (Invalid -- with mixed types)
-    //      FilterLoad  (Obsolete)
-    //      FilterAdd   (Obsolete)
-    //      FilterClear (Obsolete)
+    //     Version     (Duplicate)
+    //     Verack      (Duplicate)
+    //     Inv         (Invalid -- with mixed types)
+    //     FilterLoad  (Obsolete)
+    //     FilterAdd   (Obsolete)
+    //     FilterClear (Obsolete)
     //
-    // TBD: Inv         (Invalid -- with multiple advertised blocks)
-    //      [todo: feedback from zcashd as to what the correct behaviour]
+    //     Inv (tbd)   (Invalid -- with multiple advertised blocks, for zebra this is not an error)
     //
-    // Test procedure:
-    //      For each test message:
+    // Test procedure (for each message):
     //
     //      1. Connect and complete the handshake
     //      2. Send the test message
@@ -87,26 +86,19 @@ async fn reject_invalid_messages() {
     //      4. Receive `Reject(kind)`
     //      5. Assert that `kind` is appropriate for the test message
     //
-    // This test currently fails as neither Zebra nor ZCashd currently fully comply
-    // with this behaviour, so we may need to revise our expectations.
+    // zebra: doesn't send reject and terminates the connection.
+    // zcashd:
     //
-    // TODO: confirm expected behaviour.
-    //
-    // Current behaviour (if we initiate the connection):
-    //  ZCashd:
-    //      Version:            passes
-    //      Verack:             ignored
-    //      Mixed Inv:          ignored
-    //      Multi-Block Inv:    ignored
-    //      FilterLoad:         Reject(Malformed) - needs investigation
-    //      FilterAdd:          Reject(Malformed) - needs investigation
-    //      FilterClear:        ignored
-    //      FilterClear:        ignored
-    //
-    //  Zebra:
-    //      All result in a terminated connection (no reject sent).
+    //     Version:            passes
+    //     Verack:             ignored
+    //     Mixed Inv:          ignored
+    //     Multi-Block Inv:    ignored
+    //     FilterLoad:         Reject(Malformed) - needs investigation
+    //     FilterAdd:          Reject(Malformed) - needs investigation
+    //     FilterClear:        ignored
+    //     FilterClear:        ignored
 
-    // Spin up a node instance.
+    // Spin up a node instance (so we have acces to its addr).
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
@@ -135,15 +127,16 @@ async fn reject_invalid_messages() {
         (Message::FilterClear, CCode::Obsolete),
     ];
 
+    // Configuration for all the synthetic nodes.
+    let config = SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_enabled(),
+        ..Default::default()
+    };
+
     for (test_message, expected_ccode) in cases {
         // Start a synthetic node.
-        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            enable_handshaking: true,
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
 
         // Connect and initiate handshake.
         synthetic_node.connect(node.addr()).await.unwrap();
@@ -155,10 +148,14 @@ async fn reject_invalid_messages() {
             .unwrap();
 
         // Expect a Reject(Invalid) message.
-        let (_, message) = synthetic_node.recv_message_timeout(2).await.unwrap();
+        let (_, message) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode);
+
+        // Gracefully shut down the synthetic node.
+        synthetic_node.shut_down();
     }
 
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
