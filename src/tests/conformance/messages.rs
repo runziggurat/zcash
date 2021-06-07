@@ -183,7 +183,7 @@ async fn ignores_unsolicited_responses() {
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
         enable_handshaking: true,
-        message_filter: MessageFilter::with_all_auto_reply(),
+        message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     })
     .await
@@ -202,6 +202,7 @@ async fn ignores_unsolicited_responses() {
     ];
 
     for message in test_messages {
+        // Send the unsolicited message.
         synthetic_node
             .send_direct_message(node.addr(), message)
             .await
@@ -211,6 +212,7 @@ async fn ignores_unsolicited_responses() {
         synthetic_node.assert_ping_pong(node.addr()).await;
     }
 
+    // Gracefully shut down the nodes.
     synthetic_node.shut_down();
     node.stop().await;
 }
