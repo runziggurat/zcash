@@ -14,10 +14,11 @@ use crate::{
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
 };
 
+use parking_lot::Mutex;
+
 use tokio::{
     net::TcpListener,
     process::{Child, Command},
-    sync::Mutex,
 };
 
 use std::{fs, net::SocketAddr, process::Stdio, sync::Arc};
@@ -172,22 +173,34 @@ impl Node {
                 socket_addr: _,
                 block_count,
             } if self.meta.kind == NodeKind::Zebra => {
-                // not supported for zebra yet, so we just wait for connection at least
+                // The seeding implemented here is cumbersome. This is mostly due
+                // to the Zebra not exiting "network-setup" mode unless is has at least
+                // four active peers connected (this is speculation, but backed up by results).
+                //
+                // This means we need to have four concurrent peers, actively responding. Zebra will
+                // then at some point request the relevant block data from some of the peers. This can
+                // be pretty random so all peers need to be able to seed the block data.
+                //
+                // We can end this process once the data for each of the desired blocks has been sent by
+                // at least one of the peer nodes.
+                //
+                // This is heavily dependent on which messages the Zebra node will actually send in this state,
+                // and any changes in Zebra will likely result in having to re-do this.
+
+                // Wait for the node to become active
                 respond_to_handshake(listener.unwrap()).await.unwrap();
                 // if no blocks need to get sent, no further action is required
                 if block_count == 0 {
                     return;
                 }
 
-                let addr = self.addr();
-
-                let mut handles = Vec::new();
-
-                // Check which blocks we have sent, so that we can know when we are done.
+                // Marks which blocks have been sent (we are done once all are true)
                 let blocks_sent = Arc::new(Mutex::new(vec![false; block_count]));
 
                 // Spin up four concurrent peers - this seems to be the magic number to get Zebra out of
                 // network-setup stage - which means it will actually request Block data.
+                let mut handles = Vec::new();
+                let addr = self.addr();
                 for _ in 0..4 {
                     let sent = blocks_sent.clone();
                     handles.push(tokio::spawn(async move {
@@ -236,6 +249,11 @@ impl Node {
                                 }
                                 Message::GetData(inv) => {
                                     for hash in inv.inventory {
+                                        // Find and send the requested seed block.
+                                        //
+                                        // If the requested inventory is not one of our seed blocks then
+                                        // something has gone very wrong (since that is all the node
+                                        // should ever be informed about).
                                         let index = seed_inv
                                             .iter()
                                             .position(|seed_hash| *seed_hash == hash)
@@ -244,8 +262,8 @@ impl Node {
                                             .write_to_stream(&mut stream)
                                             .await
                                             .unwrap();
-
-                                        let mut blocks_sent = sent.lock().await;
+                                        // Mark block as sent
+                                        let mut blocks_sent = sent.lock();
                                         blocks_sent[index] = true;
                                     }
                                 }
@@ -257,8 +275,8 @@ impl Node {
                                 }
                             }
 
-                            // check if we are done sending it all
-                            let blocks_sent = sent.lock().await;
+                            // We are done once all blocks have been seeded
+                            let blocks_sent = sent.lock();
                             if blocks_sent.iter().all(|b| *b) {
                                 break;
                             }

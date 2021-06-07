@@ -694,16 +694,13 @@ async fn get_blocks() {
         socket_addr: new_local_addr(),
         block_count: 3,
     })
-    // .log_to_stdout(true)
     .start()
     .await;
-
-    println!("Starting test!");
 
     let blocks = Block::initial_testnet_blocks();
 
     let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply().enable_logging();
+    let filter = MessageFilter::with_all_auto_reply();
 
     // Test unlimited range queries, where given the hash for block i we expect all
     // of its children as a reply. This does not apply for the last block in the chain,
