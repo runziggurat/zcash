@@ -539,6 +539,7 @@ fn encode_messages_and_corrupt_body_length_field(
             let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
             header.body_length = random_non_valid_u32(rng, header.body_length);
             header.encode(&mut buffer).unwrap();
+            buffer.append(&mut body_buffer);
 
             buffer
         })
