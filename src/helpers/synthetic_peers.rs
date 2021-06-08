@@ -17,6 +17,7 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
     time::timeout,
 };
+use tracing::*;
 
 use std::{
     io::{Cursor, Error, ErrorKind, Result},
@@ -229,15 +230,24 @@ impl Reading for InnerNode {
     }
 
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
+        let span = self.node().span().clone();
+
+        debug!(parent: span.clone(), "processing {:?}", message);
         match self.message_filter.message_filter_type(&message) {
             Filter::AutoReply => {
                 // Autoreply with the appropriate response.
                 let response = self.message_filter.reply_message(&message);
+
+                debug!(parent: span, "auto replying with {:?}", response);
                 self.send_direct_message(source, response).await?;
             }
 
             Filter::Disabled => {
                 // Send the message to the node's inbound queue.
+                debug!(
+                    parent: span,
+                    "sending the message to the node's inbound queue"
+                );
                 self.inbound_tx
                     .send((source, message))
                     .await
@@ -247,6 +257,7 @@ impl Reading for InnerNode {
             Filter::Enabled => {
                 // Ignore the message.
                 // FIXME: logging?
+                debug!(parent: span, "message was ignored by the filter");
             }
         }
 
