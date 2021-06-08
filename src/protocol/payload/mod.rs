@@ -20,6 +20,8 @@ pub use version::Version;
 pub mod reject;
 pub use reject::Reject;
 
+use crate::protocol::message::constants::MAX_MESSAGE_LEN;
+
 use self::codec::Codec;
 
 pub mod codec;
@@ -119,6 +121,16 @@ impl Codec for VarInt {
             0xff => u64::from_le_bytes(read_n_bytes(bytes)?) as u64,
         };
 
+        if len > MAX_MESSAGE_LEN as u64 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "VarInt length of {} exceeds max message length of {}",
+                    len, MAX_MESSAGE_LEN
+                ),
+            ));
+        }
+
         Ok(VarInt(len as usize))
     }
 }
@@ -136,10 +148,23 @@ impl VarStr {
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let str_len = VarInt::decode(bytes)?;
+
+        if *str_len > MAX_MESSAGE_LEN {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "VarStr length of {} exceeds max message length of {}",
+                    *str_len, MAX_MESSAGE_LEN
+                ),
+            ));
+        }
+
         let mut buffer = vec![0u8; str_len.0];
         bytes.read_exact(&mut buffer)?;
 
-        Ok(VarStr(String::from_utf8(buffer).expect("invalid utf-8")))
+        Ok(VarStr(String::from_utf8(buffer).map_err(|err| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+        })?))
     }
 }
 
