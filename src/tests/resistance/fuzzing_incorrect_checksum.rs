@@ -374,6 +374,7 @@ fn encode_messages_and_corrupt_checksum(
             let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
             header.checksum = random_non_valid_u32(rng, header.checksum);
             header.encode(&mut buffer).unwrap();
+            buffer.append(&mut body_buffer);
 
             buffer
         })
