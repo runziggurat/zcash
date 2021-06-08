@@ -1,7 +1,7 @@
 use crate::{
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
-        message::Message,
+        message::{constants::HEADER_LEN, Message},
         payload::{codec::Codec, Version},
     },
     setup::{
@@ -368,8 +368,10 @@ fn encode_messages_and_corrupt_checksum(
         .map(|_| {
             let message = message_pool.choose(rng).unwrap();
 
-            let mut buffer = vec![];
-            let mut header = message.encode(&mut buffer).unwrap();
+            let mut body_buffer = Vec::new();
+            let mut header = message.encode(&mut body_buffer).unwrap();
+
+            let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
             header.checksum = random_non_valid_u32(rng, header.checksum);
             header.encode(&mut buffer).unwrap();
 
