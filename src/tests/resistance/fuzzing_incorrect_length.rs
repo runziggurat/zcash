@@ -1,7 +1,7 @@
 use crate::{
     helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
     protocol::{
-        message::Message,
+        message::{constants::HEADER_LEN, Message},
         payload::{codec::Codec, Version},
     },
     setup::{
@@ -533,8 +533,10 @@ fn encode_messages_and_corrupt_body_length_field(
         .map(|_| {
             let message = message_pool.choose(rng).unwrap();
 
-            let mut buffer = vec![];
-            let mut header = message.encode(&mut buffer).unwrap();
+            let mut body_buffer = Vec::new();
+            let mut header = message.encode(&mut body_buffer).unwrap();
+
+            let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
             header.body_length = random_non_valid_u32(rng, header.body_length);
             header.encode(&mut buffer).unwrap();
 
