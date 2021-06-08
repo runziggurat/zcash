@@ -87,7 +87,12 @@ impl Codec for ObjectKind {
             1 => Self::Tx,
             2 => Self::Block,
             3 => Self::FilteredBlock,
-            _ => unreachable!(),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ObjectKind is not known",
+                ))
+            }
         };
 
         Ok(kind)
