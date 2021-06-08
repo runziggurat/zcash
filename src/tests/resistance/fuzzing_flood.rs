@@ -12,7 +12,7 @@ use tokio::{sync::mpsc::Sender, time::Duration};
 use crate::{
     helpers::{initiate_handshake, is_rejection_error, is_termination_error},
     protocol::{
-        message::{filter::MessageFilter, Message},
+        message::{constants::MAGIC, filter::MessageFilter, Message, MessageHeader},
         payload::{
             block::{Block, Headers, LocatorHashes},
             codec::Codec,
@@ -429,12 +429,17 @@ fn generate_corrupt_messages(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
 }
 
 fn is_valid_message_bytes(bytes: &mut std::io::Cursor<&[u8]>) -> bool {
-    let mut cmd = [0; 12];
-    if bytes.read_exact(&mut cmd).is_err() {
+    let header = match MessageHeader::decode(bytes) {
+        Ok(header) => header,
+        Err(_) => return false,
+    };
+
+    // check magic
+    if header.magic != MAGIC {
         return false;
     }
 
-    Message::decode(cmd, bytes).is_ok()
+    Message::decode(header.command, bytes).is_ok()
 }
 
 async fn simulate_peer(

@@ -17,7 +17,7 @@ use std::io::{Cursor, Result, Write};
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
-    magic: [u8; 4],
+    pub magic: [u8; 4],
     pub command: [u8; 12],
     pub body_length: u32,
     pub checksum: u32,
