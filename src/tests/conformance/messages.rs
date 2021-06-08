@@ -379,33 +379,52 @@ async fn basic_query_response_unseeded() {
     //
     // Current behaviour:
     //
-    //  zcashd: Ignores `GetData(block_hash)`
-    //
     //  zebra: DDoS spam due to auto-response
+    //  zcashd: Ignores `GetData(block_hash)`
 
+    crate::helpers::enable_tracing();
+
+    // GetData messages...
+    let messages = vec![
+        // ...with a tx hash...
+        Message::GetData(Inv::new(vec![Block::testnet_genesis().txs[0].inv_hash()])),
+        // ...and with a block hash.
+        Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()])),
+    ];
+
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
-    let genesis_block = Block::testnet_genesis();
+    // Create a synthetic node with message filtering.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_enabled(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::NotFound(..));
+    // Connect to the node and initiate the handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-    Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::NotFound(..));
+    for message in messages {
+        // Send GetData.
+        synthetic_node
+            .send_direct_message(node.addr(), message)
+            .await
+            .unwrap();
 
+        // Assert NotFound is returned.
+        // FIXME: assert on hash?
+        let (_, reply) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(reply, Message::NotFound(..));
+    }
+
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
