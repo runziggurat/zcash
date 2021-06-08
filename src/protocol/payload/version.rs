@@ -1,8 +1,8 @@
 use crate::protocol::payload::{
-    addr::NetworkAddr, codec::Codec, read_n_bytes, Nonce, ProtocolVersion, VarStr,
+    addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
 };
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 use std::{
     io::{self, Cursor, Write},
@@ -73,8 +73,7 @@ impl Codec for Version {
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
         let services = u64::from_le_bytes(read_n_bytes(bytes)?);
-        let timestamp = i64::from_le_bytes(read_n_bytes(bytes)?);
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+        let timestamp = read_timestamp(bytes)?;
 
         let addr_recv = NetworkAddr::decode_without_timestamp(bytes)?;
         let addr_from = NetworkAddr::decode_without_timestamp(bytes)?;
@@ -88,7 +87,7 @@ impl Codec for Version {
         Ok(Self {
             version,
             services,
-            timestamp: dt,
+            timestamp,
             addr_recv,
             addr_from,
             nonce,
