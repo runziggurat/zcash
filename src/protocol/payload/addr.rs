@@ -1,8 +1,8 @@
-use crate::protocol::payload::{codec::Codec, read_n_bytes};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
 
 use std::convert::TryInto;
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 use std::{
     io::{self, Cursor, Read, Write},
@@ -115,13 +115,11 @@ impl Codec for NetworkAddr {
     }
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let timestamp = u32::from_le_bytes(read_n_bytes(bytes)?);
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp.into(), 0), Utc);
-
+        let timestamp = read_timestamp(bytes)?;
         let without_timestamp = Self::decode_without_timestamp(bytes)?;
 
         Ok(Self {
-            last_seen: Some(dt),
+            last_seen: Some(timestamp),
             ..without_timestamp
         })
     }
