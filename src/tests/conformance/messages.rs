@@ -1,6 +1,5 @@
 use crate::{
     helpers::{
-        initiate_handshake,
         synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
         TIMEOUT,
     },
@@ -25,9 +24,8 @@ use crate::{
 };
 
 use assert_matches::assert_matches;
-use tokio::time::timeout;
 
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 #[tokio::test]
 async fn ping_pong() {
@@ -1102,31 +1100,5 @@ async fn get_data_blocks() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
-}
-
-#[allow(dead_code)]
-async fn unsolicitation_listener() {
-    let mut node: Node = Default::default();
-    node.start().await;
-
-    let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
-
-    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-    for _ in 0usize..10 {
-        let result = timeout(
-            Duration::from_secs(5),
-            auto_responder.read_from_stream(&mut peer_stream),
-        )
-        .await;
-
-        match result {
-            Err(elapsed) => println!("Timeout after {}", elapsed),
-            Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-            Ok(Err(err)) => println!("Error receiving message: {:?}", err),
-        }
-    }
-
     node.stop().await;
 }
