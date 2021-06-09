@@ -1020,7 +1020,6 @@ async fn get_data_blocks() {
         socket_addr: new_local_addr(),
         block_count: 3,
     })
-    .log_to_stdout(true)
     .start()
     .await;
 
@@ -1037,35 +1036,46 @@ async fn get_data_blocks() {
         .collect::<Vec<_>>();
 
     // Establish a peer node
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     // Query for the first i blocks
     for i in 0..blocks.len() {
-        Message::GetData(Inv::new(inv_blocks[..=i].to_vec()))
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetData(Inv::new(inv_blocks[..=i].to_vec())),
+            )
             .await
             .unwrap();
+
         // Expect the i blocks
         for j in 0..=i {
-            match filter.read_from_stream(&mut stream).await.unwrap() {
-                Message::Block(block) => assert_eq!(block, blocks[j], "run {}, {}", i, j),
-                messsage => panic!("Expected Block, but got: {:?}", messsage),
-            }
+            let (_, block) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+            let block = assert_matches!(block, Message::Block(block) => block);
+            assert_eq!(block, blocks[j], "run {}, {}", i, j);
         }
     }
 
     // Query for a non-existant block
     let non_existant = InvHash::new(ObjectKind::Block, Hash::new([17; 32]));
     let non_existant_inv = Inv::new(vec![non_existant]);
-    Message::GetData(non_existant_inv.clone())
-        .write_to_stream(&mut stream)
+
+    synthetic_node
+        .send_direct_message(node.addr(), Message::GetData(non_existant_inv.clone()))
         .await
         .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::NotFound(not_found) => assert_eq!(not_found, non_existant_inv),
-        messsage => panic!("Expected NotFound, but got: {:?}", messsage),
-    }
+
+    let (_, not_found) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let not_found = assert_matches!(not_found, Message::NotFound(not_found) => not_found);
+    assert_eq!(not_found, non_existant_inv);
 
     // Query a mixture of existing and non-existing blocks
     let mut mixed_blocks = inv_blocks;
@@ -1080,16 +1090,18 @@ async fn get_data_blocks() {
         Message::NotFound(non_existant_inv),
     ];
 
-    Message::GetData(Inv::new(mixed_blocks))
-        .write_to_stream(&mut stream)
+    synthetic_node
+        .send_direct_message(node.addr(), Message::GetData(Inv::new(mixed_blocks)))
         .await
         .unwrap();
 
     for expect in expected {
-        let message = filter.read_from_stream(&mut stream).await.unwrap();
+        let (_, message) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_eq!(message, expect);
     }
 
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
