@@ -1,6 +1,6 @@
 use crate::{
     helpers::{
-        autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
+        initiate_handshake,
         synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
         TIMEOUT,
     },
@@ -547,83 +547,76 @@ async fn eagerly_crawls_network_for_peers() {
     //  4. Send set of peer listener node addresses
     //  5. Expect the node to connect to each peer in the set
     //
-    // This test currently fails for zcashd; zebra fails (with a caveat).
+    // zcashd: Has different behaviour depending on connection direction.
+    //         If we initiate the main connection it sends Ping, GetHeaders,
+    //         but never GetAddr.
+    //         If the node initiates then it does send GetAddr, but it never connects
+    //         to the peers.
     //
-    // Current behaviour:
+    // zebra:  Fails, unless we keep responding on the main connection.
+    //         If we do not keep responding then the peer connections take really long to establish,
+    //         failing the test completely.
     //
-    //  zcashd: Has different behaviour depending on connection direction.
-    //          If we initiate the main connection it sends Ping, GetHeaders,
-    //          but never GetAddr.
-    //          If the node initiates then it does send GetAddr, but it never connects
-    //          to the peers.
-    //
-    // zebra:   Fails, unless we keep responding on the main connection.
-    //          If we do not keep responding then the peer connections take really long to establish,
-    //          failing the test completely.
-    //
-    //          Related issues: https://github.com/ZcashFoundation/zebra/pull/2154
-    //                          https://github.com/ZcashFoundation/zebra/issues/2163
+    //         Related issues: https://github.com/ZcashFoundation/zebra/pull/2154
+    //                         https://github.com/ZcashFoundation/zebra/issues/2163
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::new();
-    for _ in 0u8..5 {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
-    }
-
-    // get list of peer addresses
-    let peer_addresses = listeners
-        .iter()
-        .map(|listener| listener.local_addr().unwrap())
-        .collect::<Vec<_>>();
-
-    // start the node
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
         .start()
         .await;
 
-    // Start peer listeners which "pass" once they've accepted a connection, and
-    // "fail" if the timeout expires. We expect this to happen quite quickly since
-    // the node currently has very few active peers.
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for listener in listeners {
-        peer_handles.push(tokio::time::timeout(
-            tokio::time::Duration::from_secs(20),
-            tokio::spawn(async move {
-                respond_to_handshake(listener).await.unwrap();
-            }),
-        ));
+    // Create 5 synthetic nodes.
+    let mut synthetic_nodes = Vec::with_capacity(4);
+    for _ in 0..synthetic_nodes.len() {
+        let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        synthetic_nodes.push(synthetic_node);
     }
 
-    // connect to the node main
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
+    // Collect their addrs.
+    let addrs = synthetic_nodes
+        .iter()
+        .map(|node| node.listening_addr())
+        .map(|addr| NetworkAddr::new(addr))
+        .collect::<Vec<_>>();
 
-    // wait for the `GetAddr`, filter out all other queries.
-    let filter = MessageFilter::with_all_auto_reply()
-        .enable_logging()
-        .with_getaddr_filter(Filter::Disabled);
+    // Adjust the config so it lets through GetAddr message and start a "main" synthetic node which
+    // will provide the peer list.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply().with_getaddr_filter(Filter::Disabled),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    // reply with list of peer addresses
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::GetAddr => {
-            let peers = peer_addresses
-                .iter()
-                .map(|addr| NetworkAddr::new(*addr))
-                .collect::<Vec<_>>();
+    // Connect and handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-            Message::Addr(Addr::new(peers))
-                .write_to_stream(&mut stream)
-                .await
-                .unwrap();
-        }
-        message => panic!("Expected Message::GetAddr, but got {:?}", message),
+    // Expect GetAddr.
+    let (_, getaddr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    assert_matches!(getaddr, Message::GetAddr);
+
+    // Respond with peer list.
+    synthetic_node
+        .send_direct_message(node.addr(), Message::Addr(Addr::new(addrs)))
+        .await
+        .unwrap();
+
+    // Expect the synthetic nodes to get a connection request from the node.
+    for node in synthetic_nodes {
+        wait_until!(TIMEOUT, node.num_connected() == 1);
+        node.shut_down();
     }
 
-    // Wait for peer futures to complete
-    for handle in peer_handles {
-        handle.await.unwrap().unwrap();
-    }
-
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
