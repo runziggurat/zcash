@@ -913,63 +913,76 @@ async fn correctly_lists_blocks() {
         vec![hashes[2], hashes[1], hashes[0]],
     ];
 
-    // Establish a peer node
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
+    // Establish a peer node.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     // Query for all blocks from i onwards (stop_hash = [0])
     for i in 0..expected.len() {
-        Message::GetHeaders(LocatorHashes::new(locator[i].clone(), Hash::zeroed()))
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetHeaders(LocatorHashes::new(locator[i].clone(), Hash::zeroed())),
+            )
             .await
             .unwrap();
 
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Headers(headers) => assert_eq!(
-                headers.headers,
-                expected[(i + 1)..],
-                "test for Headers([{}..])",
-                i
-            ),
-            messsage => panic!("Expected Headers, but got: {:?}", messsage),
-        }
+        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let headers = assert_matches!(headers, Message::Headers(headers) => headers);
+        assert_eq!(
+            headers.headers,
+            expected[(i + 1)..],
+            "test for Headers([{}..])",
+            i
+        );
     }
 
     // Query for all possible valid ranges
     let ranges: Vec<(usize, usize)> = vec![(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)];
     for (start, stop) in ranges {
-        Message::GetHeaders(LocatorHashes::new(locator[start].clone(), hashes[stop]))
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetHeaders(LocatorHashes::new(locator[start].clone(), hashes[stop])),
+            )
             .await
             .unwrap();
 
         // We use start+1 because Headers should list the blocks starting *after* the
         // final location in GetHeaders, and up (and including) the stop-hash.
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Headers(headers) => assert_eq!(
-                headers.headers,
-                expected[start + 1..=stop],
-                "test for Headers([{}..={}])",
-                start + 1,
-                stop
-            ),
-            messsage => panic!("Expected Headers, but got: {:?}", messsage),
-        }
+        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let headers = assert_matches!(headers, Message::Headers(headers) => headers);
+        assert_eq!(
+            headers.headers,
+            expected[start + 1..=stop],
+            "test for Headers([{}..={}])",
+            start + 1,
+            stop
+        );
     }
 
     // Query as if from a fork. We replace [2], and expect to be corrected
     let mut fork_locator = locator[1].clone();
     fork_locator.insert(0, Hash::new([17; 32]));
-    Message::GetHeaders(LocatorHashes::new(fork_locator, Hash::zeroed()))
-        .write_to_stream(&mut stream)
+
+    synthetic_node
+        .send_direct_message(
+            node.addr(),
+            Message::GetHeaders(LocatorHashes::new(fork_locator, Hash::zeroed())),
+        )
         .await
         .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Headers(headers) => {
-            assert_eq!(headers.headers, expected[2..], "test for forked Headers")
-        }
-        messsage => panic!("Expected Headers, but got: {:?}", messsage),
-    }
+
+    let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let headers = assert_matches!(headers, Message::Headers(headers) => headers);
+    assert_eq!(headers.headers, expected[2..], "test for forked Headers");
 
     node.stop().await;
 }
