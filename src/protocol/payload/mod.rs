@@ -1,3 +1,4 @@
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rand::{thread_rng, Rng};
 
 use std::io::{self, Cursor, Read, Write};
@@ -18,6 +19,8 @@ pub use version::Version;
 
 pub mod reject;
 pub use reject::Reject;
+
+use crate::protocol::message::constants::MAX_MESSAGE_LEN;
 
 use self::codec::Codec;
 
@@ -118,6 +121,16 @@ impl Codec for VarInt {
             0xff => u64::from_le_bytes(read_n_bytes(bytes)?) as u64,
         };
 
+        if len > MAX_MESSAGE_LEN as u64 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "VarInt length of {} exceeds max message length of {}",
+                    len, MAX_MESSAGE_LEN
+                ),
+            ));
+        }
+
         Ok(VarInt(len as usize))
     }
 }
@@ -135,10 +148,23 @@ impl VarStr {
 
     fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let str_len = VarInt::decode(bytes)?;
+
+        if *str_len > MAX_MESSAGE_LEN {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "VarStr length of {} exceeds max message length of {}",
+                    *str_len, MAX_MESSAGE_LEN
+                ),
+            ));
+        }
+
         let mut buffer = vec![0u8; str_len.0];
         bytes.read_exact(&mut buffer)?;
 
-        Ok(VarStr(String::from_utf8(buffer).expect("invalid utf-8")))
+        Ok(VarStr(String::from_utf8(buffer).map_err(|err| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+        })?))
     }
 }
 
@@ -175,4 +201,11 @@ pub fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8
     bytes.read_exact(&mut buffer)?;
 
     Ok(buffer)
+}
+
+pub fn read_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<DateTime<Utc>> {
+    let timestamp_i64 = i64::from_le_bytes(read_n_bytes(bytes)?);
+    let timestamp = NaiveDateTime::from_timestamp_opt(timestamp_i64, 0)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Bad UTC timestamp"))?;
+    Ok(DateTime::<Utc>::from_utc(timestamp, Utc))
 }

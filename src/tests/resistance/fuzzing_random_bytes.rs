@@ -446,7 +446,7 @@ async fn metadata_compliant_random_bytes_post_handshake() {
 }
 
 // Random length, random bytes.
-fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
+pub fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
             let random_len: usize = rng.gen_range(1..(64 * 1024));
@@ -458,7 +458,7 @@ fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
 }
 
 // Valid message header, random bytes as message.
-fn metadata_compliant_random_bytes(
+pub fn metadata_compliant_random_bytes(
     rng: &mut ChaCha8Rng,
     n: usize,
     commands: &[[u8; 12]],

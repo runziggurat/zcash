@@ -17,7 +17,7 @@ use std::io::{Cursor, Result, Write};
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
-    magic: [u8; 4],
+    pub magic: [u8; 4],
     pub command: [u8; 12],
     pub body_length: u32,
     pub checksum: u32,
@@ -168,7 +168,12 @@ impl Message {
             MEMPOOL_COMMAND => Self::MemPool,
             TX_COMMAND => Self::Tx(Tx::decode(bytes)?),
             REJECT_COMMAND => Self::Reject(Reject::decode(bytes)?),
-            _ => unimplemented!(),
+            cmd => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("Unknown command string: {:?}", cmd),
+                ))
+            }
         };
 
         Ok(message)

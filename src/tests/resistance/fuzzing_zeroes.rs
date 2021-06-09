@@ -225,7 +225,7 @@ async fn zeroes_post_handshake() {
 }
 
 // Random length zeroes.
-fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
+pub fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
             let random_len: usize = rng.gen_range(1..(MAX_MESSAGE_LEN * 2));
