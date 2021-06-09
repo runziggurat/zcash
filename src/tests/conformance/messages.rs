@@ -21,6 +21,7 @@ use crate::{
         config::new_local_addr,
         node::{Action, Node},
     },
+    wait_until,
 };
 
 use assert_matches::assert_matches;
@@ -382,8 +383,6 @@ async fn basic_query_response_unseeded() {
     //  zebra: DDoS spam due to auto-response
     //  zcashd: Ignores `GetData(block_hash)`
 
-    crate::helpers::enable_tracing();
-
     // GetData messages...
     let messages = vec![
         // ...with a tx hash...
@@ -458,79 +457,79 @@ async fn disconnects_for_trivial_issues() {
     //  zebra:
     //      Pong            - ignores the message
 
-    // Create a node and main connection
+    // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .log_to_stdout(true)
         .start()
         .await;
 
-    // NOTE: This test case is not exercised due to the extremely long timeout set
-    //       by zcashd - 20minutes.
-    //
-    // Ping with timeout
-    let filter = MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled);
-    // let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    // match filter.read_from_stream(&mut stream).await.unwrap() {
-    //     Message::Ping(_) => {
-    //         match timeout(
-    //             Duration::from_secs(120),
-    //             filter.read_from_stream(&mut stream),
-    //         )
-    //         .await
-    //         {
-    //             Ok(Err(err)) if crate::helpers::is_termination_error(&err) => {}
-    //             result => panic!("Expected termianted connection, but got {:?}", result),
-    //         }
-    //     }
-    //     message => panic!("Unexpected message while waiting for Ping: {:?}", message),
-    // }
+    // Configuration letting through ping messages for the first case.
+    let config = SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled),
+        ..Default::default()
+    };
 
-    // Pong with bad nonce
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Ping(_) => Message::Pong(Nonce::default())
-            .write_to_stream(&mut stream)
-            .await
-            .unwrap(),
+    // Pong with bad nonce.
+    {
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        synthetic_node.connect(node.addr()).await.unwrap();
 
-        message => panic!("Unexpected message while waiting for Ping: {:?}", message),
+        match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+            (_, Message::Ping(_)) => synthetic_node
+                .send_direct_message(node.addr(), Message::Pong(Nonce::default()))
+                .await
+                .unwrap(),
+
+            message => panic!("Unexpected message while waiting for Ping: {:?}", message),
+        }
+
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        synthetic_node.shut_down();
     }
-    autorespond_and_expect_disconnect(&mut stream).await;
 
-    // GetData with mixed inventory
-    let genesis_block = Block::testnet_genesis();
-    let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    Message::GetData(Inv::new(mixed_inv.clone()))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    autorespond_and_expect_disconnect(&mut stream).await;
+    // Update the filter to include ping messages.
+    let config = SyntheticNodeConfig {
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..config
+    };
+
+    // GetData with mixed inventory.
+    {
+        let synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        synthetic_node.connect(node.addr()).await.unwrap();
+
+        let genesis_block = Block::testnet_genesis();
+        let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
+
+        synthetic_node
+            .send_direct_message(node.addr(), Message::GetData(Inv::new(mixed_inv.clone())))
+            .await
+            .unwrap();
+
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        synthetic_node.shut_down();
+    }
 
     // Inv with mixed inventory (using non-genesis block since all node's "should" have genesis already,
-    // which makes advertising it non-sensical)
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let block_1 = Block::testnet_1();
-    let mixed_inv = vec![block_1.inv_hash(), block_1.txs[0].inv_hash()];
-    Message::Inv(Inv::new(mixed_inv))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    autorespond_and_expect_disconnect(&mut stream).await;
+    // which makes advertising it non-sensical).
+    {
+        let synthetic_node = SyntheticNode::new(config).await.unwrap();
+        synthetic_node.connect(node.addr()).await.unwrap();
 
-    // NOTE: Addr with missing timestamp cannot be run without modifying our code currently.
-    //       NetworkAddr::encode will panic due to missing timestamp, so one needs to comment that
-    //       section of code out before running this.
-    //
-    // let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    // let bad_addr = NetworkAddr::new(new_local_addr()).with_last_seen(None);
-    // Message::Addr(Addr::new(vec![bad_addr]))
-    //     .write_to_stream(&mut stream)
-    //     .await
-    //     .unwrap();
-    // autorespond_and_expect_disconnect(&mut stream).await;
+        let block_1 = Block::testnet_1();
+        let mixed_inv = vec![block_1.inv_hash(), block_1.txs[0].inv_hash()];
 
+        synthetic_node
+            .send_direct_message(node.addr(), Message::Inv(Inv::new(mixed_inv)))
+            .await
+            .unwrap();
+
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        synthetic_node.shut_down();
+    }
+
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
