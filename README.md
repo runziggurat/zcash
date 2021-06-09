@@ -90,7 +90,7 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-RESISTANCE-003)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✓    |   ✓   |
-| [006](SPEC.md#ZG-RESISTANCE-006)  |   -    |   -   | ⚠ Not yet implemented
+| [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
 
 ### Resistance: fuzzing random bytes
 
@@ -101,7 +101,7 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-RESISTANCE-003)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✓    |   ✓   |
-| [006](SPEC.md#ZG-RESISTANCE-006)  |   -    |   -   | ⚠ Not yet implemented
+| [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
 
 ### Resistance: fuzzing random payloads
 
@@ -112,7 +112,7 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-RESISTANCE-003)  |   ✖    |   ✖   | Zcashd is extremely slow
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✖    |   ✖   | Zcashd is extremely slow
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✓    |   ✓   |
-| [006](SPEC.md#ZG-RESISTANCE-006)  |   -    |   -   | ⚠ Not yet implemented
+| [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
 
 ### Resistance: fuzzing corrupt messages
 
@@ -123,7 +123,7 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-RESISTANCE-003)  |   ✖    |   ✓   |
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✖    |   ✓   |
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✖    |   ✖   |
-| [006](SPEC.md#ZG-RESISTANCE-006)  |   -    |   -   | ⚠ Not yet implemented
+| [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
 
 ### Resistance: fuzzing corrupt checksum
 
@@ -134,7 +134,7 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-RESISTANCE-003)  |   ✖    |   ✓   |
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✖    |   ✓   |
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✖    |   ✓   |
-| [006](SPEC.md#ZG-RESISTANCE-006)  |   -    |   -   | ⚠ Not yet implemented
+| [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
 
 ### Resistance: fuzzing corrupt length
 
@@ -145,4 +145,4 @@ Short overview of test cases and their current status. In case of failure, the b
 | [003](SPEC.md#ZG-RESISTANCE-003)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✓    |   ✓   |
-| [006](SPEC.md#ZG-RESISTANCE-006)  |   -    |   -   | ⚠ Not yet implemented
+| [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
