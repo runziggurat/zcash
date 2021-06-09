@@ -702,7 +702,6 @@ async fn correctly_lists_peers() {
 
         // Check that ephemeral connections were not gossiped.
         let addrs: Vec<SocketAddr> = addrs.iter().map(|network_addr| network_addr.addr).collect();
-
         assert_eq!(addrs, expected_addrs);
 
         synthetic_node.shut_down();
@@ -759,8 +758,15 @@ async fn get_blocks() {
 
     let blocks = Block::initial_testnet_blocks();
 
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     // Test unlimited range queries, where given the hash for block i we expect all
     // of its children as a reply. This does not apply for the last block in the chain,
@@ -768,60 +774,62 @@ async fn get_blocks() {
     //
     // i.e. Test that GetBlocks(i) -> Inv(i+1..)
     for (i, block) in blocks.iter().enumerate().take(2) {
-        Message::GetBlocks(LocatorHashes::new(
-            vec![block.double_sha256().unwrap()],
-            Hash::zeroed(),
-        ))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetBlocks(LocatorHashes::new(
+                    vec![block.double_sha256().unwrap()],
+                    Hash::zeroed(),
+                )),
+            )
+            .await
+            .unwrap();
 
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Inv(inv) => {
-                // collect inventory hashes for all blocks after i (i's children)
-                let inv_hashes = blocks.iter().skip(i + 1).map(|b| b.inv_hash()).collect();
-                let expected = Inv::new(inv_hashes);
-                assert_eq!(inv, expected);
-            }
-            message => panic!("Expected Inv, but got {:?}", message),
-        }
+        let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let inv = assert_matches!(inv, Message::Inv(inv) => inv);
+
+        // Collect inventory hashes for all blocks after i (i's children) and check the payload
+        // matches.
+        let inv_hashes = blocks.iter().skip(i + 1).map(|b| b.inv_hash()).collect();
+        let expected = Inv::new(inv_hashes);
+        assert_eq!(inv, expected);
     }
 
     // Test that we get no response for the final block in the known-chain
     // (this is the behaviour exhibited by zcashd - a more well-formed response
     // might be sending an empty inventory instead).
-    //
-    // Test message is ignored by sending Ping and receiving Pong.
-    Message::GetBlocks(LocatorHashes::new(
-        vec![blocks.last().unwrap().double_sha256().unwrap()],
-        Hash::zeroed(),
-    ))
-    .write_to_stream(&mut stream)
-    .await
-    .unwrap();
-    let nonce = Nonce::default();
-    Message::Ping(nonce)
-        .write_to_stream(&mut stream)
+    synthetic_node
+        .send_direct_message(
+            node.addr(),
+            Message::GetBlocks(LocatorHashes::new(
+                vec![blocks.last().unwrap().double_sha256().unwrap()],
+                Hash::zeroed(),
+            )),
+        )
         .await
         .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_eq!(reply, Message::Pong(nonce));
+
+    // Test message is ignored by sending Ping and receiving Pong.
+    synthetic_node.assert_ping_pong(node.addr()).await;
 
     // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
-    Message::GetBlocks(LocatorHashes::new(
-        vec![blocks[0].double_sha256().unwrap()],
-        blocks[2].double_sha256().unwrap(),
-    ))
-    .write_to_stream(&mut stream)
-    .await
-    .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Inv(inv) => {
-            let expected = Inv::new(vec![blocks[1].inv_hash()]);
-            assert_eq!(inv, expected);
-        }
-        message => panic!("Expected Inv, but got {:?}", message),
-    }
+    synthetic_node
+        .send_direct_message(
+            node.addr(),
+            Message::GetBlocks(LocatorHashes::new(
+                vec![blocks[0].double_sha256().unwrap()],
+                blocks[2].double_sha256().unwrap(),
+            )),
+        )
+        .await
+        .unwrap();
+
+    let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let inv = assert_matches!(inv, Message::Inv(inv) => inv);
+
+    // Check the payload matches.
+    let expected = Inv::new(vec![blocks[1].inv_hash()]);
+    assert_eq!(inv, expected);
 
     // Test that we get corrected if we are "off chain".
     // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
@@ -834,18 +842,20 @@ async fn get_blocks() {
         ],
         Hash::zeroed(),
     );
-    Message::GetBlocks(locators)
-        .write_to_stream(&mut stream)
+
+    synthetic_node
+        .send_direct_message(node.addr(), Message::GetBlocks(locators))
         .await
         .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Inv(inv) => {
-            let expected = Inv::new(vec![blocks[2].inv_hash()]);
-            assert_eq!(inv, expected);
-        }
-        message => panic!("Expected Inv, but got {:?}", message),
-    }
 
+    let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let inv = assert_matches!(inv, Message::Inv(inv) => inv);
+
+    // Check the payload matches.
+    let expected = Inv::new(vec![blocks[2].inv_hash()]);
+    assert_eq!(inv, expected);
+
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
