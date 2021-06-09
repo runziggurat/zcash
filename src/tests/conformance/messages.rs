@@ -25,9 +25,9 @@ use crate::{
 };
 
 use assert_matches::assert_matches;
-use tokio::{net::TcpListener, time::timeout};
+use tokio::time::timeout;
 
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
 #[tokio::test]
 async fn ping_pong() {
@@ -651,79 +651,66 @@ async fn correctly_lists_peers() {
     //          Can be coaxed into responding by sending a non-empty Addr in
     //          response to node's GetAddr. This still fails as it includes previous inbound
     //          connections in its address book (as in the bug listed above).
-    //
 
-    // Establish N listener peer nodes
-    const PEERS: usize = 5;
-    let mut peers = Vec::with_capacity(PEERS);
-    for _ in 0..PEERS {
-        peers.push(TcpListener::bind(new_local_addr()).await.unwrap())
+    // Create 5 synthetic nodes.
+    const N: usize = 5;
+    let mut synthetic_nodes = Vec::with_capacity(N);
+    for _ in 0..N {
+        let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        synthetic_nodes.push(synthetic_node);
     }
-    let mut peer_addrs = peers
+
+    // Collect their addrs.
+    let expected_addrs: Vec<SocketAddr> = synthetic_nodes
         .iter()
-        .map(|peer| peer.local_addr().unwrap())
-        .collect::<Vec<_>>();
-    peer_addrs.sort_unstable();
-    let mut peer_handles = Vec::with_capacity(peers.len());
-    for peer in peers {
-        peer_handles.push(tokio::spawn(async move {
-            peer.accept().await.unwrap();
-        }));
-    }
+        .map(|node| node.listening_addr())
+        .collect();
 
-    // Start node with an initial set of peers to connect to
+    // Start node with the synthetic nodes as initial peers.
     let mut node: Node = Default::default();
-    node.initial_action(Action::None)
-        .initial_peers(peer_addrs.clone())
+    node.initial_action(Action::WaitForConnection(new_local_addr()))
+        .initial_peers(expected_addrs.clone())
         .start()
         .await;
 
-    // wait for all peers to get connected to
-    for handle in peer_handles {
-        handle.await.unwrap();
+    // Connect to node and request GetAddr. We perform multiple iterations to exercise the #2120
+    // zebra bug.
+    for _ in 0..N {
+        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        synthetic_node.connect(node.addr()).await.unwrap();
+        synthetic_node
+            .send_direct_message(node.addr(), Message::GetAddr)
+            .await
+            .unwrap();
+
+        let (_, addr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let addrs = assert_matches!(addr, Message::Addr(addrs) => addrs);
+
+        // Check that ephemeral connections were not gossiped.
+        let addrs: Vec<SocketAddr> = addrs.iter().map(|network_addr| network_addr.addr).collect();
+
+        assert_eq!(addrs, expected_addrs);
+
+        synthetic_node.shut_down();
     }
 
-    // List of inbound peer addresses (from the nodes perspective).
-    // This is used to test that the node does not gossip these addresses.
-    // (this exercises a known Zebra bug: https://github.com/ZcashFoundation/zebra/pull/2120)
-    let mut inbound = Vec::new();
-
-    // Connect to node and request GetAddr.
-    // We perform multiple iterations in order to exercise the above Zebra bug.
-    for i in 0..5 {
-        let mut stream = initiate_handshake(node.addr()).await.unwrap();
-        inbound.push(stream.local_addr().unwrap());
-
-        Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
-
-        let filter = MessageFilter::with_all_auto_reply();
-
-        match tokio::time::timeout(
-            tokio::time::Duration::from_secs(5),
-            filter.read_from_stream(&mut stream),
-        )
-        .await
-        {
-            Ok(Ok(Message::Addr(addresses))) => {
-                let mut node_peers = addresses.iter().map(|net| net.addr).collect::<Vec<_>>();
-                node_peers.sort_unstable();
-
-                // Check that ephemeral connections were not gossiped. The next check would also catch this, but
-                // this lets us add a more specific message.
-                inbound.iter().for_each(|addr| {
-                    assert!(
-                        !node_peers.contains(addr),
-                        "Iteration {}: Addr contains inbound peer address",
-                        i
-                    )
-                });
-
-                // Only the original peer listeners should be advertised
-                assert_eq!(peer_addrs, node_peers, "Iteration {}:", i);
-            }
-            Ok(result) => panic!("Iteration {}: expected Ok(Addr), but got {:?}", i, result),
-            Err(_timed_out) => panic!("Iteration {}: timeout waiting for `Addr`", i),
-        }
+    // Gracefully shut down nodes.
+    for synthetic_node in synthetic_nodes {
+        synthetic_node.shut_down();
     }
 
     node.stop().await;
