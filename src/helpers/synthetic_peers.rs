@@ -25,7 +25,7 @@ use std::{
     time::Duration,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SyntheticNodeConfig {
     pub network_config: Option<NodeConfig>,
     pub enable_handshaking: bool,
@@ -105,6 +105,13 @@ impl SyntheticNode {
         self.inner_node.node().known_peers()
     }
 
+    /// Sends a direct message to the target address.
+    pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
+        self.inner_node.send_direct_message(target, message).await?;
+
+        Ok(())
+    }
+
     /// Reads a message from the inbound (internal) queue of the node.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
@@ -117,6 +124,7 @@ impl SyntheticNode {
 
     // Attempts to read a message from the inbound (internal) queue of the node before the timeout
     // duration has elapsed (seconds).
+    // FIXME: logging?
     pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<(SocketAddr, Message)> {
         match timeout(Duration::from_secs(secs), self.recv_message()).await {
             Ok(message) => Ok(message),
@@ -127,16 +135,10 @@ impl SyntheticNode {
         }
     }
 
-    /// Sends a direct message to the target address.
-    pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
-        self.inner_node.send_direct_message(target, message).await?;
-
-        Ok(())
-    }
-
     /// Sends a ping, expecting a timely pong response.
     ///
     /// Panics if a correct pong isn't sent before the timeout.
+    /// FIXME: write  general `expect_message` macro.
     pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
         use crate::protocol::payload::Nonce;
 
@@ -256,7 +258,6 @@ impl Reading for InnerNode {
 
             Filter::Enabled => {
                 // Ignore the message.
-                // FIXME: logging?
                 debug!(parent: span, "message was ignored by the filter");
             }
         }
