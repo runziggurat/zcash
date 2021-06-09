@@ -567,8 +567,9 @@ async fn eagerly_crawls_network_for_peers() {
         .await;
 
     // Create 5 synthetic nodes.
-    let mut synthetic_nodes = Vec::with_capacity(4);
-    for _ in 0..synthetic_nodes.len() {
+    const N: usize = 5;
+    let mut synthetic_nodes = Vec::with_capacity(N);
+    for _ in 0..N {
         let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
             enable_handshaking: true,
             message_filter: MessageFilter::with_all_auto_reply(),
