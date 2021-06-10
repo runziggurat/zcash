@@ -204,7 +204,7 @@ impl Node {
                     .collect::<Vec<_>>();
 
                 // respond to GetHeaders(Block[0])
-                match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+                let source = match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
                     (source, Message::GetHeaders(locations)) => {
                         // The request should be from the genesis hash onwards,
                         // i.e. locator_hash = [genesis.hash], stop_hash = [0]
@@ -220,10 +220,12 @@ impl Node {
                             .send_direct_message(source, Message::Headers(Headers::new(headers)))
                             .await
                             .unwrap();
+
+                        source
                     }
 
                     (_, msg) => panic!("Expected GetHeaders but got: {:?}", msg),
-                }
+                };
 
                 // respond to GetData(inv) for the initial blocks
                 match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
@@ -244,6 +246,8 @@ impl Node {
 
                     (_, msg) => panic!("Expected GetData but got: {:?}", msg),
                 }
+
+                synthetic_node.assert_ping_pong(source).await;
             }
         }
 
