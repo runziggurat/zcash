@@ -28,39 +28,6 @@ use assert_matches::assert_matches;
 use std::net::SocketAddr;
 
 #[tokio::test]
-async fn ping_pong() {
-    // Create a synthetic node and enable handshaking.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
-        ..Default::default()
-    })
-    .await
-    .unwrap();
-
-    // Spin up a node.
-    let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .start()
-        .await;
-
-    // Connect to the node and handshake.
-    synthetic_node.connect(node.addr()).await.unwrap();
-
-    // Send ping.
-    let ping_nonce = Nonce::default();
-    synthetic_node
-        .send_direct_message(node.addr(), Message::Ping(ping_nonce))
-        .await
-        .unwrap();
-
-    // Recieve pong and verify the nonce matches.
-    let (_, pong) = synthetic_node.recv_message().await;
-    assert_matches!(pong, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
-
-    node.stop().await;
-}
-
-#[tokio::test]
 async fn reject_invalid_messages() {
     // ZG-CONFORMANCE-008
     //
