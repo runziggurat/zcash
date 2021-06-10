@@ -26,9 +26,7 @@ async fn handshake_responder_side() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node and enable handshaking.
     let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
@@ -107,9 +105,7 @@ async fn ignore_non_version_before_handshake() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
     let config: SyntheticNodeConfig = Default::default();
@@ -407,9 +403,7 @@ async fn reject_obsolete_versions() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Configuration for all synthetic nodes, no handshake, no message filter.
     let config: SyntheticNodeConfig = Default::default();

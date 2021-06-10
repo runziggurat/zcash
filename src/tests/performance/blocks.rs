@@ -112,9 +112,9 @@ async fn getdata_blocks_latency() {
     // with max peers set so that our peers should never be rejected.
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-    .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
-    .start()
-    .await;
+        .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
+        .start()
+        .await;
     let node_addr = node.addr();
 
     for peers in peer_counts {
