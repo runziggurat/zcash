@@ -212,10 +212,7 @@ async fn rising_fuzz() {
     // need for the test. Note that zcashd node appears to reserver 8
     // slots (hence the +10).
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
     .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
     .start()
     .await;

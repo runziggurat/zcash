@@ -66,7 +66,7 @@ async fn reject_invalid_messages() {
 
     // Spin up a node instance (so we have acces to its addr).
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -142,7 +142,7 @@ async fn ignores_unsolicited_responses() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -211,10 +211,7 @@ async fn basic_query_response_seeded() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
     .start()
     .await;
 
@@ -358,7 +355,7 @@ async fn basic_query_response_unseeded() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -424,7 +421,7 @@ async fn disconnects_for_trivial_issues() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -527,7 +524,7 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -640,7 +637,7 @@ async fn correctly_lists_peers() {
 
     // Start node with the synthetic nodes as initial peers.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .initial_peers(expected_addrs.clone())
         .start()
         .await;
@@ -714,10 +711,7 @@ async fn get_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
     .start()
     .await;
 
@@ -854,10 +848,7 @@ async fn correctly_lists_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
     .start()
     .await;
 
@@ -981,10 +972,7 @@ async fn get_data_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
     .start()
     .await;
 

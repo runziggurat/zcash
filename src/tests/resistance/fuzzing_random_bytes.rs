@@ -27,7 +27,7 @@ async fn random_bytes_pre_handshake() {
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -52,7 +52,7 @@ async fn random_bytes_during_handshake_responder_side() {
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -205,7 +205,7 @@ async fn random_bytes_post_handshake() {
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -234,7 +234,7 @@ async fn metadata_compliant_random_bytes_pre_handshake() {
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -262,7 +262,7 @@ async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -428,7 +428,7 @@ async fn metadata_compliant_random_bytes_post_handshake() {
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 

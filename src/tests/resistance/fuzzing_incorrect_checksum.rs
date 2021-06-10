@@ -29,7 +29,7 @@ async fn version_with_incorrect_checksum_pre_handshake() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -63,7 +63,7 @@ async fn incorrect_checksum_pre_handshake() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -98,7 +98,7 @@ async fn version_with_incorrect_checksum_during_handshake_responder_side() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -131,7 +131,7 @@ async fn version_with_incorrect_checksum_post_handshake() {
 
     let mut rng = seeded_rng();
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -165,7 +165,7 @@ async fn incorrect_checksum_during_handshake_responder_side() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -332,7 +332,7 @@ async fn incorrect_checksum_post_handshake() {
 
     let mut rng = seeded_rng();
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 

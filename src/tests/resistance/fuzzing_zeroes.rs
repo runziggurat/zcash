@@ -30,7 +30,7 @@ async fn zeroes_pre_handshake() {
     let payloads = zeroes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -55,7 +55,7 @@ async fn zeroes_during_handshake_responder_side() {
     let payloads = zeroes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -208,7 +208,7 @@ async fn zeroes_post_handshake() {
     let payloads = zeroes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 

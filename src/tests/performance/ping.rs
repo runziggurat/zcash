@@ -116,7 +116,7 @@ async fn ping_pong_latency() {
     // start node, with max peers set so that our peers should
     // never be rejected.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
         .start()
         .await;
