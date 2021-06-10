@@ -213,9 +213,9 @@ async fn rising_fuzz() {
     // slots (hence the +10).
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-    .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
-    .start()
-    .await;
+        .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
+        .start()
+        .await;
 
     let node_addr = node.addr();
 

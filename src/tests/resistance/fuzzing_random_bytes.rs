@@ -27,9 +27,7 @@ async fn random_bytes_pre_handshake() {
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
@@ -52,9 +50,7 @@ async fn random_bytes_during_handshake_responder_side() {
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
@@ -205,9 +201,7 @@ async fn random_bytes_post_handshake() {
     let payloads = random_bytes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
         let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
@@ -234,9 +228,7 @@ async fn metadata_compliant_random_bytes_pre_handshake() {
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     for (header, payload) in payloads {
         let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
@@ -262,9 +254,7 @@ async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     for (header, payload) in payloads {
         let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
@@ -428,9 +418,7 @@ async fn metadata_compliant_random_bytes_post_handshake() {
     let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     for (header, payload) in payloads {
         let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();

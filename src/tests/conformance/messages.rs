@@ -66,9 +66,7 @@ async fn reject_invalid_messages() {
 
     // Spin up a node instance (so we have acces to its addr).
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Generate a mixed Inventory hash set.
     let genesis_block = Block::testnet_genesis();
@@ -142,9 +140,7 @@ async fn ignores_unsolicited_responses() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
@@ -212,8 +208,8 @@ async fn basic_query_response_seeded() {
     // Spin up a node instance.
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-    .start()
-    .await;
+        .start()
+        .await;
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
@@ -355,9 +351,7 @@ async fn basic_query_response_unseeded() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node with message filtering.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
@@ -421,9 +415,7 @@ async fn disconnects_for_trivial_issues() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Configuration letting through ping messages for the first case.
     let config = SyntheticNodeConfig {
@@ -524,9 +516,7 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Create 5 synthetic nodes.
     const N: usize = 5;
@@ -576,6 +566,7 @@ async fn eagerly_crawls_network_for_peers() {
     // Expect the synthetic nodes to get a connection request from the node.
     for node in synthetic_nodes {
         wait_until!(TIMEOUT, node.num_connected() == 1);
+
         node.shut_down();
     }
 
@@ -712,8 +703,8 @@ async fn get_blocks() {
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-    .start()
-    .await;
+        .start()
+        .await;
 
     let blocks = Block::initial_testnet_blocks();
 
@@ -849,8 +840,8 @@ async fn correctly_lists_blocks() {
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-    .start()
-    .await;
+        .start()
+        .await;
 
     // block headers and hashes
     let expected = Block::initial_testnet_blocks()
@@ -973,8 +964,8 @@ async fn get_data_blocks() {
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-    .start()
-    .await;
+        .start()
+        .await;
 
     // block headers and hashes
     let blocks = vec![
