@@ -1,23 +1,17 @@
 use crate::{
-    helpers::{
-        respond_to_handshake,
-        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
-    },
+    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
     protocol::{
         message::filter::{Filter, MessageFilter},
         payload::{
             block::{Block, Headers},
-            Hash, Inv, Nonce,
+            Hash, Inv,
         },
     },
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
     wait_until,
 };
 
-use tokio::{
-    net::TcpListener,
-    process::{Child, Command},
-};
+use tokio::process::{Child, Command};
 
 use std::{fs, net::SocketAddr, process::Stdio};
 
