@@ -30,19 +30,17 @@ pub enum Action {
     /// Waits for the node to connect at the addr, connection is then terminated.
     /// This is useful for indicating that the node has started and is available for
     /// other connections.
-    WaitForConnection(SocketAddr),
+    WaitForConnection,
     /// Seeds the node with `block_count` blocks from the testnet chain, by connecting from a socket
     /// on `socket_addr` and sending the appropriate data. After this, the connection is terminated.
     ///
     /// **Warning**: this currently only works for zcashd type nodes, for zebra the behaviour
     /// is equivalent to WaitForConnection.
-    SeedWithTestnetBlocks {
-        /// The socket address to use when connecting to the node
-        socket_addr: SocketAddr,
+    SeedWithTestnetBlocks(
         /// The number of initial testnet blocks to seed. Note that this is capped by the number of blocks available
         /// from [Block::initial_testnet_blocks].
-        block_count: usize,
-    },
+        usize,
+    ),
 }
 
 /// Represents an instance of a node, its configuration and setup/teardown intricacies.
@@ -125,11 +123,7 @@ impl Node {
         // Setup the listener if there is some initial action required
         let synthetic_node = match self.config.initial_action {
             Action::None => None,
-            Action::WaitForConnection(addr)
-            | Action::SeedWithTestnetBlocks {
-                socket_addr: addr,
-                block_count: _,
-            } => {
+            Action::WaitForConnection | Action::SeedWithTestnetBlocks(_) => {
                 // Start a synthetic node to perform the initial actions.
                 let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
                     enable_handshaking: true,
@@ -179,20 +173,14 @@ impl Node {
 
         match self.config.initial_action {
             Action::None => {}
-            Action::WaitForConnection(_) => {
+            Action::WaitForConnection => {
                 // The synthetic node will accept the connection and handshake by itself.
                 wait_until!(10, synthetic_node.num_connected() == 1);
             }
-            Action::SeedWithTestnetBlocks {
-                socket_addr: _,
-                block_count: _,
-            } if self.meta.kind == NodeKind::Zebra => {
+            Action::SeedWithTestnetBlocks(_) if self.meta.kind == NodeKind::Zebra => {
                 unimplemented!("zebra doesn't support block seeding");
             }
-            Action::SeedWithTestnetBlocks {
-                socket_addr: _,
-                block_count,
-            } => {
+            Action::SeedWithTestnetBlocks(block_count) => {
                 use crate::protocol::message::Message;
 
                 let genesis_block = Block::testnet_genesis();

@@ -26,7 +26,7 @@ async fn handshake_responder_side() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -107,7 +107,7 @@ async fn ignore_non_version_before_handshake() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -407,7 +407,7 @@ async fn reject_obsolete_versions() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 

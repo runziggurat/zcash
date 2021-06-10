@@ -38,7 +38,7 @@ async fn corrupted_version_pre_handshake() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -71,7 +71,7 @@ async fn corrupted_version_during_handshake_responder_side() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -244,7 +244,7 @@ async fn corrupted_version_post_handshake() {
 
     let mut rng = seeded_rng();
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -278,7 +278,7 @@ async fn corrupted_messages_pre_handshake() {
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -305,7 +305,7 @@ async fn corrupted_messages_during_handshake_responder_side() {
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
@@ -465,7 +465,7 @@ async fn corrupted_messages_post_handshake() {
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .start()
         .await;
 
