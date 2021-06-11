@@ -536,8 +536,7 @@ async fn eagerly_crawls_network_for_peers() {
     // Collect their addrs.
     let addrs = synthetic_nodes
         .iter()
-        .map(|node| node.listening_addr())
-        .map(|addr| NetworkAddr::new(addr))
+        .map(|node| NetworkAddr::new(node.listening_addr()))
         .collect::<Vec<_>>();
 
     // Adjust the config so it lets through GetAddr message and start a "main" synthetic node which
@@ -903,7 +902,7 @@ async fn correctly_lists_blocks() {
             .unwrap();
 
         // We use start+1 because Headers should list the blocks starting *after* the
-        // final location in GetHeaders, and up (and including) the stop-hash.
+        // final location in GetHeaders, and up to (and including) the stop-hash.
         let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         let headers = assert_matches!(headers, Message::Headers(headers) => headers);
         assert_eq!(
