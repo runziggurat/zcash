@@ -1,19 +1,17 @@
 use crate::{
-    helpers::respond_to_handshake,
+    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
     protocol::{
         message::filter::{Filter, MessageFilter},
         payload::{
             block::{Block, Headers},
-            Hash, Inv, Nonce,
+            Hash, Inv,
         },
     },
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
+    wait_until,
 };
 
-use tokio::{
-    net::TcpListener,
-    process::{Child, Command},
-};
+use tokio::process::{Child, Command};
 
 use std::{fs, net::SocketAddr, process::Stdio};
 
@@ -26,19 +24,17 @@ pub enum Action {
     /// Waits for the node to connect at the addr, connection is then terminated.
     /// This is useful for indicating that the node has started and is available for
     /// other connections.
-    WaitForConnection(SocketAddr),
+    WaitForConnection,
     /// Seeds the node with `block_count` blocks from the testnet chain, by connecting from a socket
     /// on `socket_addr` and sending the appropriate data. After this, the connection is terminated.
     ///
     /// **Warning**: this currently only works for zcashd type nodes, for zebra the behaviour
     /// is equivalent to WaitForConnection.
-    SeedWithTestnetBlocks {
-        /// The socket address to use when connecting to the node
-        socket_addr: SocketAddr,
+    SeedWithTestnetBlocks(
         /// The number of initial testnet blocks to seed. Note that this is capped by the number of blocks available
         /// from [Block::initial_testnet_blocks].
-        block_count: usize,
-    },
+        usize,
+    ),
 }
 
 /// Represents an instance of a node, its configuration and setup/teardown intricacies.
@@ -119,18 +115,25 @@ impl Node {
         self.cleanup();
 
         // Setup the listener if there is some initial action required
-        let listener = match self.config.initial_action {
+        let synthetic_node = match self.config.initial_action {
             Action::None => None,
-            Action::WaitForConnection(addr)
-            | Action::SeedWithTestnetBlocks {
-                socket_addr: addr,
-                block_count: _,
-            } => {
-                let bound_listener = TcpListener::bind(addr).await.unwrap();
+            Action::WaitForConnection | Action::SeedWithTestnetBlocks(_) => {
+                // Start a synthetic node to perform the initial actions.
+                let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+                    enable_handshaking: true,
+                    message_filter: MessageFilter::with_all_auto_reply()
+                        .with_getheaders_filter(Filter::Disabled)
+                        .with_getdata_filter(Filter::Disabled),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+
                 self.config
                     .initial_peers
-                    .insert(format!("{}", bound_listener.local_addr().unwrap()));
-                Some(bound_listener)
+                    .insert(synthetic_node.listening_addr().to_string());
+
+                Some(synthetic_node)
             }
         };
 
@@ -154,32 +157,25 @@ impl Node {
 
         self.process = Some(process);
 
-        self.perform_initial_action(listener).await;
+        if let Some(synthetic_node) = synthetic_node {
+            self.perform_initial_action(synthetic_node).await;
+        }
     }
 
-    async fn perform_initial_action(&self, listener: Option<TcpListener>) {
+    async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) {
+        const TIMEOUT: u64 = 10;
+
         match self.config.initial_action {
             Action::None => {}
-            Action::WaitForConnection(_) => {
-                listener.unwrap().accept().await.unwrap();
+            Action::WaitForConnection => {
+                // The synthetic node will accept the connection and handshake by itself.
+                wait_until!(TIMEOUT, synthetic_node.num_connected() == 1);
             }
-            Action::SeedWithTestnetBlocks {
-                socket_addr: _,
-                block_count: _,
-            } if self.meta.kind == NodeKind::Zebra => {
-                // not supported for zebra yet, so we just wait for connection at least
-                listener.unwrap().accept().await.unwrap();
+            Action::SeedWithTestnetBlocks(_) if self.meta.kind == NodeKind::Zebra => {
+                unimplemented!("zebra doesn't support block seeding");
             }
-            Action::SeedWithTestnetBlocks {
-                socket_addr: _,
-                block_count,
-            } => {
+            Action::SeedWithTestnetBlocks(block_count) => {
                 use crate::protocol::message::Message;
-                let mut stream = respond_to_handshake(listener.unwrap()).await.unwrap();
-
-                let filter = MessageFilter::with_all_auto_reply()
-                    .with_getheaders_filter(Filter::Disabled)
-                    .with_getdata_filter(Filter::Disabled);
 
                 let genesis_block = Block::testnet_genesis();
                 // initial blocks, skipping genesis as it doesn't get sent
@@ -190,8 +186,8 @@ impl Node {
                     .collect::<Vec<_>>();
 
                 // respond to GetHeaders(Block[0])
-                match filter.read_from_stream(&mut stream).await.unwrap() {
-                    Message::GetHeaders(locations) => {
+                let source = match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+                    (source, Message::GetHeaders(locations)) => {
                         // The request should be from the genesis hash onwards,
                         // i.e. locator_hash = [genesis.hash], stop_hash = [0]
                         assert_eq!(
@@ -202,17 +198,20 @@ impl Node {
 
                         // Reply with headers for the initial block headers
                         let headers = blocks.iter().map(|block| block.header.clone()).collect();
-                        Message::Headers(Headers::new(headers))
-                            .write_to_stream(&mut stream)
+                        synthetic_node
+                            .send_direct_message(source, Message::Headers(Headers::new(headers)))
                             .await
                             .unwrap();
+
+                        source
                     }
-                    msg => panic!("Expected GetHeaders but got: {:?}", msg),
-                }
+
+                    (_, msg) => panic!("Expected GetHeaders but got: {:?}", msg),
+                };
 
                 // respond to GetData(inv) for the initial blocks
-                match filter.read_from_stream(&mut stream).await.unwrap() {
-                    Message::GetData(inv) => {
+                match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+                    (source, Message::GetData(inv)) => {
                         // The request must be for the initial blocks
                         let inv_hashes = blocks.iter().map(|block| block.inv_hash()).collect();
                         let expected = Inv::new(inv_hashes);
@@ -220,27 +219,23 @@ impl Node {
 
                         // Send the blocks
                         for block in blocks {
-                            Message::Block(Box::new(block))
-                                .write_to_stream(&mut stream)
+                            synthetic_node
+                                .send_direct_message(source, Message::Block(Box::new(block)))
                                 .await
                                 .unwrap();
                         }
                     }
-                    msg => panic!("Expected GetData but got: {:?}", msg),
+
+                    (_, msg) => panic!("Expected GetData but got: {:?}", msg),
                 }
 
-                Message::Ping(Nonce::default())
-                    .write_to_stream(&mut stream)
-                    .await
-                    .unwrap();
-                let filter =
-                    MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled);
-                match filter.read_from_stream(&mut stream).await.unwrap() {
-                    Message::Pong(_) => {}
-                    msg => panic!("Expected Pong but got: {:?}", msg),
-                }
+                // Check that the node has received and processed all previous messages.
+                synthetic_node.assert_ping_pong(source).await;
             }
         }
+
+        // Setup is complete, we no longer require this synthetic node.
+        synthetic_node.shut_down();
     }
 
     /// Stops the node instance.

@@ -152,8 +152,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     1. Establish handshaken node and peer.
     2. Send an unsolicited message to be ignored.
-    3. Assert the node ignored the unsolicited message and didn’t drop the connection (not sure how yet, perhaps by sending a ping and verifying that works
-    as intended).
+    3. Assert the node ignored the unsolicited message and didn’t drop the connection.
 
     Messages to be tested: `Reject`, `NotFound`, `Pong`, `Tx`, `Block`, `Header`, `Addr`.
 

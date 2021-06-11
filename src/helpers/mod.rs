@@ -13,6 +13,9 @@ use tokio::{
 
 use std::{net::SocketAddr, time::Duration};
 
+// Default timeout for connection reads in seconds.
+pub const TIMEOUT: u64 = 10;
+
 pub fn enable_tracing() {
     use tracing_subscriber::{fmt, EnvFilter};
 
