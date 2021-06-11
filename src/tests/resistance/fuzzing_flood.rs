@@ -15,10 +15,7 @@ use crate::{
             Hash, Inv, Nonce,
         },
     },
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
-    },
+    setup::node::{Action, Node},
     tests::resistance::{
         default_fuzz_messages,
         fuzzing_corrupted_messages::slightly_corrupted_messages,
