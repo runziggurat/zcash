@@ -169,7 +169,7 @@ impl Node {
             Action::None => {}
             Action::WaitForConnection => {
                 // The synthetic node will accept the connection and handshake by itself.
-                wait_until!(10, synthetic_node.num_connected() == 1);
+                wait_until!(TIMEOUT, synthetic_node.num_connected() == 1);
             }
             Action::SeedWithTestnetBlocks(_) if self.meta.kind == NodeKind::Zebra => {
                 unimplemented!("zebra doesn't support block seeding");
@@ -229,6 +229,7 @@ impl Node {
                     (_, msg) => panic!("Expected GetData but got: {:?}", msg),
                 }
 
+                // Check that the node has received and processed all previous messages.
                 synthetic_node.assert_ping_pong(source).await;
             }
         }
