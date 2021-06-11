@@ -342,11 +342,14 @@ async fn basic_query_response_unseeded() {
     //  zcashd: Ignores `GetData(block_hash)`
 
     // GetData messages...
+    let tx_inv = Inv::new(vec![Block::testnet_genesis().txs[0].inv_hash()]);
+    let block_inv = Inv::new(vec![Block::testnet_2().inv_hash()]);
+
     let messages = vec![
         // ...with a tx hash...
-        Message::GetData(Inv::new(vec![Block::testnet_genesis().txs[0].inv_hash()])),
+        (tx_inv.clone(), Message::GetData(tx_inv)),
         // ...and with a block hash.
-        Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()])),
+        (block_inv.clone(), Message::GetData(block_inv)),
     ];
 
     // Spin up a node instance.
@@ -365,7 +368,7 @@ async fn basic_query_response_unseeded() {
     // Connect to the node and initiate the handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
 
-    for message in messages {
+    for (expected_inv, message) in messages {
         // Send GetData.
         synthetic_node
             .send_direct_message(node.addr(), message)
@@ -375,7 +378,8 @@ async fn basic_query_response_unseeded() {
         // Assert NotFound is returned.
         // FIXME: assert on hash?
         let (_, reply) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-        assert_matches!(reply, Message::NotFound(..));
+        let not_found_inv = assert_matches!(reply, Message::NotFound(inv) => inv);
+        assert_eq!(not_found_inv, expected_inv);
     }
 
     // Gracefully shut down the nodes.
