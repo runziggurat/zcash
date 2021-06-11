@@ -1,7 +1,7 @@
 use crate::{
     helpers::{
-        autorespond_and_expect_disconnect, initiate_handshake, respond_to_handshake,
         synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+        TIMEOUT,
     },
     protocol::{
         message::{
@@ -20,45 +20,12 @@ use crate::{
         config::new_local_addr,
         node::{Action, Node},
     },
+    wait_until,
 };
 
 use assert_matches::assert_matches;
-use tokio::{net::TcpListener, time::timeout};
 
-use std::time::Duration;
-
-#[tokio::test]
-async fn ping_pong() {
-    // Create a synthetic node and enable handshaking.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
-        ..Default::default()
-    })
-    .await
-    .unwrap();
-
-    // Spin up a node.
-    let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .start()
-        .await;
-
-    // Connect to the node and handshake.
-    synthetic_node.connect(node.addr()).await.unwrap();
-
-    // Send ping.
-    let ping_nonce = Nonce::default();
-    synthetic_node
-        .send_direct_message(node.addr(), Message::Ping(ping_nonce))
-        .await
-        .unwrap();
-
-    // Recieve pong and verify the nonce matches.
-    let (_, pong) = synthetic_node.recv_message().await;
-    assert_matches!(pong, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
-
-    node.stop().await;
-}
+use std::net::SocketAddr;
 
 #[tokio::test]
 async fn reject_invalid_messages() {
@@ -68,18 +35,16 @@ async fn reject_invalid_messages() {
     //
     // The following messages should be rejected post-handshake:
     //
-    //      Version     (Duplicate)
-    //      Verack      (Duplicate)
-    //      Inv         (Invalid -- with mixed types)
-    //      FilterLoad  (Obsolete)
-    //      FilterAdd   (Obsolete)
-    //      FilterClear (Obsolete)
+    //     Version     (Duplicate)
+    //     Verack      (Duplicate)
+    //     Inv         (Invalid -- with mixed types)
+    //     FilterLoad  (Obsolete)
+    //     FilterAdd   (Obsolete)
+    //     FilterClear (Obsolete)
     //
-    // TBD: Inv         (Invalid -- with multiple advertised blocks)
-    //      [todo: feedback from zcashd as to what the correct behaviour]
+    //     Inv (tbd)   (Invalid -- with multiple advertised blocks, for zebra this is not an error)
     //
-    // Test procedure:
-    //      For each test message:
+    // Test procedure (for each message):
     //
     //      1. Connect and complete the handshake
     //      2. Send the test message
@@ -87,30 +52,21 @@ async fn reject_invalid_messages() {
     //      4. Receive `Reject(kind)`
     //      5. Assert that `kind` is appropriate for the test message
     //
-    // This test currently fails as neither Zebra nor ZCashd currently fully comply
-    // with this behaviour, so we may need to revise our expectations.
+    // zebra: doesn't send reject and terminates the connection.
+    // zcashd:
     //
-    // TODO: confirm expected behaviour.
-    //
-    // Current behaviour (if we initiate the connection):
-    //  ZCashd:
-    //      Version:            passes
-    //      Verack:             ignored
-    //      Mixed Inv:          ignored
-    //      Multi-Block Inv:    ignored
-    //      FilterLoad:         Reject(Malformed) - needs investigation
-    //      FilterAdd:          Reject(Malformed) - needs investigation
-    //      FilterClear:        ignored
-    //      FilterClear:        ignored
-    //
-    //  Zebra:
-    //      All result in a terminated connection (no reject sent).
+    //     Version:            passes
+    //     Verack:             ignored
+    //     Mixed Inv:          ignored
+    //     Multi-Block Inv:    ignored
+    //     FilterLoad:         Reject(Malformed) - needs investigation
+    //     FilterAdd:          Reject(Malformed) - needs investigation
+    //     FilterClear:        ignored
+    //     FilterClear:        ignored
 
-    // Spin up a node instance.
+    // Spin up a node instance (so we have acces to its addr).
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Generate a mixed Inventory hash set.
     let genesis_block = Block::testnet_genesis();
@@ -135,15 +91,16 @@ async fn reject_invalid_messages() {
         (Message::FilterClear, CCode::Obsolete),
     ];
 
+    // Configuration for all the synthetic nodes.
+    let config = SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_enabled(),
+        ..Default::default()
+    };
+
     for (test_message, expected_ccode) in cases {
         // Start a synthetic node.
-        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            enable_handshaking: true,
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
 
         // Connect and initiate handshake.
         synthetic_node.connect(node.addr()).await.unwrap();
@@ -155,10 +112,14 @@ async fn reject_invalid_messages() {
             .unwrap();
 
         // Expect a Reject(Invalid) message.
-        let (_, message) = synthetic_node.recv_message_timeout(2).await.unwrap();
+        let (_, message) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode);
+
+        // Gracefully shut down the synthetic node.
+        synthetic_node.shut_down();
     }
 
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
@@ -179,14 +140,12 @@ async fn ignores_unsolicited_responses() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
         enable_handshaking: true,
-        message_filter: MessageFilter::with_all_auto_reply(),
+        message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     })
     .await
@@ -205,6 +164,7 @@ async fn ignores_unsolicited_responses() {
     ];
 
     for message in test_messages {
+        // Send the unsolicited message.
         synthetic_node
             .send_direct_message(node.addr(), message)
             .await
@@ -214,12 +174,13 @@ async fn ignores_unsolicited_responses() {
         synthetic_node.assert_ping_pong(node.addr()).await;
     }
 
+    // Gracefully shut down the nodes.
     synthetic_node.shut_down();
     node.stop().await;
 }
 
 #[tokio::test]
-async fn basic_query_response() {
+async fn basic_query_response_seeded() {
     // ZG-CONFORMANCE-010, node is seeded with data
     //
     // The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
@@ -232,81 +193,135 @@ async fn basic_query_response() {
     // `GetData(block_hash)` expects `Blocks`.
     // `GetHeaders` expects `Headers`.
     //
-    // The test currently fails for zcashd and zebra.
+    // zebra: DoS `GetData` spam due to auto-response
+    // zcashd: ignores the following messages
+    //             - GetAddr
+    //             - MemPool
+    //             - GetBlocks
     //
-    // Current behaviour:
+    //         GetData(tx) returns NotFound (which is correct),
+    //         because we currently can't seed a mempool.
     //
-    //  zcashd: Ignores the following messages
-    //              - GetAddr
-    //              - MemPool
-    //              - GetBlocks
-    //
-    //          GetData(tx) returns NotFound (which is correct),
-    //          because we currently can't seed a mempool.
-    //
-    //  zebra: DoS `GetData` spam due to auto-response
 
-    let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
-    .start()
-    .await;
-
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
     let genesis_block = Block::testnet_genesis();
 
-    Message::Ping(Nonce::default())
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Pong(..));
+    // Spin up a node instance.
+    let mut node: Node = Default::default();
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
+        .start()
+        .await;
 
-    Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Addr(..));
-
-    Message::MemPool.write_to_stream(&mut stream).await.unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Inv(..));
-
-    Message::GetBlocks(LocatorHashes::new(
-        vec![genesis_block.double_sha256().unwrap()],
-        Hash::zeroed(),
-    ))
-    .write_to_stream(&mut stream)
+    // Create a synthetic node.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
     .await
     .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Inv(..));
 
-    Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Tx(..));
+    // Connect to the node and initiate handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-    Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Block(..));
+    // Ping/Pong.
+    {
+        let ping_nonce = Nonce::default();
+        synthetic_node
+            .send_direct_message(node.addr(), Message::Ping(ping_nonce))
+            .await
+            .unwrap();
 
-    Message::GetHeaders(LocatorHashes::new(
-        vec![genesis_block.double_sha256().unwrap()],
-        Hash::zeroed(),
-    ))
-    .write_to_stream(&mut stream)
-    .await
-    .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::Headers(..));
+        // Verify the nonce matches.
+        let (_, pong) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(pong, Message::Pong(pong_nonce) if pong_nonce == ping_nonce);
+    }
 
+    // GetAddr/Addr.
+    {
+        synthetic_node
+            .send_direct_message(node.addr(), Message::GetAddr)
+            .await
+            .unwrap();
+
+        let (_, addr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(addr, Message::Addr(..));
+    }
+
+    // MemPool/Inv.
+    {
+        synthetic_node
+            .send_direct_message(node.addr(), Message::MemPool)
+            .await
+            .unwrap();
+
+        let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(inv, Message::Inv(..));
+    }
+
+    // GetBlocks/Inv (requesting testnet genesis).
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetBlocks(LocatorHashes::new(
+                    vec![genesis_block.double_sha256().unwrap()],
+                    Hash::zeroed(),
+                )),
+            )
+            .await
+            .unwrap();
+
+        let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(inv, Message::Inv(..));
+    }
+
+    // GetData/Tx.
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()])),
+            )
+            .await
+            .unwrap();
+
+        let (_, tx) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(tx, Message::Tx(..));
+    }
+
+    // GetData/Block.
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()])),
+            )
+            .await
+            .unwrap();
+
+        let (_, block) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(block, Message::Block(..));
+    }
+
+    // GetHeaders/Headers.
+    {
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetHeaders(LocatorHashes::new(
+                    vec![genesis_block.double_sha256().unwrap()],
+                    Hash::zeroed(),
+                )),
+            )
+            .await
+            .unwrap();
+
+        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        assert_matches!(headers, Message::Headers(..));
+    }
+
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
@@ -323,33 +338,52 @@ async fn basic_query_response_unseeded() {
     //
     // Current behaviour:
     //
-    //  zcashd: Ignores `GetData(block_hash)`
-    //
     //  zebra: DDoS spam due to auto-response
+    //  zcashd: Ignores `GetData(block_hash)`
 
+    // GetData messages...
+    let tx_inv = Inv::new(vec![Block::testnet_genesis().txs[0].inv_hash()]);
+    let block_inv = Inv::new(vec![Block::testnet_2().inv_hash()]);
+
+    let messages = vec![
+        // ...with a tx hash...
+        (tx_inv.clone(), Message::GetData(tx_inv)),
+        // ...and with a block hash.
+        (block_inv.clone(), Message::GetData(block_inv)),
+    ];
+
+    // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
-    let genesis_block = Block::testnet_genesis();
+    // Create a synthetic node with message filtering.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_enabled(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    Message::GetData(Inv::new(vec![genesis_block.txs[0].inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::NotFound(..));
+    // Connect to the node and initiate the handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
 
-    Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_matches!(reply, Message::NotFound(..));
+    for (expected_inv, message) in messages {
+        // Send GetData.
+        synthetic_node
+            .send_direct_message(node.addr(), message)
+            .await
+            .unwrap();
 
+        // Assert NotFound is returned.
+        // FIXME: assert on hash?
+        let (_, reply) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let not_found_inv = assert_matches!(reply, Message::NotFound(inv) => inv);
+        assert_eq!(not_found_inv, expected_inv);
+    }
+
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
@@ -383,79 +417,77 @@ async fn disconnects_for_trivial_issues() {
     //  zebra:
     //      Pong            - ignores the message
 
-    // Create a node and main connection
+    // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .log_to_stdout(true)
-        .start()
-        .await;
+    node.initial_action(Action::WaitForConnection).start().await;
 
-    // NOTE: This test case is not exercised due to the extremely long timeout set
-    //       by zcashd - 20minutes.
-    //
-    // Ping with timeout
-    let filter = MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled);
-    // let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    // match filter.read_from_stream(&mut stream).await.unwrap() {
-    //     Message::Ping(_) => {
-    //         match timeout(
-    //             Duration::from_secs(120),
-    //             filter.read_from_stream(&mut stream),
-    //         )
-    //         .await
-    //         {
-    //             Ok(Err(err)) if crate::helpers::is_termination_error(&err) => {}
-    //             result => panic!("Expected termianted connection, but got {:?}", result),
-    //         }
-    //     }
-    //     message => panic!("Unexpected message while waiting for Ping: {:?}", message),
-    // }
+    // Configuration letting through ping messages for the first case.
+    let config = SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled),
+        ..Default::default()
+    };
 
-    // Pong with bad nonce
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Ping(_) => Message::Pong(Nonce::default())
-            .write_to_stream(&mut stream)
-            .await
-            .unwrap(),
+    // Pong with bad nonce.
+    {
+        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        synthetic_node.connect(node.addr()).await.unwrap();
 
-        message => panic!("Unexpected message while waiting for Ping: {:?}", message),
+        match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+            (_, Message::Ping(_)) => synthetic_node
+                .send_direct_message(node.addr(), Message::Pong(Nonce::default()))
+                .await
+                .unwrap(),
+
+            message => panic!("Unexpected message while waiting for Ping: {:?}", message),
+        }
+
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        synthetic_node.shut_down();
     }
-    autorespond_and_expect_disconnect(&mut stream).await;
 
-    // GetData with mixed inventory
-    let genesis_block = Block::testnet_genesis();
-    let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    Message::GetData(Inv::new(mixed_inv.clone()))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    autorespond_and_expect_disconnect(&mut stream).await;
+    // Update the filter to include ping messages.
+    let config = SyntheticNodeConfig {
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..config
+    };
+
+    // GetData with mixed inventory.
+    {
+        let synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        synthetic_node.connect(node.addr()).await.unwrap();
+
+        let genesis_block = Block::testnet_genesis();
+        let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
+
+        synthetic_node
+            .send_direct_message(node.addr(), Message::GetData(Inv::new(mixed_inv.clone())))
+            .await
+            .unwrap();
+
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        synthetic_node.shut_down();
+    }
 
     // Inv with mixed inventory (using non-genesis block since all node's "should" have genesis already,
-    // which makes advertising it non-sensical)
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let block_1 = Block::testnet_1();
-    let mixed_inv = vec![block_1.inv_hash(), block_1.txs[0].inv_hash()];
-    Message::Inv(Inv::new(mixed_inv))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
-    autorespond_and_expect_disconnect(&mut stream).await;
+    // which makes advertising it non-sensical).
+    {
+        let synthetic_node = SyntheticNode::new(config).await.unwrap();
+        synthetic_node.connect(node.addr()).await.unwrap();
 
-    // NOTE: Addr with missing timestamp cannot be run without modifying our code currently.
-    //       NetworkAddr::encode will panic due to missing timestamp, so one needs to comment that
-    //       section of code out before running this.
-    //
-    // let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    // let bad_addr = NetworkAddr::new(new_local_addr()).with_last_seen(None);
-    // Message::Addr(Addr::new(vec![bad_addr]))
-    //     .write_to_stream(&mut stream)
-    //     .await
-    //     .unwrap();
-    // autorespond_and_expect_disconnect(&mut stream).await;
+        let block_1 = Block::testnet_1();
+        let mixed_inv = vec![block_1.inv_hash(), block_1.txs[0].inv_hash()];
 
+        synthetic_node
+            .send_direct_message(node.addr(), Message::Inv(Inv::new(mixed_inv)))
+            .await
+            .unwrap();
+
+        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        synthetic_node.shut_down();
+    }
+
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
@@ -473,83 +505,75 @@ async fn eagerly_crawls_network_for_peers() {
     //  4. Send set of peer listener node addresses
     //  5. Expect the node to connect to each peer in the set
     //
-    // This test currently fails for zcashd; zebra fails (with a caveat).
+    // zcashd: Has different behaviour depending on connection direction.
+    //         If we initiate the main connection it sends Ping, GetHeaders,
+    //         but never GetAddr.
+    //         If the node initiates then it does send GetAddr, but it never connects
+    //         to the peers.
     //
-    // Current behaviour:
+    // zebra:  Fails, unless we keep responding on the main connection.
+    //         If we do not keep responding then the peer connections take really long to establish,
+    //         failing the test completely.
     //
-    //  zcashd: Has different behaviour depending on connection direction.
-    //          If we initiate the main connection it sends Ping, GetHeaders,
-    //          but never GetAddr.
-    //          If the node initiates then it does send GetAddr, but it never connects
-    //          to the peers.
-    //
-    // zebra:   Fails, unless we keep responding on the main connection.
-    //          If we do not keep responding then the peer connections take really long to establish,
-    //          failing the test completely.
-    //
-    //          Related issues: https://github.com/ZcashFoundation/zebra/pull/2154
-    //                          https://github.com/ZcashFoundation/zebra/issues/2163
+    //         Related issues: https://github.com/ZcashFoundation/zebra/pull/2154
+    //                         https://github.com/ZcashFoundation/zebra/issues/2163
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::new();
-    for _ in 0u8..5 {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // Spin up a node instance.
+    let mut node: Node = Default::default();
+    node.initial_action(Action::WaitForConnection).start().await;
+
+    // Create 5 synthetic nodes.
+    const N: usize = 5;
+    let mut synthetic_nodes = Vec::with_capacity(N);
+    for _ in 0..N {
+        let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        synthetic_nodes.push(synthetic_node);
     }
 
-    // get list of peer addresses
-    let peer_addresses = listeners
+    // Collect their addrs.
+    let addrs = synthetic_nodes
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|node| NetworkAddr::new(node.listening_addr()))
         .collect::<Vec<_>>();
 
-    // start the node
-    let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
-        .start()
-        .await;
+    // Adjust the config so it lets through GetAddr message and start a "main" synthetic node which
+    // will provide the peer list.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply().with_getaddr_filter(Filter::Disabled),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
 
-    // Start peer listeners which "pass" once they've accepted a connection, and
-    // "fail" if the timeout expires. We expect this to happen quite quickly since
-    // the node currently has very few active peers.
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for listener in listeners {
-        peer_handles.push(tokio::time::timeout(
-            tokio::time::Duration::from_secs(20),
-            tokio::spawn(async move {
-                respond_to_handshake(listener).await.unwrap();
-            }),
-        ));
+    // Connect and handshake.
+    synthetic_node.connect(node.addr()).await.unwrap();
+
+    // Expect GetAddr.
+    let (_, getaddr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    assert_matches!(getaddr, Message::GetAddr);
+
+    // Respond with peer list.
+    synthetic_node
+        .send_direct_message(node.addr(), Message::Addr(Addr::new(addrs)))
+        .await
+        .unwrap();
+
+    // Expect the synthetic nodes to get a connection request from the node.
+    for node in synthetic_nodes {
+        wait_until!(TIMEOUT, node.num_connected() == 1);
+
+        node.shut_down();
     }
 
-    // connect to the node main
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-
-    // wait for the `GetAddr`, filter out all other queries.
-    let filter = MessageFilter::with_all_auto_reply()
-        .enable_logging()
-        .with_getaddr_filter(Filter::Disabled);
-
-    // reply with list of peer addresses
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::GetAddr => {
-            let peers = peer_addresses
-                .iter()
-                .map(|addr| NetworkAddr::new(*addr))
-                .collect::<Vec<_>>();
-
-            Message::Addr(Addr::new(peers))
-                .write_to_stream(&mut stream)
-                .await
-                .unwrap();
-        }
-        message => panic!("Expected Message::GetAddr, but got {:?}", message),
-    }
-
-    // Wait for peer futures to complete
-    for handle in peer_handles {
-        handle.await.unwrap().unwrap();
-    }
-
+    // Gracefully shut down the node.
     node.stop().await;
 }
 
@@ -583,79 +607,65 @@ async fn correctly_lists_peers() {
     //          Can be coaxed into responding by sending a non-empty Addr in
     //          response to node's GetAddr. This still fails as it includes previous inbound
     //          connections in its address book (as in the bug listed above).
-    //
 
-    // Establish N listener peer nodes
-    const PEERS: usize = 5;
-    let mut peers = Vec::with_capacity(PEERS);
-    for _ in 0..PEERS {
-        peers.push(TcpListener::bind(new_local_addr()).await.unwrap())
+    // Create 5 synthetic nodes.
+    const N: usize = 5;
+    let mut synthetic_nodes = Vec::with_capacity(N);
+    for _ in 0..N {
+        let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        synthetic_nodes.push(synthetic_node);
     }
-    let mut peer_addrs = peers
+
+    // Collect their addrs.
+    let expected_addrs: Vec<SocketAddr> = synthetic_nodes
         .iter()
-        .map(|peer| peer.local_addr().unwrap())
-        .collect::<Vec<_>>();
-    peer_addrs.sort_unstable();
-    let mut peer_handles = Vec::with_capacity(peers.len());
-    for peer in peers {
-        peer_handles.push(tokio::spawn(async move {
-            peer.accept().await.unwrap();
-        }));
-    }
+        .map(|node| node.listening_addr())
+        .collect();
 
-    // Start node with an initial set of peers to connect to
+    // Start node with the synthetic nodes as initial peers.
     let mut node: Node = Default::default();
-    node.initial_action(Action::None)
-        .initial_peers(peer_addrs.clone())
+    node.initial_action(Action::WaitForConnection)
+        .initial_peers(expected_addrs.clone())
         .start()
         .await;
 
-    // wait for all peers to get connected to
-    for handle in peer_handles {
-        handle.await.unwrap();
+    // Connect to node and request GetAddr. We perform multiple iterations to exercise the #2120
+    // zebra bug.
+    for _ in 0..N {
+        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+            enable_handshaking: true,
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        synthetic_node.connect(node.addr()).await.unwrap();
+        synthetic_node
+            .send_direct_message(node.addr(), Message::GetAddr)
+            .await
+            .unwrap();
+
+        let (_, addr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let addrs = assert_matches!(addr, Message::Addr(addrs) => addrs);
+
+        // Check that ephemeral connections were not gossiped.
+        let addrs: Vec<SocketAddr> = addrs.iter().map(|network_addr| network_addr.addr).collect();
+        assert_eq!(addrs, expected_addrs);
+
+        synthetic_node.shut_down();
     }
 
-    // List of inbound peer addresses (from the nodes perspective).
-    // This is used to test that the node does not gossip these addresses.
-    // (this exercises a known Zebra bug: https://github.com/ZcashFoundation/zebra/pull/2120)
-    let mut inbound = Vec::new();
-
-    // Connect to node and request GetAddr.
-    // We perform multiple iterations in order to exercise the above Zebra bug.
-    for i in 0..5 {
-        let mut stream = initiate_handshake(node.addr()).await.unwrap();
-        inbound.push(stream.local_addr().unwrap());
-
-        Message::GetAddr.write_to_stream(&mut stream).await.unwrap();
-
-        let filter = MessageFilter::with_all_auto_reply();
-
-        match tokio::time::timeout(
-            tokio::time::Duration::from_secs(5),
-            filter.read_from_stream(&mut stream),
-        )
-        .await
-        {
-            Ok(Ok(Message::Addr(addresses))) => {
-                let mut node_peers = addresses.iter().map(|net| net.addr).collect::<Vec<_>>();
-                node_peers.sort_unstable();
-
-                // Check that ephemeral connections were not gossiped. The next check would also catch this, but
-                // this lets us add a more specific message.
-                inbound.iter().for_each(|addr| {
-                    assert!(
-                        !node_peers.contains(addr),
-                        "Iteration {}: Addr contains inbound peer address",
-                        i
-                    )
-                });
-
-                // Only the original peer listeners should be advertised
-                assert_eq!(peer_addrs, node_peers, "Iteration {}:", i);
-            }
-            Ok(result) => panic!("Iteration {}: expected Ok(Addr), but got {:?}", i, result),
-            Err(_timed_out) => panic!("Iteration {}: timeout waiting for `Addr`", i),
-        }
+    // Gracefully shut down nodes.
+    for synthetic_node in synthetic_nodes {
+        synthetic_node.shut_down();
     }
 
     node.stop().await;
@@ -695,17 +705,21 @@ async fn get_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
-    .start()
-    .await;
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
+        .start()
+        .await;
 
     let blocks = Block::initial_testnet_blocks();
 
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     // Test unlimited range queries, where given the hash for block i we expect all
     // of its children as a reply. This does not apply for the last block in the chain,
@@ -713,60 +727,62 @@ async fn get_blocks() {
     //
     // i.e. Test that GetBlocks(i) -> Inv(i+1..)
     for (i, block) in blocks.iter().enumerate().take(2) {
-        Message::GetBlocks(LocatorHashes::new(
-            vec![block.double_sha256().unwrap()],
-            Hash::zeroed(),
-        ))
-        .write_to_stream(&mut stream)
-        .await
-        .unwrap();
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetBlocks(LocatorHashes::new(
+                    vec![block.double_sha256().unwrap()],
+                    Hash::zeroed(),
+                )),
+            )
+            .await
+            .unwrap();
 
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Inv(inv) => {
-                // collect inventory hashes for all blocks after i (i's children)
-                let inv_hashes = blocks.iter().skip(i + 1).map(|b| b.inv_hash()).collect();
-                let expected = Inv::new(inv_hashes);
-                assert_eq!(inv, expected);
-            }
-            message => panic!("Expected Inv, but got {:?}", message),
-        }
+        let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let inv = assert_matches!(inv, Message::Inv(inv) => inv);
+
+        // Collect inventory hashes for all blocks after i (i's children) and check the payload
+        // matches.
+        let inv_hashes = blocks.iter().skip(i + 1).map(|b| b.inv_hash()).collect();
+        let expected = Inv::new(inv_hashes);
+        assert_eq!(inv, expected);
     }
 
     // Test that we get no response for the final block in the known-chain
     // (this is the behaviour exhibited by zcashd - a more well-formed response
     // might be sending an empty inventory instead).
-    //
-    // Test message is ignored by sending Ping and receiving Pong.
-    Message::GetBlocks(LocatorHashes::new(
-        vec![blocks.last().unwrap().double_sha256().unwrap()],
-        Hash::zeroed(),
-    ))
-    .write_to_stream(&mut stream)
-    .await
-    .unwrap();
-    let nonce = Nonce::default();
-    Message::Ping(nonce)
-        .write_to_stream(&mut stream)
+    synthetic_node
+        .send_direct_message(
+            node.addr(),
+            Message::GetBlocks(LocatorHashes::new(
+                vec![blocks.last().unwrap().double_sha256().unwrap()],
+                Hash::zeroed(),
+            )),
+        )
         .await
         .unwrap();
-    let reply = filter.read_from_stream(&mut stream).await.unwrap();
-    assert_eq!(reply, Message::Pong(nonce));
+
+    // Test message is ignored by sending Ping and receiving Pong.
+    synthetic_node.assert_ping_pong(node.addr()).await;
 
     // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
-    Message::GetBlocks(LocatorHashes::new(
-        vec![blocks[0].double_sha256().unwrap()],
-        blocks[2].double_sha256().unwrap(),
-    ))
-    .write_to_stream(&mut stream)
-    .await
-    .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Inv(inv) => {
-            let expected = Inv::new(vec![blocks[1].inv_hash()]);
-            assert_eq!(inv, expected);
-        }
-        message => panic!("Expected Inv, but got {:?}", message),
-    }
+    synthetic_node
+        .send_direct_message(
+            node.addr(),
+            Message::GetBlocks(LocatorHashes::new(
+                vec![blocks[0].double_sha256().unwrap()],
+                blocks[2].double_sha256().unwrap(),
+            )),
+        )
+        .await
+        .unwrap();
+
+    let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let inv = assert_matches!(inv, Message::Inv(inv) => inv);
+
+    // Check the payload matches.
+    let expected = Inv::new(vec![blocks[1].inv_hash()]);
+    assert_eq!(inv, expected);
 
     // Test that we get corrected if we are "off chain".
     // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
@@ -779,18 +795,20 @@ async fn get_blocks() {
         ],
         Hash::zeroed(),
     );
-    Message::GetBlocks(locators)
-        .write_to_stream(&mut stream)
+
+    synthetic_node
+        .send_direct_message(node.addr(), Message::GetBlocks(locators))
         .await
         .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Inv(inv) => {
-            let expected = Inv::new(vec![blocks[2].inv_hash()]);
-            assert_eq!(inv, expected);
-        }
-        message => panic!("Expected Inv, but got {:?}", message),
-    }
 
+    let (_, inv) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let inv = assert_matches!(inv, Message::Inv(inv) => inv);
+
+    // Check the payload matches.
+    let expected = Inv::new(vec![blocks[2].inv_hash()]);
+    assert_eq!(inv, expected);
+
+    synthetic_node.shut_down();
     node.stop().await;
 }
 
@@ -824,12 +842,9 @@ async fn correctly_lists_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
-    .start()
-    .await;
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
+        .start()
+        .await;
 
     // block headers and hashes
     let expected = Block::initial_testnet_blocks()
@@ -848,63 +863,76 @@ async fn correctly_lists_blocks() {
         vec![hashes[2], hashes[1], hashes[0]],
     ];
 
-    // Establish a peer node
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
+    // Establish a peer node.
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     // Query for all blocks from i onwards (stop_hash = [0])
     for i in 0..expected.len() {
-        Message::GetHeaders(LocatorHashes::new(locator[i].clone(), Hash::zeroed()))
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetHeaders(LocatorHashes::new(locator[i].clone(), Hash::zeroed())),
+            )
             .await
             .unwrap();
 
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Headers(headers) => assert_eq!(
-                headers.headers,
-                expected[(i + 1)..],
-                "test for Headers([{}..])",
-                i
-            ),
-            messsage => panic!("Expected Headers, but got: {:?}", messsage),
-        }
+        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let headers = assert_matches!(headers, Message::Headers(headers) => headers);
+        assert_eq!(
+            headers.headers,
+            expected[(i + 1)..],
+            "test for Headers([{}..])",
+            i
+        );
     }
 
     // Query for all possible valid ranges
     let ranges: Vec<(usize, usize)> = vec![(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)];
     for (start, stop) in ranges {
-        Message::GetHeaders(LocatorHashes::new(locator[start].clone(), hashes[stop]))
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetHeaders(LocatorHashes::new(locator[start].clone(), hashes[stop])),
+            )
             .await
             .unwrap();
 
         // We use start+1 because Headers should list the blocks starting *after* the
-        // final location in GetHeaders, and up (and including) the stop-hash.
-        match filter.read_from_stream(&mut stream).await.unwrap() {
-            Message::Headers(headers) => assert_eq!(
-                headers.headers,
-                expected[start + 1..=stop],
-                "test for Headers([{}..={}])",
-                start + 1,
-                stop
-            ),
-            messsage => panic!("Expected Headers, but got: {:?}", messsage),
-        }
+        // final location in GetHeaders, and up to (and including) the stop-hash.
+        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let headers = assert_matches!(headers, Message::Headers(headers) => headers);
+        assert_eq!(
+            headers.headers,
+            expected[start + 1..=stop],
+            "test for Headers([{}..={}])",
+            start + 1,
+            stop
+        );
     }
 
     // Query as if from a fork. We replace [2], and expect to be corrected
     let mut fork_locator = locator[1].clone();
     fork_locator.insert(0, Hash::new([17; 32]));
-    Message::GetHeaders(LocatorHashes::new(fork_locator, Hash::zeroed()))
-        .write_to_stream(&mut stream)
+
+    synthetic_node
+        .send_direct_message(
+            node.addr(),
+            Message::GetHeaders(LocatorHashes::new(fork_locator, Hash::zeroed())),
+        )
         .await
         .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::Headers(headers) => {
-            assert_eq!(headers.headers, expected[2..], "test for forked Headers")
-        }
-        messsage => panic!("Expected Headers, but got: {:?}", messsage),
-    }
+
+    let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let headers = assert_matches!(headers, Message::Headers(headers) => headers);
+    assert_eq!(headers.headers, expected[2..], "test for forked Headers");
 
     node.stop().await;
 }
@@ -938,13 +966,9 @@ async fn get_data_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node: Node = Default::default();
-    node.initial_action(Action::SeedWithTestnetBlocks {
-        socket_addr: new_local_addr(),
-        block_count: 3,
-    })
-    .log_to_stdout(true)
-    .start()
-    .await;
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
+        .start()
+        .await;
 
     // block headers and hashes
     let blocks = vec![
@@ -959,35 +983,46 @@ async fn get_data_blocks() {
         .collect::<Vec<_>>();
 
     // Establish a peer node
-    let mut stream = initiate_handshake(node.addr()).await.unwrap();
-    let filter = MessageFilter::with_all_auto_reply();
+    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
+        enable_handshaking: true,
+        message_filter: MessageFilter::with_all_auto_reply(),
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
 
     // Query for the first i blocks
     for i in 0..blocks.len() {
-        Message::GetData(Inv::new(inv_blocks[..=i].to_vec()))
-            .write_to_stream(&mut stream)
+        synthetic_node
+            .send_direct_message(
+                node.addr(),
+                Message::GetData(Inv::new(inv_blocks[..=i].to_vec())),
+            )
             .await
             .unwrap();
+
         // Expect the i blocks
         for j in 0..=i {
-            match filter.read_from_stream(&mut stream).await.unwrap() {
-                Message::Block(block) => assert_eq!(block, blocks[j], "run {}, {}", i, j),
-                messsage => panic!("Expected Block, but got: {:?}", messsage),
-            }
+            let (_, block) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+            let block = assert_matches!(block, Message::Block(block) => block);
+            assert_eq!(block, blocks[j], "run {}, {}", i, j);
         }
     }
 
     // Query for a non-existant block
     let non_existant = InvHash::new(ObjectKind::Block, Hash::new([17; 32]));
     let non_existant_inv = Inv::new(vec![non_existant]);
-    Message::GetData(non_existant_inv.clone())
-        .write_to_stream(&mut stream)
+
+    synthetic_node
+        .send_direct_message(node.addr(), Message::GetData(non_existant_inv.clone()))
         .await
         .unwrap();
-    match filter.read_from_stream(&mut stream).await.unwrap() {
-        Message::NotFound(not_found) => assert_eq!(not_found, non_existant_inv),
-        messsage => panic!("Expected NotFound, but got: {:?}", messsage),
-    }
+
+    let (_, not_found) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let not_found = assert_matches!(not_found, Message::NotFound(not_found) => not_found);
+    assert_eq!(not_found, non_existant_inv);
 
     // Query a mixture of existing and non-existing blocks
     let mut mixed_blocks = inv_blocks;
@@ -1002,41 +1037,17 @@ async fn get_data_blocks() {
         Message::NotFound(non_existant_inv),
     ];
 
-    Message::GetData(Inv::new(mixed_blocks))
-        .write_to_stream(&mut stream)
+    synthetic_node
+        .send_direct_message(node.addr(), Message::GetData(Inv::new(mixed_blocks)))
         .await
         .unwrap();
 
     for expect in expected {
-        let message = filter.read_from_stream(&mut stream).await.unwrap();
+        let (_, message) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
         assert_eq!(message, expect);
     }
 
-    node.stop().await;
-}
-
-#[allow(dead_code)]
-async fn unsolicitation_listener() {
-    let mut node: Node = Default::default();
-    node.start().await;
-
-    let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
-
-    let auto_responder = MessageFilter::with_all_auto_reply().enable_logging();
-
-    for _ in 0usize..10 {
-        let result = timeout(
-            Duration::from_secs(5),
-            auto_responder.read_from_stream(&mut peer_stream),
-        )
-        .await;
-
-        match result {
-            Err(elapsed) => println!("Timeout after {}", elapsed),
-            Ok(Ok(message)) => println!("Received unfiltered message: {:?}", message),
-            Ok(Err(err)) => println!("Error receiving message: {:?}", err),
-        }
-    }
-
+    // Gracefully shut down the nodes.
+    synthetic_node.shut_down();
     node.stop().await;
 }

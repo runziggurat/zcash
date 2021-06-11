@@ -1,10 +1,7 @@
 use crate::{
     helpers::{initiate_handshake, is_rejection_error, is_termination_error},
     protocol::message::{filter::MessageFilter, Message},
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
-    },
+    setup::node::{Action, Node},
 };
 
 #[derive(Debug)]
@@ -98,7 +95,7 @@ async fn incoming_active_connections() {
 
     // start node
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection(new_local_addr()))
+    node.initial_action(Action::WaitForConnection)
         .max_peers(MAX_PEERS)
         .start()
         .await;

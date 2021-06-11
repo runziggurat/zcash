@@ -1,5 +1,7 @@
 pub mod constants;
 pub mod filter;
+
+#[doc(hidden)]
 pub mod io;
 
 use crate::protocol::{

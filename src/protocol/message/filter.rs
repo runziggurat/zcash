@@ -31,7 +31,7 @@ pub enum Filter {
 /// For a list of responses see the documentation on [MessageFilter::read_from_stream].
 ///
 /// Can optionally log filter events to console, logging is disabled by default.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MessageFilter {
     ping: Filter,
     getheaders: Filter,
