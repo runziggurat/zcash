@@ -9,10 +9,7 @@ use crate::{
         message::{filter::MessageFilter, Message},
         payload::Nonce,
     },
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
-    },
+    setup::node::{Action, Node},
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]

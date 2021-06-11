@@ -11,10 +11,7 @@ use crate::{
             Addr, Hash, Inv, Nonce, Version,
         },
     },
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
-    },
+    setup::node::{Action, Node},
     wait_until,
 };
 
