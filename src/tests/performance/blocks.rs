@@ -1,4 +1,3 @@
-use histogram::Histogram;
 use std::collections::VecDeque;
 use tokio::time::{timeout, Duration};
 
@@ -111,6 +110,7 @@ async fn getdata_blocks_latency() {
     ];
 
     let mut table = RequestsTable::default();
+    const METRIC_NAME: &str = "block_test";
 
     // Start node seeded with initial testnet blocks,
     // with max peers set so that our peers should never be rejected.
@@ -122,19 +122,16 @@ async fn getdata_blocks_latency() {
     let node_addr = node.addr();
 
     for peers in peer_counts {
-        // clear metrics
+        // clear and register metrics
         simple_metrics::clear();
+        metrics::register_histogram!(METRIC_NAME);
 
         // create N peer nodes which send M requests's as fast as possible
         let mut peer_handles = Vec::with_capacity(peers);
 
         let test_start = tokio::time::Instant::now();
 
-        for i in 0..peers {
-            // register histogram metric for this peer
-            let metric_name = format!("peer_{}", i);
-            metrics::register_histogram!(metric_name.clone());
-
+        for _ in 0..peers {
             // We want different blocks for consecutive requests, in order to determine if the node
             // has skipped a request or to tell if the reply is in response to a timed out request.
             //
@@ -160,15 +157,11 @@ async fn getdata_blocks_latency() {
                     let now = tokio::time::Instant::now();
                     loop {
                         match timeout(REQUEST_TIMEOUT, filter.read_from_stream(&mut stream)).await {
-                            Err(_elapsed) => metrics::histogram!(
-                                metric_name.clone(),
-                                duration_as_ms(REQUEST_TIMEOUT)
-                            ),
+                            Err(_elapsed) => {
+                                metrics::histogram!(METRIC_NAME, duration_as_ms(REQUEST_TIMEOUT))
+                            }
                             Ok(Ok(Message::Block(block))) if &block == expected => {
-                                metrics::histogram!(
-                                    metric_name.clone(),
-                                    duration_as_ms(now.elapsed())
-                                )
+                                metrics::histogram!(METRIC_NAME, duration_as_ms(now.elapsed()))
                             }
                             // If the block doesn't match then we treat it as a response to an already timed out request
                             // (which has already been handled, so we skip it).
@@ -192,17 +185,18 @@ async fn getdata_blocks_latency() {
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
         // grab latencies from metrics recoder
-        let mut histogram = Histogram::new();
-        simple_metrics::histograms()
+        let latencies = simple_metrics::histograms()
             .lock()
-            .iter()
-            .for_each(|(_, hist)| histogram.merge(&hist.value));
+            .get(&metrics::Key::from_name(METRIC_NAME))
+            .unwrap()
+            .value
+            .clone();
 
         // add stats to table display
         table.add_row(RequestStats::new(
             peers as u16,
             REQUESTS as u16,
-            histogram,
+            latencies,
             time_taken_secs,
         ));
     }
