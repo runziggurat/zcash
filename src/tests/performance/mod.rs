@@ -83,3 +83,8 @@ impl std::fmt::Display for RequestsTable {
 fn table_float_display(x: &f64) -> String {
     format!("{0:.2}", x)
 }
+
+
+pub fn duration_as_ms(duration: Duration) -> f64 {
+    duration.as_millis() as f64
+}

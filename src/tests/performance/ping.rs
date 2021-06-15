@@ -10,7 +10,7 @@ use crate::{
     },
     setup::node::{Action, Node},
     tests::{
-        performance::{RequestStats, RequestsTable},
+        performance::{duration_as_ms, RequestStats, RequestsTable},
         simple_metrics,
     },
 };
@@ -124,6 +124,9 @@ async fn ping_pong_latency() {
     let node_addr = node.addr();
 
     for peers in peer_counts {
+        // clear metrics
+        simple_metrics::clear();
+
         // create N peer nodes which send M ping's as fast as possible
         let mut peer_handles = Vec::with_capacity(peers);
 
@@ -202,12 +205,4 @@ async fn ping_pong_latency() {
 
     // Display results table
     println!("{}", table);
-}
-
-fn duration_as_ms(duration: Duration) -> f64 {
-    duration.as_millis() as f64
-}
-
-fn table_float_display(x: &f64) -> String {
-    format!("{0:.2}", x)
 }

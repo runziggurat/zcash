@@ -1,5 +1,5 @@
 use histogram::Histogram;
-use std::{collections::VecDeque, convert::TryFrom};
+use std::collections::VecDeque;
 use tokio::time::{timeout, Duration};
 
 use crate::{
@@ -9,7 +9,10 @@ use crate::{
         payload::{block::Block, Inv},
     },
     setup::node::{Action, Node},
-    tests::performance::{RequestStats, RequestsTable},
+    tests::{
+        performance::{duration_as_ms, RequestStats, RequestsTable},
+        simple_metrics::{self, enable_simple_recorder},
+    },
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
@@ -96,6 +99,9 @@ async fn getdata_blocks_latency() {
     // │    100│       100│       100│       100│             0│       100│       100│       100│       100│       100│     10.18│      982.52│
     // └───────┴──────────┴──────────┴──────────┴──────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴────────────┘
 
+    // setup metrics recorder
+    enable_simple_recorder().unwrap();
+
     // number of requests to send per peer
     const REQUESTS: usize = 100;
     const REQUEST_TIMEOUT: Duration = Duration::from_millis(100);
@@ -116,12 +122,19 @@ async fn getdata_blocks_latency() {
     let node_addr = node.addr();
 
     for peers in peer_counts {
+        // clear metrics
+        simple_metrics::clear();
+
         // create N peer nodes which send M requests's as fast as possible
         let mut peer_handles = Vec::with_capacity(peers);
 
         let test_start = tokio::time::Instant::now();
 
-        for _ in 0..peers {
+        for i in 0..peers {
+            // register histogram metric for this peer
+            let metric_name = format!("peer_{}", i);
+            metrics::register_histogram!(metric_name.clone());
+
             // We want different blocks for consecutive requests, in order to determine if the node
             // has skipped a request or to tell if the reply is in response to a timed out request.
             //
@@ -141,16 +154,21 @@ async fn getdata_blocks_latency() {
 
                 let filter = MessageFilter::with_all_auto_reply();
 
-                let mut latencies = Vec::with_capacity(REQUESTS);
                 for i in 0..REQUESTS {
                     let (request, expected) = &requests[i % requests.len()];
                     request.write_to_stream(&mut stream).await.unwrap();
                     let now = tokio::time::Instant::now();
                     loop {
                         match timeout(REQUEST_TIMEOUT, filter.read_from_stream(&mut stream)).await {
-                            Err(_elapsed) => latencies.push(REQUEST_TIMEOUT),
+                            Err(_elapsed) => metrics::histogram!(
+                                metric_name.clone(),
+                                duration_as_ms(REQUEST_TIMEOUT)
+                            ),
                             Ok(Ok(Message::Block(block))) if &block == expected => {
-                                latencies.push(now.elapsed())
+                                metrics::histogram!(
+                                    metric_name.clone(),
+                                    duration_as_ms(now.elapsed())
+                                )
                             }
                             // If the block doesn't match then we treat it as a response to an already timed out request
                             // (which has already been handled, so we skip it).
@@ -163,27 +181,22 @@ async fn getdata_blocks_latency() {
                         break;
                     }
                 }
-
-                latencies
             }));
         }
 
         // wait for peers to complete
-        let mut peer_latencies = Vec::with_capacity(peers);
         for handle in peer_handles {
-            peer_latencies.push(handle.await.unwrap());
+            handle.await.unwrap();
         }
 
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
-        // Tally-up latencies
+        // grab latencies from metrics recoder
         let mut histogram = Histogram::new();
-        for peer in peer_latencies {
-            for duration in peer {
-                let ms = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
-                histogram.increment(ms).unwrap();
-            }
-        }
+        simple_metrics::histograms()
+            .lock()
+            .iter()
+            .for_each(|(_, hist)| histogram.merge(&hist.value));
 
         // add stats to table display
         table.add_row(RequestStats::new(
