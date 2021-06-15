@@ -18,7 +18,7 @@ pub struct RequestStats {
     #[header(" peers ")]
     peers: u16,
     #[header(" requests ")]
-    pings: u16,
+    requests: u16,
     #[header(" min (ms) ")]
     latency_min: u16,
     #[header(" max (ms) ")]
@@ -44,10 +44,10 @@ pub struct RequestStats {
 }
 
 impl RequestStats {
-    pub fn new(peers: u16, pings: u16, latencies: Histogram, time: f64) -> Self {
+    pub fn new(peers: u16, requests: u16, latencies: Histogram, time: f64) -> Self {
         Self {
             peers,
-            pings,
+            requests,
             latency_min: latencies.minimum().unwrap() as u16,
             latency_max: latencies.maximum().unwrap() as u16,
             latency_std_dev: latencies.stddev().unwrap() as u16,
@@ -57,7 +57,7 @@ impl RequestStats {
             latency_percentile_90: latencies.percentile(90.0).unwrap() as u16,
             latency_percentile_99: latencies.percentile(99.0).unwrap() as u16,
             time,
-            throughput: pings as f64 * peers as f64 / time,
+            throughput: requests as f64 * peers as f64 / time,
         }
     }
 }
