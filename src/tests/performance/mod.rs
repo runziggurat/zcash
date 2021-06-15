@@ -2,9 +2,9 @@ mod blocks;
 mod connections;
 mod ping;
 
-use tokio::time::Duration;
 use histogram::Histogram;
 use tabled::{table, Alignment, Style, Tabled};
+use tokio::time::Duration;
 
 /// Provides a simplified interface to producde a well-formatted
 /// table for latency statistics. Table can be displayed by `println!("{}", table)`
@@ -84,7 +84,6 @@ impl std::fmt::Display for RequestsTable {
 pub fn table_float_display(x: &f64) -> String {
     format!("{0:.2}", x)
 }
-
 
 pub fn duration_as_ms(duration: Duration) -> f64 {
     duration.as_millis() as f64
