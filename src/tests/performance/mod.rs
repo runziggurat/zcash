@@ -2,18 +2,19 @@ mod blocks;
 mod connections;
 mod ping;
 
+use tokio::time::Duration;
 use histogram::Histogram;
 use tabled::{table, Alignment, Style, Tabled};
 
 /// Provides a simplified interface to producde a well-formatted
 /// table for latency statistics. Table can be displayed by `println!("{}", table)`
 #[derive(Default)]
-struct RequestsTable {
+pub struct RequestsTable {
     rows: Vec<RequestStats>,
 }
 
 #[derive(Tabled)]
-struct RequestStats {
+pub struct RequestStats {
     #[header(" peers ")]
     peers: u16,
     #[header(" requests ")]
@@ -43,7 +44,7 @@ struct RequestStats {
 }
 
 impl RequestStats {
-    fn new(peers: u16, pings: u16, latencies: Histogram, time: f64) -> Self {
+    pub fn new(peers: u16, pings: u16, latencies: Histogram, time: f64) -> Self {
         Self {
             peers,
             pings,
@@ -62,7 +63,7 @@ impl RequestStats {
 }
 
 impl RequestsTable {
-    fn add_row(&mut self, row: RequestStats) {
+    pub fn add_row(&mut self, row: RequestStats) {
         self.rows.push(row);
     }
 }
@@ -80,7 +81,7 @@ impl std::fmt::Display for RequestsTable {
 }
 
 /// Formats f64 with 2 decimal points
-fn table_float_display(x: &f64) -> String {
+pub fn table_float_display(x: &f64) -> String {
     format!("{0:.2}", x)
 }
 
