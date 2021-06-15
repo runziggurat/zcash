@@ -128,8 +128,14 @@ pub fn gauges() -> Arc<Mutex<HashMap<Key, Gauge>>> {
     SIMPLE_RECORDER.gauges.clone()
 }
 
-
 /// Map of all histograms recorded
 pub fn histograms() -> Arc<Mutex<HashMap<Key, Histogram>>> {
     SIMPLE_RECORDER.histograms.clone()
+}
+
+/// Removes all previously registered metrics
+pub fn clear() {
+    SIMPLE_RECORDER.counters.lock().clear();
+    SIMPLE_RECORDER.gauges.lock().clear();
+    SIMPLE_RECORDER.histograms.lock().clear();
 }
