@@ -1,4 +1,3 @@
-use histogram::Histogram;
 use simple_metrics::enable_simple_recorder;
 use tokio::time::{timeout, Duration};
 
@@ -109,7 +108,7 @@ async fn ping_pong_latency() {
     const PING_TIMEOUT: Duration = Duration::from_millis(200);
     // number of concurrent peers to test (zcashd hardcaps `max_peers` to 873 on my machine)
     let peer_counts = vec![
-        1, 10, 20, 30, 40, //50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 800,
+        1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 800,
     ];
 
     let mut table = RequestsTable::default();
@@ -123,21 +122,20 @@ async fn ping_pong_latency() {
         .await;
     let node_addr = node.addr();
 
+    const METRIC_NAME: &str = "ping_perf";
+
     for peers in peer_counts {
-        // clear metrics
+        // clear metrics and register metrics
         simple_metrics::clear();
+        metrics::register_histogram!(METRIC_NAME);
 
         // create N peer nodes which send M ping's as fast as possible
         let mut peer_handles = Vec::with_capacity(peers);
 
         let test_start = tokio::time::Instant::now();
 
-        for i in 0..peers {
+        for _ in 0..peers {
             peer_handles.push(tokio::spawn(async move {
-                // register histogram metric for this peer
-                let metric_name = format!("peer_{}", i);
-                metrics::register_histogram!(metric_name.clone());
-
                 let mut stream = initiate_handshake(node_addr).await.unwrap();
 
                 let filter = MessageFilter::with_all_auto_reply();
@@ -153,16 +151,10 @@ async fn ping_pong_latency() {
                     loop {
                         match timeout(PING_TIMEOUT, filter.read_from_stream(&mut stream)).await {
                             Err(_elapsed) => {
-                                metrics::histogram!(
-                                    metric_name.clone(),
-                                    duration_as_ms(PING_TIMEOUT)
-                                )
+                                metrics::histogram!(METRIC_NAME, duration_as_ms(PING_TIMEOUT))
                             }
                             Ok(Ok(message)) if message == expected => {
-                                metrics::histogram!(
-                                    metric_name.clone(),
-                                    duration_as_ms(now.elapsed())
-                                )
+                                metrics::histogram!(METRIC_NAME, duration_as_ms(now.elapsed()))
                             }
                             // If the nonce doesn't match then we treat it as a response to an already timed out Ping
                             // (which has already been handled, so we skip it).
@@ -186,17 +178,18 @@ async fn ping_pong_latency() {
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
         // grab latencies from metrics recoder
-        let mut histogram = Histogram::new();
-        simple_metrics::histograms()
+        let latencies = simple_metrics::histograms()
             .lock()
-            .iter()
-            .for_each(|(_, hist)| histogram.merge(&hist.value));
+            .get(&metrics::Key::from_name(METRIC_NAME))
+            .unwrap()
+            .value
+            .clone();
 
         // add stats to table display
         table.add_row(RequestStats::new(
             peers as u16,
             PINGS,
-            histogram,
+            latencies,
             time_taken_secs,
         ));
     }
