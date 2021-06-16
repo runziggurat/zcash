@@ -50,7 +50,7 @@ Short overview of test cases and their current status. In case of failure, the b
 | :----: |--|
 | ✓ | pass |
 | ✖ | fail |
-| - | uimplemented |
+| - | unimplemented |
 
 ### Conformance
 
