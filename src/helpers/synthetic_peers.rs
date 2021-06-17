@@ -162,6 +162,12 @@ impl SyntheticNode {
     }
 }
 
+impl Drop for SyntheticNode {
+    fn drop(&mut self) {
+        self.shut_down();
+    }
+}
+
 #[derive(Clone)]
 struct InnerNode {
     node: Node,
