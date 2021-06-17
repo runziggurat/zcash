@@ -1,27 +1,17 @@
 use crate::{
     helpers::{initiate_handshake, is_rejection_error, is_termination_error},
-    protocol::message::{filter::MessageFilter, Message},
+    protocol::message::filter::MessageFilter,
     setup::node::{Action, Node},
-    tests::performance::table_float_display,
+    tests::{performance::table_float_display, simple_metrics},
 };
 
 use tabled::{table, Alignment, Style, Tabled};
 
-#[derive(Debug)]
-enum PeerEvent {
-    Rejected,
-    Terminated,
-    Connected,
-    HandshakeError(std::io::Error),
-    UnexpectedMessage(Box<Message>),
-    ReadError(std::io::Error),
-}
-
 #[derive(Tabled, Default, Debug, Clone)]
 struct Stats {
-    #[header(" N ")]
+    #[header(" max peers ")]
     pub max_peers: u16,
-    #[header(" M ")]
+    #[header(" peers ")]
     pub peers: u16,
     #[header(" accepted ")]
     pub accepted: u16,
@@ -29,8 +19,6 @@ struct Stats {
     pub rejected: u16,
     #[header(" terminated ")]
     pub terminated: u16,
-    #[header(" peak connections ")]
-    pub peak_connected: u16,
     #[header(" time (s) ")]
     #[field(display_with = "table_float_display")]
     pub time: f64,
@@ -68,40 +56,47 @@ async fn incoming_active_connections() {
     // *NOTE* run with `cargo test --release tests::performance::connections::incoming_active_connections -- --nocapture`
     //
     // ZCashd:
-    // ┌───┬─────┬──────────┬──────────┬────────────┬──────────┐
-    // │ N │  M  │ accepted │ rejected │ terminated │ time (s) │
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│  100│        42│        58│           0│      0.05│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│ 1000│        42│       958│           0│      0.17│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│ 5000│        42│      4958│           0│      0.27│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│10000│        42│      9958│           0│      1.24│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│15000│        42│     14958│           0│      3.19│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│20000│        42│     19958│           0│      3.20│
-    // └───┴─────┴──────────┴──────────┴────────────┴──────────┘
+    // ┌───────────┬───────┬──────────┬──────────┬────────────┬──────────┐
+    // │ max peers │ peers │ accepted │ rejected │ terminated │ time (s) │
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│    100│        42│        58│           0│      0.07│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│   1000│        42│       958│           0│      0.17│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│   5000│        42│      4958│           0│      0.24│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│  10000│        42│      9958│           0│      1.29│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│  15000│        42│     14958│           0│      3.20│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│  20000│        42│     19958│           0│      3.22│
+    // └───────────┴───────┴──────────┴──────────┴────────────┴──────────┘
     //
     // Zebra:
-    // ┌───┬─────┬──────────┬──────────┬────────────┬──────────┐
-    // │ N │  M  │ accepted │ rejected │ terminated │ time (s) │
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│  100│       100│         0│           0│      0.11│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│ 1000│      1000│         0│           0│      0.66│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│ 5000│      3785│      1215│           0│      2.27│
-    // ├───┼─────┼──────────┼──────────┼────────────┼──────────┤
-    // │ 50│10000│      6146│      3854│           0│      7.58│
-    // └───┴─────┴──────────┴──────────┴────────────┴──────────┘
+    // ┌───────────┬───────┬──────────┬──────────┬────────────┬──────────┐
+    // │ max peers │ peers │ accepted │ rejected │ terminated │ time (s) │
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│    100│       100│         0│           0│      0.13│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│   1000│      1000│         0│           0│      0.82│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│   5000│      4564│       436│           0│      3.64│
+    // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
+    // │         50│  10000│      6909│      3091│           0│      7.36│
+    // └───────────┴───────┴──────────┴──────────┴────────────┴──────────┘
     //
+
+    // setup metrics recorder
+    simple_metrics::enable_simple_recorder().unwrap();
 
     /// maximum peers to configure node with
     const MAX_PEERS: u16 = 50;
 
-    let peer_counts = vec![100u16, 1_000, 5_000, 10_000]; //15_000, 20_000];
+    const METRIC_ACCEPTED: &str = "perf_conn_accepted";
+    const METRIC_TERMINATED: &str = "perf_conn_terminated";
+    const METRIC_REJECTED: &str = "perf_conn_rejected";
+
+    let peer_counts = vec![100u16, 1_000, 5_000, 10_000, 15_000, 20_000];
 
     let mut all_stats = Vec::new();
 
@@ -113,70 +108,41 @@ async fn incoming_active_connections() {
         .await;
 
     for peers in peer_counts {
+        // clear and register metrics
+        simple_metrics::clear();
+        metrics::register_counter!(METRIC_ACCEPTED);
+        metrics::register_counter!(METRIC_TERMINATED);
+        metrics::register_counter!(METRIC_REJECTED);
+
         let test_start = tokio::time::Instant::now();
-        // channel for peer event management (ensure buffer is more than large enough)
-        let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<PeerEvent>(peers as usize * 3);
-
-        // start peer event manager
-        let event_manager = tokio::spawn(async move {
-            let mut stats = Stats::new(MAX_PEERS, peers);
-            let mut active_connections = 0u16;
-
-            loop {
-                match event_rx.recv().await.unwrap() {
-                    PeerEvent::Rejected => stats.rejected += 1,
-                    PeerEvent::Terminated => {
-                        stats.terminated += 1;
-                        active_connections -= 1;
-                    }
-                    PeerEvent::Connected => {
-                        stats.accepted += 1;
-                        active_connections += 1;
-                        stats.peak_connected = stats.peak_connected.max(active_connections);
-                    }
-                    PeerEvent::HandshakeError(err) => {
-                        panic!("{} - Handshake error: {:?}", peers, err)
-                    }
-                    PeerEvent::UnexpectedMessage(msg) => {
-                        panic!("{} - Unexpected message: {:?}", peers, msg)
-                    }
-                    PeerEvent::ReadError(err) => panic!("{} - Read error:\n{:?}", peers, err),
-                }
-
-                // We are done if all peer connections have either been accepted or rejected
-                if stats.accepted + stats.rejected == peers {
-                    break;
-                }
-            }
-            stats
-        });
 
         // start peer nodes
         let mut peer_handles = Vec::with_capacity(peers as usize);
         let mut peer_exits = Vec::with_capacity(peers as usize);
+        let (handshake_tx, mut handshake_rx) = tokio::sync::mpsc::channel::<()>(peers as usize);
 
         for _ in 0..peers {
             let node_addr = node.addr();
-            let peer_send = event_tx.clone();
 
             let (exit_tx, exit_rx) = tokio::sync::oneshot::channel::<()>();
             peer_exits.push(exit_tx);
 
+            let peer_handshaken = handshake_tx.clone();
+
             peer_handles.push(tokio::spawn(async move {
                 // Establish peer connection
-                let mut stream = match initiate_handshake(node_addr).await {
+                let handshake_result = initiate_handshake(node_addr).await;
+                peer_handshaken.send(()).await.unwrap();
+                let mut stream = match handshake_result {
                     Ok(stream) => {
-                        let _ = peer_send.send(PeerEvent::Connected).await;
+                        metrics::counter!(METRIC_ACCEPTED, 1);
                         stream
                     }
                     Err(err) if is_rejection_error(&err) => {
-                        let _ = peer_send.send(PeerEvent::Rejected).await;
+                        metrics::counter!(METRIC_REJECTED, 1);
                         return;
                     }
-                    Err(err) => {
-                        let _ = peer_send.send(PeerEvent::HandshakeError(err)).await;
-                        return;
-                    }
+                    Err(err) => panic!("Handshake error: {}", err),
                 };
 
                 // Keep connection alive by replying to incoming Pings etc, until instructed to exit or
@@ -186,27 +152,19 @@ async fn incoming_active_connections() {
                     _ = exit_rx => {},
                     result = filter.read_from_stream(&mut stream) => {
                         match result {
-                            Ok(message) => {
-                                let _ = peer_send
-                                    .send(PeerEvent::UnexpectedMessage(message.into()))
-                                    .await;
-                            }
-                            Err(err) if is_termination_error(&err) => {
-                                let _ = peer_send.send(PeerEvent::Terminated).await;
-                            }
-                            Err(err) => {
-                                let _ = peer_send.send(PeerEvent::ReadError(err)).await;
-                            }
+                            Ok(message) => panic!("Unexpected message: {:?}", message),
+                            Err(err) if is_termination_error(&err) => metrics::counter!(METRIC_TERMINATED, 1),
+                            Err(err) => panic!("Read error: {}", err),
                         }
                     }
                 }
             }));
         }
 
-        // Wait for event manager to complete its tally
-        let mut stats = event_manager.await.unwrap();
-        stats.time = test_start.elapsed().as_secs_f64();
-        all_stats.push(stats);
+        // Wait for all peers to indicate that they've completed the handshake portion
+        for _ in 0..peers {
+            handshake_rx.recv().await.unwrap();
+        }
 
         // Send stop signal to peer nodes. We ignore the possible error
         // result as this will occur with peers that have already exited.
@@ -218,6 +176,27 @@ async fn incoming_active_connections() {
         for handle in peer_handles {
             handle.await.unwrap();
         }
+
+        // Collect stats for this run
+        let mut stats = Stats::new(MAX_PEERS, peers);
+        stats.time = test_start.elapsed().as_secs_f64();
+        {
+            let counters = simple_metrics::counters();
+            let counters_lock = counters.lock();
+            stats.accepted = counters_lock
+                .get(&metrics::Key::from_name(METRIC_ACCEPTED))
+                .unwrap()
+                .value as u16;
+            stats.terminated = counters_lock
+                .get(&metrics::Key::from_name(METRIC_TERMINATED))
+                .unwrap()
+                .value as u16;
+            stats.rejected = counters_lock
+                .get(&metrics::Key::from_name(METRIC_REJECTED))
+                .unwrap()
+                .value as u16;
+        }
+        all_stats.push(stats);
     }
 
     node.stop().await;
