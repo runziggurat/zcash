@@ -125,6 +125,7 @@ impl SyntheticNode {
     // Attempts to read a message from the inbound (internal) queue of the node before the timeout
     // duration has elapsed (seconds).
     // FIXME: logging?
+    // FIXME: use timeout duration instead of hardcoding secs
     pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<(SocketAddr, Message)> {
         match timeout(Duration::from_secs(secs), self.recv_message()).await {
             Ok(message) => Ok(message),
