@@ -133,12 +133,18 @@ impl SyntheticNode {
     // duration has elapsed (seconds).
     // FIXME: logging?
     // FIXME: use timeout duration instead of hardcoding secs
-    pub async fn recv_message_timeout(&mut self, secs: u64) -> Result<(SocketAddr, Message)> {
-        match timeout(Duration::from_secs(secs), self.recv_message()).await {
+    pub async fn recv_message_timeout(
+        &mut self,
+        duration: Duration,
+    ) -> Result<(SocketAddr, Message)> {
+        match timeout(duration, self.recv_message()).await {
             Ok(message) => Ok(message),
             Err(_e) => Err(Error::new(
                 ErrorKind::TimedOut,
-                format!("could not read message after {}s", secs),
+                format!(
+                    "could not read message after {0:.3}s",
+                    duration.as_secs_f64()
+                ),
             )),
         }
     }

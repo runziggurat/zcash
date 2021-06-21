@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     helpers::{
         synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
@@ -64,7 +66,7 @@ async fn handshake_initiator_side() {
 
     // Check the connection has been established (this is only set post-handshake). We can't check
     // for the addr as nodes use ephemeral addresses when initiating connections.
-    wait_until!(5, synthetic_node.num_connected() == 1);
+    wait_until!(Duration::from_secs(5), synthetic_node.num_connected() == 1);
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();

@@ -1,7 +1,7 @@
 use pea2pea::NodeConfig;
 use rand::{prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
-use std::{io::Write, net::SocketAddr};
+use std::{io::Write, net::SocketAddr, time::Duration};
 use tabled::{table, Alignment, Style, Tabled};
 
 use crate::{
@@ -480,7 +480,7 @@ async fn simulate_peer(
     message_pairs: Vec<(Message, Message)>,
     corrupt_message: Vec<u8>,
 ) {
-    const READ_TIMEOUT: u64 = 2;
+    const READ_TIMEOUT: Duration = Duration::from_secs(2);
 
     let mut peer = SyntheticNode::new(SyntheticNodeConfig {
         network_config: NodeConfig {
@@ -524,7 +524,7 @@ async fn simulate_peer(
             Err(_timeout) => {
                 // recv timed out, check if connection was terminated or if its just a slow reply
                 if peer.is_connected(node_addr) {
-                    metrics::histogram!(REQUEST_LATENCY, (READ_TIMEOUT * 1_000) as f64);
+                    metrics::histogram!(REQUEST_LATENCY, READ_TIMEOUT.as_millis() as f64);
                 } else {
                     metrics::counter!(CONNECTION_TERMINATED, 1);
                     return;
