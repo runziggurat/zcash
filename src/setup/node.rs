@@ -13,7 +13,7 @@ use crate::{
 
 use tokio::process::{Child, Command};
 
-use std::{fs, net::SocketAddr, process::Stdio};
+use std::{fs, net::SocketAddr, process::Stdio, time::Duration};
 
 const ZEBRA_CONFIG: &str = "zebra.toml";
 const ZCASHD_CONFIG: &str = "zcash.conf";
@@ -163,7 +163,7 @@ impl Node {
     }
 
     async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) {
-        const TIMEOUT: u64 = 10;
+        const TIMEOUT: Duration = Duration::from_secs(10);
 
         match self.config.initial_action {
             Action::None => {}

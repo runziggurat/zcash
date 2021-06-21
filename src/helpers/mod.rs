@@ -14,7 +14,7 @@ use tokio::{
 use std::{net::SocketAddr, time::Duration};
 
 // Default timeout for connection reads in seconds.
-pub const TIMEOUT: u64 = 10;
+pub const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub fn enable_tracing() {
     use tracing_subscriber::{fmt, EnvFilter};
@@ -30,7 +30,7 @@ pub fn enable_tracing() {
 /// Uses polling to cut down on time otherwise used by calling `sleep` in tests.
 #[macro_export]
 macro_rules! wait_until {
-    ($limit_secs: expr, $condition: expr $(, $sleep_millis: expr)?) => {
+    ($wait_limit: expr, $condition: expr $(, $sleep_duration: expr)?) => {
         let now = std::time::Instant::now();
         loop {
             if $condition {
@@ -38,11 +38,11 @@ macro_rules! wait_until {
             }
 
             // Default timout.
-            let sleep_millis = 10;
+            let sleep_duration = std::time::Duration::from_millis(10);
             // Set if present in args.
-            $(let sleep_millis = $sleep_millis;)?
-            tokio::time::sleep(std::time::Duration::from_millis(sleep_millis)).await;
-            if now.elapsed() > std::time::Duration::from_secs($limit_secs) {
+            $(let sleep_duration = $sleep_duration;)?
+            tokio::time::sleep(sleep_duration).await;
+            if now.elapsed() > $wait_limit {
                 panic!("timed out!");
             }
         }

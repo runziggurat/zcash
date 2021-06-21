@@ -137,7 +137,7 @@ async fn getdata_blocks_latency() {
                         .unwrap();
                     let now = tokio::time::Instant::now();
                     loop {
-                        match peer.recv_message_timeout(REQUEST_TIMEOUT.as_secs()).await {
+                        match peer.recv_message_timeout(REQUEST_TIMEOUT).await {
                             Err(_timeout) => {
                                 metrics::histogram!(METRIC_NAME, duration_as_ms(REQUEST_TIMEOUT))
                             }

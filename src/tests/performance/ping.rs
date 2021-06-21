@@ -157,7 +157,7 @@ async fn ping_pong_latency() {
 
                     let now = tokio::time::Instant::now();
                     loop {
-                        match peer.recv_message_timeout(PING_TIMEOUT.as_secs()).await {
+                        match peer.recv_message_timeout(PING_TIMEOUT).await {
                             Err(err) if err.kind() == std::io::ErrorKind::TimedOut => {
                                 metrics::histogram!(METRIC_NAME, duration_as_ms(PING_TIMEOUT))
                             }
