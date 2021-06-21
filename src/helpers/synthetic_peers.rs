@@ -112,6 +112,13 @@ impl SyntheticNode {
         Ok(())
     }
 
+    /// Sends bytes directly to the target address.
+    pub async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> Result<()> {
+        self.inner_node.send_direct_bytes(target, data).await?;
+
+        Ok(())
+    }
+
     /// Reads a message from the inbound (internal) queue of the node.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
@@ -198,6 +205,10 @@ impl InnerNode {
             .await?;
 
         Ok(())
+    }
+
+    async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> Result<()> {
+        self.node.send_direct_message(target, data.into()).await
     }
 }
 
