@@ -2,11 +2,8 @@ use simple_metrics::enable_simple_recorder;
 use tokio::time::Duration;
 
 use crate::{
-    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
-    protocol::{
-        message::{filter::MessageFilter, Message},
-        payload::Nonce,
-    },
+    helpers::synthetic_peers::SyntheticNode,
+    protocol::{message::Message, payload::Nonce},
     setup::node::{Action, Node},
     tests::{
         performance::{duration_as_ms, RequestStats, RequestsTable},
@@ -137,13 +134,12 @@ async fn ping_pong_latency() {
         for _ in 0..peers {
             peer_handles.push(tokio::spawn(async move {
                 // Create a synthetic node, enable handshaking and auto-reply
-                let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-                    handshake: Some(crate::helpers::synthetic_peers::Handshake::Full),
-                    message_filter: MessageFilter::with_all_auto_reply(),
-                    ..Default::default()
-                })
-                .await
-                .unwrap();
+                let mut peer = SyntheticNode::builder()
+                    .with_full_handshake()
+                    .with_all_auto_reply()
+                    .build()
+                    .await
+                    .unwrap();
                 peer.connect(node_addr).await.unwrap();
 
                 for _ in 0..PINGS {
