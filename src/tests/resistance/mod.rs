@@ -5,6 +5,8 @@ mod fuzzing_incorrect_length;
 mod fuzzing_random_bytes;
 mod fuzzing_zeroes;
 
+use std::time::Duration;
+
 use crate::protocol::{
     message::{constants::*, Message},
     payload::{
@@ -20,6 +22,7 @@ use rand::{
 use rand_chacha::ChaCha8Rng;
 
 const ITERATIONS: usize = 100;
+const DISCONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// List of message commands which contain payload bytes
 const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [

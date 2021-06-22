@@ -1,7 +1,7 @@
 use pea2pea::NodeConfig;
 use rand::{prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
-use std::{io::Write, net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 use tabled::{table, Alignment, Style, Tabled};
 
 use crate::{
@@ -444,16 +444,11 @@ fn generate_corrupt_messages(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
         &message_pool,
     ));
     possible_payloads.append(&mut random_bytes(rng, n));
-
-    let random_payloads = metadata_compliant_random_bytes(rng, n, &COMMANDS_WITH_PAYLOADS);
-    for (header, payload) in random_payloads {
-        let mut buffer = Vec::new();
-
-        header.encode(&mut buffer).unwrap();
-        buffer.write_all(&payload).unwrap();
-
-        possible_payloads.push(buffer);
-    }
+    possible_payloads.append(&mut metadata_compliant_random_bytes(
+        rng,
+        n,
+        &COMMANDS_WITH_PAYLOADS,
+    ));
 
     // remove payloads that ended up being valid
     possible_payloads.retain(|x| !is_valid_message_bytes(&mut std::io::Cursor::new(x)));

@@ -1,5 +1,5 @@
 use crate::{
-    helpers::{is_rejection_error, synthetic_peers::SyntheticNode},
+    helpers::synthetic_peers::SyntheticNode,
     setup::node::{Action, Node},
     tests::{performance::table_float_display, simple_metrics},
 };
@@ -144,11 +144,10 @@ async fn incoming_active_connections() {
                         metrics::counter!(METRIC_ACCEPTED, 1);
                         stream
                     }
-                    Err(err) if is_rejection_error(&err) => {
+                    Err(_err) => {
                         metrics::counter!(METRIC_REJECTED, 1);
                         return;
                     }
-                    Err(err) => panic!("Handshake error: {}", err),
                 };
 
                 // Keep connection alive by replying to incoming Pings etc, until instructed to exit or
