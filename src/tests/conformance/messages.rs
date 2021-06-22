@@ -92,15 +92,13 @@ async fn reject_invalid_messages() {
     ];
 
     // Configuration for all the synthetic nodes.
-    let config = SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_enabled(),
-        ..Default::default()
-    };
+    let node_builder = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply();
 
     for (test_message, expected_ccode) in cases {
         // Start a synthetic node.
-        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        let mut synthetic_node = node_builder.build().await.unwrap();
 
         // Connect and initiate handshake.
         synthetic_node.connect(node.addr()).await.unwrap();
@@ -143,13 +141,12 @@ async fn ignores_unsolicited_responses() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_enabled(),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await
+        .unwrap();
 
     // Connect and initiate the handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
@@ -212,13 +209,12 @@ async fn basic_query_response_seeded() {
         .await;
 
     // Create a synthetic node.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_auto_reply(),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await
+        .unwrap();
 
     // Connect to the node and initiate handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
@@ -357,13 +353,12 @@ async fn basic_query_response_unseeded() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node with message filtering.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_enabled(),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await
+        .unwrap();
 
     // Connect to the node and initiate the handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
@@ -422,15 +417,15 @@ async fn disconnects_for_trivial_issues() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     // Configuration letting through ping messages for the first case.
-    let config = SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled),
-        ..Default::default()
-    };
+    let node_builder = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_message_filter(
+            MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled),
+        );
 
     // Pong with bad nonce.
     {
-        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        let mut synthetic_node = node_builder.build().await.unwrap();
         synthetic_node.connect(node.addr()).await.unwrap();
 
         match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
@@ -447,14 +442,11 @@ async fn disconnects_for_trivial_issues() {
     }
 
     // Update the filter to include ping messages.
-    let config = SyntheticNodeConfig {
-        message_filter: MessageFilter::with_all_auto_reply(),
-        ..config
-    };
+    let node_builder = node_builder.with_all_auto_reply();
 
     // GetData with mixed inventory.
     {
-        let synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        let synthetic_node = node_builder.build().await.unwrap();
         synthetic_node.connect(node.addr()).await.unwrap();
 
         let genesis_block = Block::testnet_genesis();
@@ -472,7 +464,7 @@ async fn disconnects_for_trivial_issues() {
     // Inv with mixed inventory (using non-genesis block since all node's "should" have genesis already,
     // which makes advertising it non-sensical).
     {
-        let synthetic_node = SyntheticNode::new(config).await.unwrap();
+        let synthetic_node = node_builder.build().await.unwrap();
         synthetic_node.connect(node.addr()).await.unwrap();
 
         let block_1 = Block::testnet_1();
@@ -524,23 +516,16 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Create 5 synthetic nodes.
     const N: usize = 5;
-    let mut synthetic_nodes = Vec::with_capacity(N);
-    for _ in 0..N {
-        let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::Full),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
+    let (synthetic_nodes, addrs) = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build_n(N)
         .await
         .unwrap();
 
-        synthetic_nodes.push(synthetic_node);
-    }
-
-    // Collect their addrs.
-    let addrs = synthetic_nodes
+    let addrs = addrs
         .iter()
-        .map(|node| NetworkAddr::new(node.listening_addr()))
+        .map(|&addr| NetworkAddr::new(addr))
         .collect::<Vec<_>>();
 
     // Adjust the config so it lets through GetAddr message and start a "main" synthetic node which
@@ -610,24 +595,10 @@ async fn correctly_lists_peers() {
 
     // Create 5 synthetic nodes.
     const N: usize = 5;
-    let mut synthetic_nodes = Vec::with_capacity(N);
-    for _ in 0..N {
-        let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::Full),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
-
-        synthetic_nodes.push(synthetic_node);
-    }
-
-    // Collect their addrs.
-    let expected_addrs: Vec<SocketAddr> = synthetic_nodes
-        .iter()
-        .map(|node| node.listening_addr())
-        .collect();
+    let node_builder = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply();
+    let (synthetic_nodes, expected_addrs) = node_builder.build_n(N).await.unwrap();
 
     // Start node with the synthetic nodes as initial peers.
     let mut node: Node = Default::default();
@@ -639,13 +610,7 @@ async fn correctly_lists_peers() {
     // Connect to node and request GetAddr. We perform multiple iterations to exercise the #2120
     // zebra bug.
     for _ in 0..N {
-        let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::Full),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut synthetic_node = node_builder.build().await.unwrap();
 
         synthetic_node.connect(node.addr()).await.unwrap();
         synthetic_node
@@ -711,13 +676,12 @@ async fn get_blocks() {
 
     let blocks = Block::initial_testnet_blocks();
 
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_auto_reply(),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await
+        .unwrap();
 
     synthetic_node.connect(node.addr()).await.unwrap();
 
@@ -864,13 +828,12 @@ async fn correctly_lists_blocks() {
     ];
 
     // Establish a peer node.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_auto_reply(),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await
+        .unwrap();
 
     synthetic_node.connect(node.addr()).await.unwrap();
 
@@ -983,13 +946,12 @@ async fn get_data_blocks() {
         .collect::<Vec<_>>();
 
     // Establish a peer node
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_auto_reply(),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await
+        .unwrap();
 
     synthetic_node.connect(node.addr()).await.unwrap();
 
