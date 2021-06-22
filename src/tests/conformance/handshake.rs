@@ -1,12 +1,9 @@
 use std::time::Duration;
 
 use crate::{
-    helpers::{
-        synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
-        TIMEOUT,
-    },
+    helpers::{synthetic_peers::SyntheticNode, TIMEOUT},
     protocol::{
-        message::{filter::MessageFilter, Message},
+        message::Message,
         payload::{
             block::{Block, LocatorHashes},
             reject::CCode,
@@ -28,12 +25,11 @@ async fn handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     // Create a synthetic node and enable handshaking.
-    let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .build()
+        .await
+        .unwrap();
 
     // Connect to the node and initiate the handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
@@ -51,12 +47,11 @@ async fn handshake_initiator_side() {
     // ZG-CONFORMANCE-002
 
     // Create a synthetic node and enable handshaking.
-    let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        handshake: Some(Handshake::Full),
-        ..Default::default()
-    })
-    .await
-    .unwrap();
+    let synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .build()
+        .await
+        .unwrap();
 
     // Spin up a node and set the synthetic node as an initial peer.
     let mut node: Node = Default::default();
@@ -107,10 +102,10 @@ async fn ignore_non_version_before_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
-    let config: SyntheticNodeConfig = Default::default();
+    let node_builder = SyntheticNode::builder();
 
     for message in test_messages {
-        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        let mut synthetic_node = node_builder.build().await.unwrap();
 
         // Connect to the node, don't handshake.
         synthetic_node.connect(node.addr()).await.unwrap();
@@ -184,23 +179,20 @@ async fn ignore_non_version_replies_to_version() {
         Message::NotFound(block_inv),
     ];
 
-    // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
-    let config: SyntheticNodeConfig = Default::default();
+    // Create peers (and get their listening address to pass to node)
+    let (mut peers, addrs) = SyntheticNode::builder()
+        .build_n(test_messages.len())
+        .await
+        .unwrap();
     // Instantiate a node instance without starting it (so we have access to its addr).
     let mut node: Node = Default::default();
     let node_addr = node.addr();
-
-    // Store the listening addresses of the synthetic nodes so they can be set as initial peers of
-    // the node.
-    let mut listeners = Vec::with_capacity(test_messages.len());
 
     // Create a future for each message.
     let mut handles = Vec::with_capacity(test_messages.len());
 
     for message in test_messages {
-        // Create a synthetic node and store its address.
-        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
-        listeners.push(synthetic_node.listening_addr());
+        let mut synthetic_node = peers.pop().unwrap();
 
         let handle = tokio::spawn(async move {
             // Receive Version.
@@ -234,7 +226,7 @@ async fn ignore_non_version_replies_to_version() {
     }
 
     // Start the node instance with the initial peers.
-    node.initial_peers(listeners).start().await;
+    node.initial_peers(addrs).start().await;
 
     // Run each future to completion.
     for handle in handles {
@@ -275,26 +267,23 @@ async fn ignore_non_verack_replies_to_verack() {
 
     // Configuration to be used by all synthetic nodes, no handshaking with filtering enabled so we
     // can assert on a ping pong exchange at the end of the test.
-    let config = SyntheticNodeConfig {
-        message_filter: MessageFilter::with_all_enabled(),
-        ..Default::default()
-    };
+    //
+    // Create peers (and get their listening address to pass to node)
+    let (mut peers, addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .build_n(test_messages.len())
+        .await
+        .unwrap();
 
     // Instantiate a node instance without starting it (so we have access to its addr).
     let mut node: Node = Default::default();
     let node_addr = node.addr();
 
-    // Store the listening addresses of the synthetic nodes so they can be set as initial peers of
-    // the node.
-    let mut listeners = Vec::with_capacity(test_messages.len());
-
     // Create a future for each message.
     let mut handles = Vec::with_capacity(test_messages.len());
 
     for message in test_messages {
-        // Create a synthetic node and store its address.
-        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
-        listeners.push(synthetic_node.listening_addr());
+        let mut synthetic_node = peers.pop().unwrap();
 
         let handle = tokio::spawn(async move {
             // Receive Version.
@@ -338,7 +327,7 @@ async fn ignore_non_verack_replies_to_verack() {
     }
 
     // Start the node instance with the initial peers.
-    node.initial_peers(listeners).start().await;
+    node.initial_peers(addrs).start().await;
 
     // Run each future to completion.
     for handle in handles {
@@ -359,9 +348,7 @@ async fn reject_version_reusing_nonce() {
     // zcashd: closes the write half of the stream, doesn't close the socket.
 
     // Create a synthetic node, no handshake, no message filters.
-    let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig::default())
-        .await
-        .unwrap();
+    let mut synthetic_node = SyntheticNode::builder().build().await.unwrap();
 
     // Spin up a node instance with the synthetic node set as an initial peer.
     let mut node: Node = Default::default();
@@ -405,11 +392,11 @@ async fn reject_obsolete_versions() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     // Configuration for all synthetic nodes, no handshake, no message filter.
-    let config: SyntheticNodeConfig = Default::default();
+    let node_builder = SyntheticNode::builder();
 
     for obsolete_version_number in obsolete_version_numbers {
         // Create a synthetic node.
-        let mut synthetic_node = SyntheticNode::new(config.clone()).await.unwrap();
+        let mut synthetic_node = node_builder.build().await.unwrap();
 
         // Connect to the node and send a Version with an obsolete version.
         synthetic_node.connect(node.addr()).await.unwrap();
