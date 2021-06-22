@@ -122,6 +122,12 @@ impl SyntheticNodeBuilder {
         self.handshake = Some(Handshake::VersionOnly);
         self
     }
+
+    /// Sets the [MessageFilter]
+    pub fn with_message_filter(mut self, filter: MessageFilter) -> Self {
+        self.message_filter = filter;
+        self
+    }
 }
 
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
