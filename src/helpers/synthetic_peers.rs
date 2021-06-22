@@ -4,7 +4,7 @@ use crate::protocol::{
         filter::{Filter, MessageFilter},
         Message, MessageHeader,
     },
-    payload::{codec::Codec, Version},
+    payload::{codec::Codec, Nonce, Version},
 };
 
 use assert_matches::assert_matches;
@@ -28,7 +28,7 @@ use std::{
 #[derive(Debug, Clone)]
 pub struct SyntheticNodeConfig {
     pub network_config: Option<NodeConfig>,
-    pub enable_handshaking: bool,
+    pub handshake: Option<Handshake>,
     pub message_filter: MessageFilter,
 }
 
@@ -40,10 +40,16 @@ impl Default for SyntheticNodeConfig {
                 listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
                 ..Default::default()
             }),
-            enable_handshaking: false,
+            handshake: None,
             message_filter: MessageFilter::with_all_disabled(),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Handshake {
+    Full,
+    VersionOnly,
 }
 
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
@@ -63,15 +69,11 @@ impl SyntheticNode {
 
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
-        let inner_node = InnerNode::new(node, tx, config.message_filter);
+        let inner_node = InnerNode::new(node, tx, config.message_filter, config.handshake);
 
-        // Enable the read and write protocols, handshake is enabled on a per-case basis.
+        // Enable the read and write protocols
         inner_node.enable_reading();
         inner_node.enable_writing();
-
-        if config.enable_handshaking {
-            inner_node.enable_handshaking();
-        }
 
         Ok(Self {
             inner_node,
@@ -148,7 +150,6 @@ impl SyntheticNode {
     // Attempts to read a message from the inbound (internal) queue of the node before the timeout
     // duration has elapsed (seconds).
     // FIXME: logging?
-    // FIXME: use timeout duration instead of hardcoding secs
     pub async fn recv_message_timeout(
         &mut self,
         duration: Duration,
@@ -170,8 +171,6 @@ impl SyntheticNode {
     /// Panics if a correct pong isn't sent before the timeout.
     /// FIXME: write  general `expect_message` macro.
     pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
-        use crate::protocol::payload::Nonce;
-
         let ping_nonce = Nonce::default();
         self.send_direct_message(target, Message::Ping(ping_nonce))
             .await
@@ -258,17 +257,30 @@ impl Drop for SyntheticNode {
 #[derive(Clone)]
 struct InnerNode {
     node: Node,
+    handshake: Option<Handshake>,
     inbound_tx: Sender<(SocketAddr, Message)>,
     message_filter: MessageFilter,
 }
 
 impl InnerNode {
-    fn new(node: Node, tx: Sender<(SocketAddr, Message)>, message_filter: MessageFilter) -> Self {
-        Self {
+    fn new(
+        node: Node,
+        tx: Sender<(SocketAddr, Message)>,
+        message_filter: MessageFilter,
+        handshake: Option<Handshake>,
+    ) -> Self {
+        let node = Self {
             node,
             inbound_tx: tx,
             message_filter,
+            handshake,
+        };
+
+        if handshake.is_some() {
+            node.enable_handshaking();
         }
+
+        node
     }
 
     async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
@@ -379,8 +391,8 @@ impl Writing for InnerNode {
 #[async_trait::async_trait]
 impl Handshaking for InnerNode {
     async fn perform_handshake(&self, mut conn: Connection) -> Result<Connection> {
-        match !conn.side {
-            ConnectionSide::Initiator => {
+        match (self.handshake, !conn.side) {
+            (Some(Handshake::Full), ConnectionSide::Initiator) => {
                 // Send and receive Version.
                 Message::Version(Version::new(self.node().listening_addr(), conn.addr))
                     .write_to_stream(conn.writer())
@@ -395,8 +407,7 @@ impl Handshaking for InnerNode {
                 let verack = Message::read_from_stream(conn.reader()).await?;
                 assert_matches!(verack, Message::Verack);
             }
-
-            ConnectionSide::Responder => {
+            (Some(Handshake::Full), ConnectionSide::Responder) => {
                 // Receive and send Version.
                 let version = Message::read_from_stream(conn.reader()).await?;
                 assert_matches!(version, Message::Version(..));
@@ -413,6 +424,26 @@ impl Handshaking for InnerNode {
 
                 Message::Verack.write_to_stream(conn.writer()).await?;
             }
+            (Some(Handshake::VersionOnly), ConnectionSide::Initiator) => {
+                Message::Version(Version::new(self.node().listening_addr(), conn.addr))
+                    .write_to_stream(conn.writer())
+                    .await?;
+
+                let version = Message::read_from_stream(conn.reader()).await?;
+                assert_matches!(version, Message::Version(..));
+            }
+            (Some(Handshake::VersionOnly), ConnectionSide::Responder) => {
+                // Receive and send Version.
+                let version = Message::read_from_stream(conn.reader()).await?;
+                assert_matches!(version, Message::Version(..));
+
+                // FIXME: send the node addr with its listener port, not the ephemeral port
+                // created for the connection.
+                Message::Version(Version::new(self.node().listening_addr(), conn.addr))
+                    .write_to_stream(conn.writer())
+                    .await?;
+            }
+            (None, _) => {}
         }
 
         Ok(conn)
