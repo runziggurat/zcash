@@ -1,11 +1,13 @@
 use crate::{
-    helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
-    protocol::payload::{codec::Codec, Version},
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
+    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
+    protocol::{
+        message::filter::MessageFilter,
+        payload::{codec::Codec, Version},
     },
-    tests::resistance::{default_fuzz_messages, seeded_rng, Message, ITERATIONS},
+    setup::node::{Action, Node},
+    tests::resistance::{
+        default_fuzz_messages, seeded_rng, Message, DISCONNECT_TIMEOUT, ITERATIONS,
+    },
 };
 
 use std::sync::Arc;
@@ -14,10 +16,6 @@ use assert_matches::assert_matches;
 use parking_lot::RwLock;
 use rand::prelude::{Rng, SliceRandom};
 use rand_chacha::ChaCha8Rng;
-use tokio::{
-    io::AsyncWriteExt,
-    net::{TcpListener, TcpStream},
-};
 
 const CORRUPTION_PROBABILITY: f64 = 0.5;
 
@@ -41,16 +39,27 @@ async fn corrupted_version_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-        let version =
-            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
+
+        let version = Message::Version(Version::new(node.addr(), peer.listening_addr()));
         let corrupted_version = corrupt_message(&mut rng, &version);
 
         // Send corrupt Version in place of Verack.
         // Contains header + message.
-        let _ = peer_stream.write_all(&corrupted_version).await;
+        peer.send_direct_bytes(node.addr(), corrupted_version)
+            .await
+            .unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -72,17 +81,28 @@ async fn corrupted_version_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
-        let version_to_corrupt =
-            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let version_to_corrupt = Message::Version(Version::new(node.addr(), peer.listening_addr()));
         let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
 
         // Send corrupt Version in place of Verack.
         // Contains header + message.
-        let _ = peer_stream.write_all(&corrupted_version).await;
+        peer.send_direct_bytes(node.addr(), corrupted_version)
+            .await
+            .unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -102,43 +122,52 @@ async fn corrupted_version_when_node_initiates_handshake() {
 
     let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(ITERATIONS);
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
     for _ in 0..ITERATIONS {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
         let peer_rng = locked_rng.clone();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                peer.wait_for_connection().await;
+                let (node_addr, version) = peer.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
                 let corrupted_version = {
                     let mut rng = peer_rng.write();
-                    let version_to_corrupt = Message::Version(Version::new(
-                        peer_stream.peer_addr().unwrap(),
-                        peer_stream.local_addr().unwrap(),
-                    ));
+                    let version_to_corrupt =
+                        Message::Version(Version::new(node_addr, peer.listening_addr()));
                     corrupt_message(&mut rng, &version_to_corrupt)
                 };
+                peer.send_direct_bytes(node_addr, corrupted_version)
+                    .await
+                    .unwrap();
 
-                let _ = peer_stream.write_all(&corrupted_version).await;
-
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -169,47 +198,54 @@ async fn corrupted_version_inplace_of_verack_when_node_initiates_handshake() {
 
     let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(ITERATIONS);
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
     for _ in 0..ITERATIONS {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
         let peer_rng = locked_rng.clone();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-                assert_matches!(version, Message::Version(..));
+                // Await connection
+                let node_addr = peer.wait_for_connection().await;
 
-                // send version, receive verack
-                let version = Message::Version(Version::new(
-                    peer_stream.peer_addr().unwrap(),
-                    peer_stream.local_addr().unwrap(),
-                ));
-                version.write_to_stream(&mut peer_stream).await.unwrap();
-                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                // Receive verack
+                let (_, verack) = peer.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
-                // send bad version instead of verack
+                // Send bad version instead of verack
+                let version = Message::Version(Version::new(node_addr, peer.listening_addr()));
                 let corrupted_version = {
                     let mut rng = peer_rng.write();
                     corrupt_message(&mut rng, &version)
                 };
-                let _ = peer_stream.write_all(&corrupted_version).await;
+                peer.send_direct_bytes(node_addr, corrupted_version)
+                    .await
+                    .unwrap();
 
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -243,17 +279,28 @@ async fn corrupted_version_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            handshake: Some(Handshake::Full),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
-        let version_to_corrupt =
-            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
+        let version_to_corrupt = Message::Version(Version::new(node.addr(), peer.listening_addr()));
         let corrupted_version = corrupt_message(&mut rng, &version_to_corrupt);
 
         // Send corrupt Version in place of Verack.
         // Contains header + message.
-        let _ = peer_stream.write_all(&corrupted_version).await;
+        peer.send_direct_bytes(node.addr(), corrupted_version)
+            .await
+            .unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -275,10 +322,20 @@ async fn corrupted_messages_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-        let _ = peer_stream.write_all(&payload).await;
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -300,12 +357,22 @@ async fn corrupted_messages_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
         // Write the corrupted message in place of Verack.
-        let _ = peer_stream.write_all(&payload).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -325,34 +392,45 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
     let mut rng = seeded_rng();
     let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(payloads.len());
-    for _ in 0..payloads.len() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
         let payload = payloads.pop().unwrap();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                let node_addr = peer.wait_for_connection().await;
+
+                let (_, version) = peer.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                let _ = peer_stream.write_all(&payload).await;
+                peer.send_direct_bytes(node_addr, payload).await.unwrap();
 
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -386,44 +464,47 @@ async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
     let mut rng = seeded_rng();
     let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(payloads.len());
-    for _ in 0..payloads.len() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
         let payload = payloads.pop().unwrap();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-                assert_matches!(version, Message::Version(..));
+                // Await connection
+                let node_addr = peer.wait_for_connection().await;
 
-                // send version, receive verack
-                Message::Version(Version::new(
-                    peer_stream.peer_addr().unwrap(),
-                    peer_stream.local_addr().unwrap(),
-                ))
-                .write_to_stream(&mut peer_stream)
-                .await
-                .unwrap();
-                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                // Receive verack
+                let (_, verack) = peer.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
                 // send bad verack
-                let _ = peer_stream.write_all(&payload).await;
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -458,12 +539,22 @@ async fn corrupted_messages_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::Full),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
         // Write the corrupted message in place of Verack.
-        let _ = peer_stream.write_all(&payload).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;

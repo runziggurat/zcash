@@ -1,20 +1,16 @@
 use crate::{
-    helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
-    protocol::{message::*, payload::Version},
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
+    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
+    protocol::{
+        message::{constants::HEADER_LEN, filter::MessageFilter, Message, MessageHeader},
+        payload::codec::Codec,
     },
-    tests::resistance::{seeded_rng, COMMANDS_WITH_PAYLOADS, ITERATIONS},
+    setup::node::{Action, Node},
+    tests::resistance::{seeded_rng, COMMANDS_WITH_PAYLOADS, DISCONNECT_TIMEOUT, ITERATIONS},
 };
 
 use assert_matches::assert_matches;
 use rand::{distributions::Standard, prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
-use tokio::{
-    io::AsyncWriteExt,
-    net::{TcpListener, TcpStream},
-};
 
 #[tokio::test]
 async fn random_bytes_pre_handshake() {
@@ -30,10 +26,19 @@ async fn random_bytes_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-        let _ = peer_stream.write_all(&payload).await;
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -53,12 +58,22 @@ async fn random_bytes_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
         // Write random bytes in place of Verack.
-        let _ = peer_stream.write_all(&payload).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -76,34 +91,44 @@ async fn random_bytes_for_version_when_node_initiates_handshake() {
     let mut rng = seeded_rng();
     let mut payloads = random_bytes(&mut rng, ITERATIONS);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(payloads.len());
-    for _ in 0..payloads.len() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
         let payload = payloads.pop().unwrap();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                peer.wait_for_connection().await;
+                let (node_addr, version) = peer.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                let _ = peer_stream.write_all(&payload).await;
+                peer.send_direct_bytes(node_addr, payload).await.unwrap();
 
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -134,44 +159,45 @@ async fn random_bytes_for_verack_when_node_initiates_handshake() {
     let mut rng = seeded_rng();
     let mut payloads = random_bytes(&mut rng, ITERATIONS);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(payloads.len());
-    for _ in 0..payloads.len() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
         let payload = payloads.pop().unwrap();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-                assert_matches!(version, Message::Version(..));
-
-                // send version, receive verack
-                Message::Version(Version::new(
-                    peer_stream.peer_addr().unwrap(),
-                    peer_stream.local_addr().unwrap(),
-                ))
-                .write_to_stream(&mut peer_stream)
-                .await
-                .unwrap();
-                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                // Await connection and receive verack.
+                // Version exchange already completed by handshake.
+                peer.wait_for_connection().await;
+                let (node_addr, verack) = peer.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
                 // send bad verack
-                let _ = peer_stream.write_all(&payload).await;
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -204,12 +230,21 @@ async fn random_bytes_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::Full),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
         // Write random bytes in place of Verack.
-        let _ = peer_stream.write_all(&payload).await;
-
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -230,12 +265,20 @@ async fn metadata_compliant_random_bytes_pre_handshake() {
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection).start().await;
 
-    for (header, payload) in payloads {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&payload).await;
+    for payload in payloads {
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -256,14 +299,21 @@ async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection).start().await;
 
-    for (header, payload) in payloads {
-        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+    for payload in payloads {
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
-        // Write random bytes in place of Verack.
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&payload).await;
-
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -284,35 +334,43 @@ async fn metadata_compliant_random_bytes_for_version_when_node_initiates_handsha
     let mut payloads =
         metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(payloads.len());
-    for _ in 0..payloads.len() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
-        let (header, payload) = payloads.pop().unwrap();
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
+        let payload = payloads.pop().unwrap();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                peer.wait_for_connection().await;
+                let (node_addr, version) = peer.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                let _ = header.write_to_stream(&mut peer_stream).await;
-                let _ = peer_stream.write_all(&payload).await;
-
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -348,45 +406,45 @@ async fn metadata_compliant_random_bytes_for_verack_when_node_initiates_handshak
     let mut payloads =
         metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(payloads.len());
-    for _ in 0..payloads.len() {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
+    // create peers (we need their ports to give to the node)
+    let mut peers = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::VersionOnly),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        peers.push(peer);
     }
 
     // get list of peer addresses to pass to node
-    let peer_addresses = listeners
+    let peer_addresses = peers
         .iter()
-        .map(|listener| listener.local_addr().unwrap())
+        .map(|peer| peer.listening_addr())
         .collect::<Vec<_>>();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
-        let (header, payload) = payloads.pop().unwrap();
+    let mut peer_handles = Vec::with_capacity(peers.len());
+    for mut peer in peers {
+        let payload = payloads.pop().unwrap();
         peer_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-                assert_matches!(version, Message::Version(..));
-
-                // send version, receive verack
-                Message::Version(Version::new(
-                    peer_stream.peer_addr().unwrap(),
-                    peer_stream.local_addr().unwrap(),
-                ))
-                .write_to_stream(&mut peer_stream)
-                .await
-                .unwrap();
-                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                // Await connection and receive verack.
+                // Version exchange already completed by handshake.
+                peer.wait_for_connection().await;
+                let (node_addr, verack) = peer.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
-                // send bad verack
-                let _ = header.write_to_stream(&mut peer_stream).await;
-                let _ = peer_stream.write_all(&payload).await;
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                // send bad version
+                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                assert!(peer
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
@@ -420,14 +478,21 @@ async fn metadata_compliant_random_bytes_post_handshake() {
     let mut node: Node = Default::default();
     node.initial_action(Action::WaitForConnection).start().await;
 
-    for (header, payload) in payloads {
-        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+    for payload in payloads {
+        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
+            handshake: Some(Handshake::Full),
+            message_filter: MessageFilter::with_all_auto_reply(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        peer.connect(node.addr()).await.unwrap();
 
-        // Write random bytes in place of Verack.
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&payload).await;
-
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        assert!(peer
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -450,16 +515,20 @@ pub fn metadata_compliant_random_bytes(
     rng: &mut ChaCha8Rng,
     n: usize,
     commands: &[[u8; 12]],
-) -> Vec<(MessageHeader, Vec<u8>)> {
+) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
             let random_len: usize = rng.gen_range(1..(64 * 1024));
-            let random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
+            let mut random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
 
             let command = commands.choose(rng).unwrap();
             let header = MessageHeader::new(*command, &random_payload);
 
-            (header, random_payload)
+            let mut buffer = Vec::with_capacity(HEADER_LEN + random_payload.len());
+            header.encode(&mut buffer).unwrap();
+            buffer.append(&mut random_payload);
+
+            buffer
         })
         .collect()
 }
