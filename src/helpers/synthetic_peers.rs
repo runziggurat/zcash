@@ -52,6 +52,78 @@ pub enum Handshake {
     VersionOnly,
 }
 
+#[derive(Debug, Clone)]
+pub struct SyntheticNodeBuilder {
+    network_config: Option<NodeConfig>,
+    handshake: Option<Handshake>,
+    message_filter: MessageFilter,
+}
+
+impl Default for SyntheticNodeBuilder {
+    fn default() -> Self {
+        Self {
+            network_config: Some(NodeConfig {
+                // Set localhost as the default IP.
+                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+                ..Default::default()
+            }),
+            handshake: None,
+            message_filter: MessageFilter::with_all_disabled(),
+        }
+    }
+}
+
+impl SyntheticNodeBuilder {
+    /// Creates a [SyntheticNode] with the current configuration
+    pub async fn build(&self) -> Result<SyntheticNode> {
+        // Create the pea2pea node from the config.
+        let node = Node::new(self.network_config.clone()).await?;
+
+        // Inbound channel size of 100 messages.
+        let (tx, rx) = mpsc::channel(100);
+        let inner_node = InnerNode::new(node, tx, self.message_filter.clone(), self.handshake);
+
+        // Enable the read and write protocols
+        inner_node.enable_reading();
+        inner_node.enable_writing();
+
+        Ok(SyntheticNode {
+            inner_node,
+            inbound_rx: rx,
+        })
+    }
+
+    /// Creates `n` [SyntheticNode]'s with the current configuration, and also returns their listening address.
+    pub async fn build_n(&self, n: usize) -> Result<(Vec<SyntheticNode>, Vec<SocketAddr>)> {
+        let mut nodes = Vec::with_capacity(n);
+        for _ in 0..n {
+            nodes.push(self.build().await?);
+        }
+
+        let addrs = nodes.iter().map(|node| node.listening_addr()).collect();
+
+        Ok((nodes, addrs))
+    }
+
+    /// Sets [MessageFilter] to [Filter::AutoReply]
+    pub fn with_all_auto_reply(mut self) -> Self {
+        self.message_filter = MessageFilter::with_all_auto_reply();
+        self
+    }
+
+    /// Enables handshaking with [Handshake::Full]
+    pub fn with_full_handshake(mut self) -> Self {
+        self.handshake = Some(Handshake::Full);
+        self
+    }
+
+    /// Enables handshaking with [Handshake::VersionOnly]
+    pub fn with_version_exchange_handshake(mut self) -> Self {
+        self.handshake = Some(Handshake::VersionOnly);
+        self
+    }
+}
+
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
 pub struct SyntheticNode {
     inner_node: InnerNode,
@@ -59,6 +131,10 @@ pub struct SyntheticNode {
 }
 
 impl SyntheticNode {
+    pub fn builder() -> SyntheticNodeBuilder {
+        SyntheticNodeBuilder::default()
+    }
+
     /// Creates a new synthetic node from a `pea2pea` node.
     ///
     /// The handshake protocol can also optionally enabled and the message filter must be set for
