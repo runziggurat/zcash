@@ -138,7 +138,7 @@ async fn ping_pong_latency() {
             peer_handles.push(tokio::spawn(async move {
                 // Create a synthetic node, enable handshaking and auto-reply
                 let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-                    enable_handshaking: true,
+                    handshake: Some(crate::helpers::synthetic_peers::Handshake::Full),
                     message_filter: MessageFilter::with_all_auto_reply(),
                     ..Default::default()
                 })

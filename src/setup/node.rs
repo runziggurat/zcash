@@ -1,5 +1,5 @@
 use crate::{
-    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
     protocol::{
         message::filter::{Filter, MessageFilter},
         payload::{
@@ -120,7 +120,7 @@ impl Node {
             Action::WaitForConnection | Action::SeedWithTestnetBlocks(_) => {
                 // Start a synthetic node to perform the initial actions.
                 let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-                    enable_handshaking: true,
+                    handshake: Some(Handshake::Full),
                     message_filter: MessageFilter::with_all_auto_reply()
                         .with_getheaders_filter(Filter::Disabled)
                         .with_getdata_filter(Filter::Disabled),

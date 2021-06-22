@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{
     helpers::{
-        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+        synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
         TIMEOUT,
     },
     protocol::{
@@ -29,7 +29,7 @@ async fn handshake_responder_side() {
 
     // Create a synthetic node and enable handshaking.
     let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         ..Default::default()
     })
     .await
@@ -52,7 +52,7 @@ async fn handshake_initiator_side() {
 
     // Create a synthetic node and enable handshaking.
     let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         ..Default::default()
     })
     .await

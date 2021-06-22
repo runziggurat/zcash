@@ -1,11 +1,11 @@
 use pea2pea::NodeConfig;
 use rand::{prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
-use std::{io::Write, net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 use tabled::{table, Alignment, Style, Tabled};
 
 use crate::{
-    helpers::synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
     protocol::{
         message::{constants::MAGIC, filter::MessageFilter, Message, MessageHeader},
         payload::{
@@ -489,7 +489,7 @@ async fn simulate_peer(
             ..Default::default()
         }
         .into(),
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply(),
     })
     .await

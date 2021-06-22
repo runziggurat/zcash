@@ -1,7 +1,7 @@
 use crate::{
     helpers::{
         is_rejection_error,
-        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+        synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
     },
     protocol::message::filter::MessageFilter,
     setup::node::{Action, Node},
@@ -134,7 +134,7 @@ async fn incoming_active_connections() {
 
             peer_handles.push(tokio::spawn(async move {
                 let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-                    enable_handshaking: true,
+                    handshake: Some(Handshake::Full),
                     message_filter: MessageFilter::with_all_auto_reply(),
                     ..Default::default()
                 })
