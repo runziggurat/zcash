@@ -133,13 +133,12 @@ async fn incoming_active_connections() {
             let peer_handshaken = handshake_tx.clone();
 
             peer_handles.push(tokio::spawn(async move {
-                let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-                    handshake: Some(Handshake::Full),
-                    message_filter: MessageFilter::with_all_auto_reply(),
-                    ..Default::default()
-                })
-                .await
-                .unwrap();
+                let mut peer = SyntheticNode::builder()
+                    .with_full_handshake()
+                    .with_all_auto_reply()
+                    .build()
+                    .await
+                    .unwrap();
 
                 // Establish peer connection
                 let handshake_result = peer.connect(node_addr).await;
