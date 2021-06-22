@@ -1,3 +1,5 @@
+//! Network message payload types.
+
 use chrono::{DateTime, NaiveDateTime, Utc};
 use rand::{thread_rng, Rng};
 
