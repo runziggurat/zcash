@@ -1,7 +1,7 @@
 use pea2pea::NodeConfig;
 use rand::{prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
-use std::{net::SocketAddr, time::Duration};
+use std::{io::Write, net::SocketAddr, time::Duration};
 use tabled::{table, Alignment, Style, Tabled};
 
 use crate::{

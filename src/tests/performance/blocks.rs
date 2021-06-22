@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 use tokio::time::Duration;
 
 use crate::{
-    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
+    helpers::synthetic_peers::SyntheticNode,
     protocol::{
-        message::{filter::MessageFilter, Message},
+        message::Message,
         payload::{block::Block, Inv},
     },
     setup::node::{Action, Node},
@@ -120,13 +120,12 @@ async fn getdata_blocks_latency() {
                 .collect::<VecDeque<_>>();
 
             peer_handles.push(tokio::spawn(async move {
-                let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-                    handshake: Some(Handshake::Full),
-                    message_filter: MessageFilter::with_all_auto_reply(),
-                    ..Default::default()
-                })
-                .await
-                .unwrap();
+                let mut peer = SyntheticNode::builder()
+                    .with_full_handshake()
+                    .with_all_auto_reply()
+                    .build()
+                    .await
+                    .unwrap();
 
                 peer.connect(node_addr).await.unwrap();
 
