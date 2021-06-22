@@ -105,6 +105,22 @@ impl SyntheticNode {
         self.inner_node.node().known_peers()
     }
 
+    /// Waits until the node has at least one connection, and
+    /// returns its SocketAddr
+    pub async fn wait_for_connection(&self) -> SocketAddr {
+        const SLEEP: Duration = Duration::from_millis(10);
+        loop {
+            {
+                let addr_map = self.known_peers().read();
+                if let Some(addr) = addr_map.keys().next() {
+                    return *addr;
+                }
+            }
+
+            tokio::time::sleep(SLEEP).await;
+        }
+    }
+
     /// Sends a direct message to the target address.
     pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
         self.inner_node.send_direct_message(target, message).await?;
@@ -167,6 +183,64 @@ impl SyntheticNode {
                 assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce)
             }
             Err(e) => panic!("no pong response received: {}", e),
+        }
+    }
+
+    /// Sends Ping(nonce), and expects Pong(nonce) as a reply.
+    ///
+    /// Uses polling to check that connection is still alive.
+    ///
+    /// Errors if:
+    ///     - a non-Pong(nonce) message is received
+    ///     - timeout expires
+    ///     - connection breaks
+    pub async fn ping_pong_timeout(
+        &mut self,
+        target: SocketAddr,
+        duration: Duration,
+    ) -> Result<()> {
+        const SLEEP: Duration = Duration::from_millis(10);
+
+        let now = std::time::Instant::now();
+        let ping_nonce = Nonce::default();
+        self.send_direct_message(target, Message::Ping(ping_nonce))
+            .await?;
+
+        while now.elapsed() < duration {
+            // check that connection is still alive
+            if !self.is_connected(target) {
+                return Err(ErrorKind::ConnectionAborted.into());
+            }
+
+            match self.recv_message_timeout(SLEEP).await {
+                Err(_timeout) => continue,
+                Ok((_, Message::Pong(nonce))) if nonce == ping_nonce => return Ok(()),
+                Ok((_, message)) => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        format!("Expect Pong({:?}), but got {:?}", ping_nonce, message),
+                    ));
+                }
+            }
+        }
+
+        Err(Error::new(
+            ErrorKind::TimedOut,
+            format!("No Pong received after {0:.3}s", duration.as_secs_f64()),
+        ))
+    }
+
+    /// Waits for the target to disconnect by sending a ping request. Errors if
+    /// the target responds or doesn't disconnect within the timeout.
+    pub async fn wait_for_disconnect(
+        &mut self,
+        target: SocketAddr,
+        duration: Duration,
+    ) -> Result<()> {
+        match self.ping_pong_timeout(target, duration).await {
+            Ok(_) => Err(Error::new(ErrorKind::Other, "connection still active")),
+            Err(err) if err.kind() == ErrorKind::ConnectionAborted => Ok(()),
+            Err(err) => Err(err),
         }
     }
 
