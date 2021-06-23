@@ -1,7 +1,7 @@
 use crate::{
-    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
+    helpers::synthetic_peers::SyntheticNode,
     protocol::{
-        message::{constants::HEADER_LEN, filter::MessageFilter, Message, MessageHeader},
+        message::{constants::HEADER_LEN, Message, MessageHeader},
         payload::codec::Codec,
     },
     setup::node::{Action, Node},
@@ -26,12 +26,11 @@ async fn random_bytes_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
         peer.connect(node.addr()).await.unwrap();
         peer.send_direct_bytes(node.addr(), payload).await.unwrap();
 
@@ -58,13 +57,12 @@ async fn random_bytes_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::VersionOnly),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .build()
+            .await
+            .unwrap();
         peer.connect(node.addr()).await.unwrap();
 
         // Write random bytes in place of Verack.
@@ -94,12 +92,11 @@ async fn random_bytes_for_version_when_node_initiates_handshake() {
     // create peers (we need their ports to give to the node)
     let mut peers = Vec::with_capacity(ITERATIONS);
     for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::new(SyntheticNodeConfig {
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
 
         peers.push(peer);
     }
@@ -162,13 +159,12 @@ async fn random_bytes_for_verack_when_node_initiates_handshake() {
     // create peers (we need their ports to give to the node)
     let mut peers = Vec::with_capacity(ITERATIONS);
     for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::VersionOnly),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .build()
+            .await
+            .unwrap();
 
         peers.push(peer);
     }
@@ -230,13 +226,12 @@ async fn random_bytes_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::Full),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_full_handshake()
+            .build()
+            .await
+            .unwrap();
         peer.connect(node.addr()).await.unwrap();
 
         // Write random bytes in place of Verack.
@@ -266,12 +261,11 @@ async fn metadata_compliant_random_bytes_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
         peer.connect(node.addr()).await.unwrap();
 
         peer.send_direct_bytes(node.addr(), payload).await.unwrap();
@@ -300,13 +294,12 @@ async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::VersionOnly),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .build()
+            .await
+            .unwrap();
         peer.connect(node.addr()).await.unwrap();
 
         peer.send_direct_bytes(node.addr(), payload).await.unwrap();
@@ -337,12 +330,11 @@ async fn metadata_compliant_random_bytes_for_version_when_node_initiates_handsha
     // create peers (we need their ports to give to the node)
     let mut peers = Vec::with_capacity(ITERATIONS);
     for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::new(SyntheticNodeConfig {
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
 
         peers.push(peer);
     }
@@ -409,13 +401,12 @@ async fn metadata_compliant_random_bytes_for_verack_when_node_initiates_handshak
     // create peers (we need their ports to give to the node)
     let mut peers = Vec::with_capacity(ITERATIONS);
     for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::VersionOnly),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .build()
+            .await
+            .unwrap();
 
         peers.push(peer);
     }
@@ -479,13 +470,12 @@ async fn metadata_compliant_random_bytes_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for payload in payloads {
-        let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-            handshake: Some(Handshake::Full),
-            message_filter: MessageFilter::with_all_auto_reply(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+        let mut peer = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_full_handshake()
+            .build()
+            .await
+            .unwrap();
         peer.connect(node.addr()).await.unwrap();
 
         peer.send_direct_bytes(node.addr(), payload).await.unwrap();
