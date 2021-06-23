@@ -96,11 +96,12 @@ impl SyntheticNodeBuilder {
     /// Creates `n` [SyntheticNode]'s with the current configuration, and also returns their listening address.
     pub async fn build_n(&self, n: usize) -> Result<(Vec<SyntheticNode>, Vec<SocketAddr>)> {
         let mut nodes = Vec::with_capacity(n);
+        let mut addrs = Vec::with_capacity(n);
         for _ in 0..n {
-            nodes.push(self.build().await?);
+            let node = self.build().await?;
+            addrs.push(node.listening_addr());
+            nodes.push(node);
         }
-
-        let addrs = nodes.iter().map(|node| node.listening_addr()).collect();
 
         Ok((nodes, addrs))
     }
@@ -120,12 +121,6 @@ impl SyntheticNodeBuilder {
     /// Enables handshaking with [Handshake::VersionOnly]
     pub fn with_version_exchange_handshake(mut self) -> Self {
         self.handshake = Some(Handshake::VersionOnly);
-        self
-    }
-
-    /// Sets the [MessageFilter]
-    pub fn with_message_filter(mut self, filter: MessageFilter) -> Self {
-        self.message_filter = filter;
         self
     }
 }
@@ -194,11 +189,8 @@ impl SyntheticNode {
     pub async fn wait_for_connection(&self) -> SocketAddr {
         const SLEEP: Duration = Duration::from_millis(10);
         loop {
-            {
-                let addr_map = self.known_peers().read();
-                if let Some(addr) = addr_map.keys().next() {
-                    return *addr;
-                }
+            if let Some(addr) = self.known_peers().read().keys().next() {
+                return *addr;
             }
 
             tokio::time::sleep(SLEEP).await;
@@ -476,7 +468,7 @@ impl Handshaking for InnerNode {
         match (self.handshake, !conn.side) {
             (Some(Handshake::Full), ConnectionSide::Initiator) => {
                 // Send and receive Version.
-                Message::Version(Version::new(self.node().listening_addr(), conn.addr))
+                Message::Version(Version::new(conn.addr, self.node().listening_addr()))
                     .write_to_stream(conn.writer())
                     .await?;
 
@@ -492,11 +484,19 @@ impl Handshaking for InnerNode {
             (Some(Handshake::Full), ConnectionSide::Responder) => {
                 // Receive and send Version.
                 let version = Message::read_from_stream(conn.reader()).await?;
-                assert_matches!(version, Message::Version(..));
+                let node_addr = match version {
+                    Message::Version(version) => version.addr_from.addr,
+                    other => {
+                        let span = self.node().span().clone();
+                        error!(
+                            parent: span,
+                            "received non-version message during handshake: {:?}", other
+                        );
+                        panic!("Expected Version, got {:?}", other);
+                    }
+                };
 
-                // FIXME: send the node addr with its listener port, not the ephemeral port
-                // created for the connection.
-                Message::Version(Version::new(self.node().listening_addr(), conn.addr))
+                Message::Version(Version::new(node_addr, self.node().listening_addr()))
                     .write_to_stream(conn.writer())
                     .await?;
 
@@ -507,7 +507,7 @@ impl Handshaking for InnerNode {
                 Message::Verack.write_to_stream(conn.writer()).await?;
             }
             (Some(Handshake::VersionOnly), ConnectionSide::Initiator) => {
-                Message::Version(Version::new(self.node().listening_addr(), conn.addr))
+                Message::Version(Version::new(conn.addr, self.node().listening_addr()))
                     .write_to_stream(conn.writer())
                     .await?;
 
@@ -517,11 +517,19 @@ impl Handshaking for InnerNode {
             (Some(Handshake::VersionOnly), ConnectionSide::Responder) => {
                 // Receive and send Version.
                 let version = Message::read_from_stream(conn.reader()).await?;
-                assert_matches!(version, Message::Version(..));
+                let node_addr = match version {
+                    Message::Version(version) => version.addr_from.addr,
+                    other => {
+                        let span = self.node().span().clone();
+                        error!(
+                            parent: span,
+                            "received non-version message during handshake: {:?}", other
+                        );
+                        panic!("Expected Version, got {:?}", other);
+                    }
+                };
 
-                // FIXME: send the node addr with its listener port, not the ephemeral port
-                // created for the connection.
-                Message::Version(Version::new(self.node().listening_addr(), conn.addr))
+                Message::Version(Version::new(node_addr, self.node().listening_addr()))
                     .write_to_stream(conn.writer())
                     .await?;
             }
