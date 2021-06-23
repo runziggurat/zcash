@@ -127,33 +127,33 @@ async fn ping_pong_latency() {
         metrics::register_histogram!(METRIC_NAME);
 
         // create N peer nodes which send M ping's as fast as possible
-        let mut peer_handles = Vec::with_capacity(peers);
+        let mut synth_handles = Vec::with_capacity(peers);
 
         let test_start = tokio::time::Instant::now();
 
         for _ in 0..peers {
-            peer_handles.push(tokio::spawn(async move {
+            synth_handles.push(tokio::spawn(async move {
                 // Create a synthetic node, enable handshaking and auto-reply
-                let mut peer = SyntheticNode::builder()
+                let mut synth_node =SyntheticNode::builder()
                     .with_full_handshake()
                     .with_all_auto_reply()
                     .build()
                     .await
                     .unwrap();
-                peer.connect(node_addr).await.unwrap();
+                synth_node.connect(node_addr).await.unwrap();
 
                 for _ in 0..PINGS {
                     let nonce = Nonce::default();
                     let expected = Message::Pong(nonce);
 
                     // send Ping(nonce)
-                    peer.send_direct_message(node_addr, Message::Ping(nonce))
+                    synth_node.send_direct_message(node_addr, Message::Ping(nonce))
                         .await
                         .unwrap();
 
                     let now = tokio::time::Instant::now();
                     loop {
-                        match peer.recv_message_timeout(PING_TIMEOUT).await {
+                        match synth_node.recv_message_timeout(PING_TIMEOUT).await {
                             Err(err) if err.kind() == std::io::ErrorKind::TimedOut => {
                                 metrics::histogram!(METRIC_NAME, duration_as_ms(PING_TIMEOUT))
                             }
@@ -172,12 +172,12 @@ async fn ping_pong_latency() {
                     }
                 }
 
-                peer.shut_down();
+                synth_node.shut_down();
             }));
         }
 
         // wait for peers to complete
-        for handle in peer_handles {
+        for handle in synth_handles {
             handle.await.unwrap();
         }
 

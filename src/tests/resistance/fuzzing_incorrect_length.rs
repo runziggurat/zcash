@@ -30,19 +30,22 @@ async fn version_with_incorrect_length_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer = SyntheticNode::builder()
+        let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .build()
             .await
             .unwrap();
-        peer.connect(node.addr()).await.unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        let version = Message::Version(Version::new(node.addr(), peer.listening_addr()));
+        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
         let payload = encode_with_corrupt_body_length(&mut rng, &version);
 
-        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        synth_node
+            .send_direct_bytes(node.addr(), payload)
+            .await
+            .unwrap();
 
-        assert!(peer
+        assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
             .is_ok());
@@ -66,19 +69,22 @@ async fn incorrect_length_pre_handshake() {
     let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
-        let mut peer = SyntheticNode::builder()
+        let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .build()
             .await
             .unwrap();
-        peer.connect(node.addr()).await.unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
         let message = test_messages.choose(&mut rng).unwrap();
         let payload = encode_with_corrupt_body_length(&mut rng, message);
 
-        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        synth_node
+            .send_direct_bytes(node.addr(), payload)
+            .await
+            .unwrap();
 
-        assert!(peer
+        assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
             .is_ok());
@@ -100,20 +106,23 @@ async fn version_with_incorrect_length_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer = SyntheticNode::builder()
+        let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .with_version_exchange_handshake()
             .build()
             .await
             .unwrap();
-        peer.connect(node.addr()).await.unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        let version = Message::Version(Version::new(node.addr(), peer.listening_addr()));
+        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
         let payload = encode_with_corrupt_body_length(&mut rng, &version);
 
-        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        synth_node
+            .send_direct_bytes(node.addr(), payload)
+            .await
+            .unwrap();
 
-        assert!(peer
+        assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
             .is_ok());
@@ -135,40 +144,33 @@ async fn version_with_incorrect_length_when_node_initiates_handshake() {
     let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
     // create peers (we need their ports to give to the node)
-    let mut peers = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::builder()
-            .with_all_auto_reply()
-            .build()
-            .await
-            .unwrap();
-
-        peers.push(peer);
-    }
-
-    // get list of peer addresses to pass to node
-    let peer_addresses = peers
-        .iter()
-        .map(|peer| peer.listening_addr())
-        .collect::<Vec<_>>();
+    let (synth_nodes, synth_addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .build_n(ITERATIONS)
+        .await
+        .unwrap();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(peers.len());
-    for mut peer in peers {
+    let mut synth_handles = Vec::with_capacity(synth_nodes.len());
+    for mut synth_node in synth_nodes {
         let peer_rng = locked_rng.clone();
-        peer_handles.push(tokio::time::timeout(
+        synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                peer.wait_for_connection().await;
-                let (node_addr, version) = peer.recv_message().await;
+                synth_node.wait_for_connection().await;
+                let (node_addr, version) = synth_node.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
-                let version = Message::Version(Version::new(node_addr, peer.listening_addr()));
+                let version =
+                    Message::Version(Version::new(node_addr, synth_node.listening_addr()));
                 let payload = encode_with_corrupt_body_length(&mut peer_rng.write(), &version);
 
-                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                synth_node
+                    .send_direct_bytes(node_addr, payload)
+                    .await
+                    .unwrap();
 
-                assert!(peer
+                assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
                     .is_ok());
@@ -178,12 +180,12 @@ async fn version_with_incorrect_length_when_node_initiates_handshake() {
 
     let mut node: Node = Default::default();
     node.initial_action(Action::None)
-        .initial_peers(peer_addresses)
+        .initial_peers(synth_addrs)
         .start()
         .await;
 
     // join the peer processes
-    for handle in peer_handles {
+    for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
@@ -203,44 +205,37 @@ async fn version_with_incorrect_length_inplace_of_verack_when_node_initiates_han
     let locked_rng = Arc::new(RwLock::new(seeded_rng()));
 
     // create peers (we need their ports to give to the node)
-    let mut peers = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::builder()
-            .with_all_auto_reply()
-            .with_version_exchange_handshake()
-            .build()
-            .await
-            .unwrap();
-
-        peers.push(peer);
-    }
-
-    // get list of peer addresses to pass to node
-    let peer_addresses = peers
-        .iter()
-        .map(|peer| peer.listening_addr())
-        .collect::<Vec<_>>();
+    let (synth_nodes, synth_addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .with_version_exchange_handshake()
+        .build_n(ITERATIONS)
+        .await
+        .unwrap();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(peers.len());
-    for mut peer in peers {
+    let mut synth_handles = Vec::with_capacity(synth_nodes.len());
+    for mut synth_node in synth_nodes {
         let peer_rng = locked_rng.clone();
-        peer_handles.push(tokio::time::timeout(
+        synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive verack.
                 // Version exchange already completed by handshake.
-                peer.wait_for_connection().await;
-                let (node_addr, verack) = peer.recv_message().await;
+                synth_node.wait_for_connection().await;
+                let (node_addr, verack) = synth_node.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
                 // send bad version instead of verack
-                let version = Message::Version(Version::new(node_addr, peer.listening_addr()));
+                let version =
+                    Message::Version(Version::new(node_addr, synth_node.listening_addr()));
                 let payload = encode_with_corrupt_body_length(&mut peer_rng.write(), &version);
 
-                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                synth_node
+                    .send_direct_bytes(node_addr, payload)
+                    .await
+                    .unwrap();
 
-                assert!(peer
+                assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
                     .is_ok());
@@ -250,12 +245,12 @@ async fn version_with_incorrect_length_inplace_of_verack_when_node_initiates_han
 
     let mut node: Node = Default::default();
     node.initial_action(Action::None)
-        .initial_peers(peer_addresses)
+        .initial_peers(synth_addrs)
         .start()
         .await;
 
     // join the peer processes
-    for handle in peer_handles {
+    for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
@@ -274,20 +269,23 @@ async fn version_with_incorrect_length_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer = SyntheticNode::builder()
+        let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .with_full_handshake()
             .build()
             .await
             .unwrap();
-        peer.connect(node.addr()).await.unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        let version = Message::Version(Version::new(node.addr(), peer.listening_addr()));
+        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
         let payload = encode_with_corrupt_body_length(&mut rng, &version);
 
-        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        synth_node
+            .send_direct_bytes(node.addr(), payload)
+            .await
+            .unwrap();
 
-        assert!(peer
+        assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
             .is_ok());
@@ -311,20 +309,23 @@ async fn incorrect_length_during_handshake_responder_side() {
     let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
-        let mut peer = SyntheticNode::builder()
+        let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .with_version_exchange_handshake()
             .build()
             .await
             .unwrap();
-        peer.connect(node.addr()).await.unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
         let message = test_messages.choose(&mut rng).unwrap();
         let payload = encode_with_corrupt_body_length(&mut rng, message);
 
-        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        synth_node
+            .send_direct_bytes(node.addr(), payload)
+            .await
+            .unwrap();
 
-        assert!(peer
+        assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
             .is_ok());
@@ -348,40 +349,32 @@ async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake(
         encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
-    let mut peers = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::builder()
-            .with_all_auto_reply()
-            .build()
-            .await
-            .unwrap();
-
-        peers.push(peer);
-    }
-
-    // get list of peer addresses to pass to node
-    let peer_addresses = peers
-        .iter()
-        .map(|peer| peer.listening_addr())
-        .collect::<Vec<_>>();
+    let (synth_nodes, synth_addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .build_n(ITERATIONS)
+        .await
+        .unwrap();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(peers.len());
-    for mut peer in peers {
+    let mut synth_handles = Vec::with_capacity(synth_nodes.len());
+    for mut synth_node in synth_nodes {
         let payload = payloads.pop().unwrap();
 
-        peer_handles.push(tokio::time::timeout(
+        synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                peer.wait_for_connection().await;
-                let (node_addr, version) = peer.recv_message().await;
+                synth_node.wait_for_connection().await;
+                let (node_addr, version) = synth_node.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                synth_node
+                    .send_direct_bytes(node_addr, payload)
+                    .await
+                    .unwrap();
 
-                assert!(peer
+                assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
                     .is_ok());
@@ -391,12 +384,12 @@ async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake(
 
     let mut node: Node = Default::default();
     node.initial_action(Action::None)
-        .initial_peers(peer_addresses)
+        .initial_peers(synth_addrs)
         .start()
         .await;
 
     // join the peer processes
-    for handle in peer_handles {
+    for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
@@ -421,42 +414,34 @@ async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake()
         encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
-    let mut peers = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        let peer = SyntheticNode::builder()
-            .with_all_auto_reply()
-            .with_version_exchange_handshake()
-            .build()
-            .await
-            .unwrap();
-
-        peers.push(peer);
-    }
-
-    // get list of peer addresses to pass to node
-    let peer_addresses = peers
-        .iter()
-        .map(|peer| peer.listening_addr())
-        .collect::<Vec<_>>();
+    let (synth_nodes, synth_addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .with_version_exchange_handshake()
+        .build_n(ITERATIONS)
+        .await
+        .unwrap();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(peers.len());
-    for mut peer in peers {
+    let mut synth_handles = Vec::with_capacity(synth_nodes.len());
+    for mut synth_node in synth_nodes {
         let payload = payloads.pop().unwrap();
 
-        peer_handles.push(tokio::time::timeout(
+        synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive verack.
                 // Version exchange already completed by handshake.
-                peer.wait_for_connection().await;
-                let (node_addr, verack) = peer.recv_message().await;
+                synth_node.wait_for_connection().await;
+                let (node_addr, verack) = synth_node.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
                 // send bad version
-                peer.send_direct_bytes(node_addr, payload).await.unwrap();
+                synth_node
+                    .send_direct_bytes(node_addr, payload)
+                    .await
+                    .unwrap();
 
-                assert!(peer
+                assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
                     .is_ok());
@@ -466,12 +451,12 @@ async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake()
 
     let mut node: Node = Default::default();
     node.initial_action(Action::None)
-        .initial_peers(peer_addresses)
+        .initial_peers(synth_addrs)
         .start()
         .await;
 
     // join the peer processes
-    for handle in peer_handles {
+    for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
@@ -492,20 +477,23 @@ async fn incorrect_length_post_handshake() {
     let test_messages = default_fuzz_messages();
 
     for _ in 0..ITERATIONS {
-        let mut peer = SyntheticNode::builder()
+        let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .with_full_handshake()
             .build()
             .await
             .unwrap();
-        peer.connect(node.addr()).await.unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
         let message = test_messages.choose(&mut rng).unwrap();
         let payload = encode_with_corrupt_body_length(&mut rng, message);
 
-        peer.send_direct_bytes(node.addr(), payload).await.unwrap();
+        synth_node
+            .send_direct_bytes(node.addr(), payload)
+            .await
+            .unwrap();
 
-        assert!(peer
+        assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
             .is_ok());

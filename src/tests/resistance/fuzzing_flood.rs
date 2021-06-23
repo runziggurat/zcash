@@ -212,7 +212,7 @@ async fn rising_fuzz() {
 
     // Create a pool of valid and invalid message types
     const MAX_VALID_MESSAGES: usize = 100;
-    let peer_counts = vec![
+    let synth_counts = vec![
         1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 800,
     ];
 
@@ -224,7 +224,7 @@ async fn rising_fuzz() {
     // slots (hence the +10).
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-        .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
+        .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
         .await;
 
@@ -235,7 +235,7 @@ async fn rising_fuzz() {
     // Iterate over peer counts
     // (note: rng usage should stay in a single thread in order for it be somewhat repeatable - we can't account
     // for relative timings and state transitions in the node).
-    for peers in peer_counts {
+    for peers in synth_counts {
         // register metrics
         simple_metrics::clear();
         metrics::register_histogram!(REQUEST_LATENCY);
@@ -255,13 +255,13 @@ async fn rising_fuzz() {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(peers);
 
         // Start the N peers for this iteration
-        let mut peer_handles = Vec::with_capacity(peers);
-        let mut peer_exits = Vec::with_capacity(peers);
+        let mut synth_handles = Vec::with_capacity(peers);
+        let mut synth_exits = Vec::with_capacity(peers);
         for _ in 0..peers {
             let (exit_tx, exit_rx) = tokio::sync::oneshot::channel::<()>();
-            peer_exits.push(exit_tx);
+            synth_exits.push(exit_tx);
 
-            let peer_complete_notifier = tx.clone();
+            let synth_complete_notifier = tx.clone();
 
             // generate the valid message set for this peer
             let valid = (0..rng.gen_range(0..MAX_VALID_MESSAGES))
@@ -273,12 +273,12 @@ async fn rising_fuzz() {
             // let peer_tx = event_tx.clone();
 
             // start and wait for peer simulation to complete, or cancel if exit signal is received
-            peer_handles.push(tokio::spawn(async move {
+            synth_handles.push(tokio::spawn(async move {
                 tokio::select! {
                     _ = exit_rx => {},
                     _ = simulate_peer(node_addr, valid, corrupt) => {},
                 }
-                peer_complete_notifier.send(()).await.unwrap();
+                synth_complete_notifier.send(()).await.unwrap();
             }));
         }
 
@@ -292,12 +292,12 @@ async fn rising_fuzz() {
         }
 
         // instruct any hanging peers to exit
-        for exit in peer_exits {
+        for exit in synth_exits {
             let _ = exit.send(());
         }
 
         // Wait for peers to complete
-        for handle in peer_handles {
+        for handle in synth_handles {
             handle.await.unwrap();
         }
         let iteration_time = iteration_timer.elapsed().as_secs_f64();
@@ -477,7 +477,7 @@ async fn simulate_peer(
 ) {
     const READ_TIMEOUT: Duration = Duration::from_secs(2);
 
-    let mut peer = SyntheticNode::builder()
+    let mut synth_node = SyntheticNode::builder()
         .with_all_auto_reply()
         .with_full_handshake()
         .with_node_config(NodeConfig {
@@ -491,7 +491,7 @@ async fn simulate_peer(
 
     // handshake
     let timer = tokio::time::Instant::now();
-    let handshake_result = peer.connect(node_addr).await;
+    let handshake_result = synth_node.connect(node_addr).await;
     metrics::histogram!(HANDSHAKE_LATENCY, duration_as_ms(timer.elapsed()));
     match handshake_result {
         Ok(_) => metrics::counter!(HANDSHAKE_ACCEPTED, 1),
@@ -500,14 +500,18 @@ async fn simulate_peer(
 
     // send the valid messages and validate the response
     for (msg, expected) in message_pairs {
-        if peer.send_direct_message(node_addr, msg).await.is_err() {
+        if synth_node
+            .send_direct_message(node_addr, msg)
+            .await
+            .is_err()
+        {
             metrics::counter!(CONNECTION_TERMINATED, 1);
             return;
         }
 
         let timer = tokio::time::Instant::now();
 
-        match peer.recv_message_timeout(READ_TIMEOUT).await {
+        match synth_node.recv_message_timeout(READ_TIMEOUT).await {
             Ok((_, reply)) if reply == expected => {
                 metrics::histogram!(REQUEST_LATENCY, duration_as_ms(timer.elapsed()));
             }
@@ -517,7 +521,7 @@ async fn simulate_peer(
             }
             Err(_timeout) => {
                 // recv timed out, check if connection was terminated or if its just a slow reply
-                if peer.is_connected(node_addr) {
+                if synth_node.is_connected(node_addr) {
                     metrics::histogram!(REQUEST_LATENCY, READ_TIMEOUT.as_millis() as f64);
                 } else {
                     metrics::counter!(CONNECTION_TERMINATED, 1);
@@ -528,7 +532,7 @@ async fn simulate_peer(
     }
 
     // send the corrupt message
-    if peer
+    if synth_node
         .send_direct_bytes(node_addr, corrupt_message)
         .await
         .is_err()
@@ -539,7 +543,7 @@ async fn simulate_peer(
 
     //  check for termination by sending a ping -> pong (should result in a terminated connection prior to the pong)
     let nonce = Nonce::default();
-    if peer
+    if synth_node
         .send_direct_message(node_addr, Message::Ping(nonce))
         .await
         .is_err()
@@ -550,11 +554,11 @@ async fn simulate_peer(
 
     // loop so we can check if connection has been terminated inbetween waiting on reads
     let read_result = loop {
-        let result = peer.recv_message_timeout(READ_TIMEOUT).await;
+        let result = synth_node.recv_message_timeout(READ_TIMEOUT).await;
         // We break out if we either
         //  1. received a reply
         //  2. the connection was terminated
-        if result.is_ok() || !peer.is_connected(node_addr) {
+        if result.is_ok() || !synth_node.is_connected(node_addr) {
             break result;
         }
     };
