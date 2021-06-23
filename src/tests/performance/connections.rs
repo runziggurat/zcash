@@ -1,5 +1,5 @@
 use crate::{
-    helpers::{is_rejection_error, synthetic_peers::SyntheticNode},
+    helpers::synthetic_peers::SyntheticNode,
     setup::node::{Action, Node},
     tests::{performance::table_float_display, simple_metrics},
 };
@@ -95,7 +95,7 @@ async fn incoming_active_connections() {
     const METRIC_TERMINATED: &str = "perf_conn_terminated";
     const METRIC_REJECTED: &str = "perf_conn_rejected";
 
-    let peer_counts = vec![100u16, 1_000, 5_000, 10_000, 15_000, 20_000];
+    let synth_counts = vec![100u16, 1_000, 5_000, 10_000, 15_000, 20_000];
 
     let mut all_stats = Vec::new();
 
@@ -106,7 +106,7 @@ async fn incoming_active_connections() {
         .start()
         .await;
 
-    for peers in peer_counts {
+    for synth_count in synth_counts {
         // clear and register metrics
         simple_metrics::clear();
         metrics::register_counter!(METRIC_ACCEPTED);
@@ -116,20 +116,21 @@ async fn incoming_active_connections() {
         let test_start = tokio::time::Instant::now();
 
         // start peer nodes
-        let mut peer_handles = Vec::with_capacity(peers as usize);
-        let mut peer_exits = Vec::with_capacity(peers as usize);
-        let (handshake_tx, mut handshake_rx) = tokio::sync::mpsc::channel::<()>(peers as usize);
+        let mut synth_handles = Vec::with_capacity(synth_count as usize);
+        let mut synth_exits = Vec::with_capacity(synth_count as usize);
+        let (handshake_tx, mut handshake_rx) =
+            tokio::sync::mpsc::channel::<()>(synth_count as usize);
 
-        for _ in 0..peers {
+        for _ in 0..synth_count {
             let node_addr = node.addr();
 
             let (exit_tx, exit_rx) = tokio::sync::oneshot::channel::<()>();
-            peer_exits.push(exit_tx);
+            synth_exits.push(exit_tx);
 
-            let peer_handshaken = handshake_tx.clone();
+            let synth_handshaken = handshake_tx.clone();
 
-            peer_handles.push(tokio::spawn(async move {
-                let mut peer = SyntheticNode::builder()
+            synth_handles.push(tokio::spawn(async move {
+                let mut synth_node = SyntheticNode::builder()
                     .with_full_handshake()
                     .with_all_auto_reply()
                     .build()
@@ -137,25 +138,24 @@ async fn incoming_active_connections() {
                     .unwrap();
 
                 // Establish peer connection
-                let handshake_result = peer.connect(node_addr).await;
-                peer_handshaken.send(()).await.unwrap();
+                let handshake_result = synth_node.connect(node_addr).await;
+                synth_handshaken.send(()).await.unwrap();
                 match handshake_result {
                     Ok(stream) => {
                         metrics::counter!(METRIC_ACCEPTED, 1);
                         stream
                     }
-                    Err(err) if is_rejection_error(&err) => {
+                    Err(_err) => {
                         metrics::counter!(METRIC_REJECTED, 1);
                         return;
                     }
-                    Err(err) => panic!("Handshake error: {}", err),
                 };
 
                 // Keep connection alive by replying to incoming Pings etc, until instructed to exit or
                 // connection is terminated (or something unexpected occurs).
                 tokio::select! {
                     _ = exit_rx => {},
-                    (_, message) = peer.recv_message() => {
+                    (_, message) = synth_node.recv_message() => {
                         panic!("Unexpected message: {:?}", message);
                     }
                 }
@@ -163,23 +163,23 @@ async fn incoming_active_connections() {
         }
 
         // Wait for all peers to indicate that they've completed the handshake portion
-        for _ in 0..peers {
+        for _ in 0..synth_count {
             handshake_rx.recv().await.unwrap();
         }
 
         // Send stop signal to peer nodes. We ignore the possible error
         // result as this will occur with peers that have already exited.
-        for stop in peer_exits {
+        for stop in synth_exits {
             let _ = stop.send(());
         }
 
         // Wait for peers to complete
-        for handle in peer_handles {
+        for handle in synth_handles {
             handle.await.unwrap();
         }
 
         // Collect stats for this run
-        let mut stats = Stats::new(MAX_PEERS, peers);
+        let mut stats = Stats::new(MAX_PEERS, synth_count);
         stats.time = test_start.elapsed().as_secs_f64();
         {
             let counters = simple_metrics::counters();
