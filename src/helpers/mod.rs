@@ -1,3 +1,4 @@
+//! Testing utilities.
 pub mod synthetic_peers;
 
 use std::time::Duration;
