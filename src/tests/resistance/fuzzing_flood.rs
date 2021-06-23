@@ -4,7 +4,7 @@ use std::{net::SocketAddr, time::Duration};
 use tabled::{table, Alignment, Style, Tabled};
 
 use crate::{
-    tools::synthetic_peers::SyntheticNode,
+    tools::synthetic_node::SyntheticNode,
     protocol::{
         message::{constants::MAGIC, Message, MessageHeader},
         payload::{

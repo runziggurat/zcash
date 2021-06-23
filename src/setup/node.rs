@@ -1,6 +1,5 @@
 //! High level APIs and types for node setup and teardown.
 use crate::{
-    tools::synthetic_peers::SyntheticNode,
     protocol::{
         message::filter::{Filter, MessageFilter},
         payload::{
@@ -9,6 +8,7 @@ use crate::{
         },
     },
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
+    tools::synthetic_node::SyntheticNode,
     wait_until,
 };
 

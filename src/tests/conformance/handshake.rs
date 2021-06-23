@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    tools::{synthetic_peers::SyntheticNode, TIMEOUT},
+    tools::{synthetic_node::SyntheticNode, TIMEOUT},
     protocol::{
         message::Message,
         payload::{
