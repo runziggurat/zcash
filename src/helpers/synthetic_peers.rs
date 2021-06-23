@@ -109,8 +109,11 @@ impl SyntheticNodeBuilder {
         self
     }
 
-    /// Sets [NodeConfig]
-    pub fn with_node_config(mut self, config: NodeConfig) -> Self {
+    /// Sets [NodeConfig]'s write buffer size. If the builder currently
+    /// has no [NodeConfig], then a default one is created first.
+    pub fn with_max_write_buffer_size(mut self, size: usize) -> Self {
+        let mut config = self.network_config.unwrap_or_default();
+        config.conn_write_buffer_size = size;
         self.network_config = Some(config);
         self
     }
