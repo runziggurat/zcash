@@ -1,6 +1,6 @@
 use crate::{
     helpers::{
-        synthetic_peers::{SyntheticNode, SyntheticNodeConfig},
+        synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
         TIMEOUT,
     },
     protocol::{
@@ -93,7 +93,7 @@ async fn reject_invalid_messages() {
 
     // Configuration for all the synthetic nodes.
     let config = SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     };
@@ -144,7 +144,7 @@ async fn ignores_unsolicited_responses() {
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     })
@@ -213,7 +213,7 @@ async fn basic_query_response_seeded() {
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply(),
         ..Default::default()
     })
@@ -358,7 +358,7 @@ async fn basic_query_response_unseeded() {
 
     // Create a synthetic node with message filtering.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_enabled(),
         ..Default::default()
     })
@@ -423,7 +423,7 @@ async fn disconnects_for_trivial_issues() {
 
     // Configuration letting through ping messages for the first case.
     let config = SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled),
         ..Default::default()
     };
@@ -527,7 +527,7 @@ async fn eagerly_crawls_network_for_peers() {
     let mut synthetic_nodes = Vec::with_capacity(N);
     for _ in 0..N {
         let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            enable_handshaking: true,
+            handshake: Some(Handshake::Full),
             message_filter: MessageFilter::with_all_auto_reply(),
             ..Default::default()
         })
@@ -546,7 +546,7 @@ async fn eagerly_crawls_network_for_peers() {
     // Adjust the config so it lets through GetAddr message and start a "main" synthetic node which
     // will provide the peer list.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply().with_getaddr_filter(Filter::Disabled),
         ..Default::default()
     })
@@ -613,7 +613,7 @@ async fn correctly_lists_peers() {
     let mut synthetic_nodes = Vec::with_capacity(N);
     for _ in 0..N {
         let synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            enable_handshaking: true,
+            handshake: Some(Handshake::Full),
             message_filter: MessageFilter::with_all_auto_reply(),
             ..Default::default()
         })
@@ -640,7 +640,7 @@ async fn correctly_lists_peers() {
     // zebra bug.
     for _ in 0..N {
         let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-            enable_handshaking: true,
+            handshake: Some(Handshake::Full),
             message_filter: MessageFilter::with_all_auto_reply(),
             ..Default::default()
         })
@@ -712,7 +712,7 @@ async fn get_blocks() {
     let blocks = Block::initial_testnet_blocks();
 
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply(),
         ..Default::default()
     })
@@ -865,7 +865,7 @@ async fn correctly_lists_blocks() {
 
     // Establish a peer node.
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply(),
         ..Default::default()
     })
@@ -984,7 +984,7 @@ async fn get_data_blocks() {
 
     // Establish a peer node
     let mut synthetic_node = SyntheticNode::new(SyntheticNodeConfig {
-        enable_handshaking: true,
+        handshake: Some(Handshake::Full),
         message_filter: MessageFilter::with_all_auto_reply(),
         ..Default::default()
     })
