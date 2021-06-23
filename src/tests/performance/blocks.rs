@@ -78,7 +78,7 @@ async fn getdata_blocks_latency() {
     const REQUESTS: usize = 100;
     const REQUEST_TIMEOUT: Duration = Duration::from_secs(1);
     // number of concurrent peers to test (zcashd hardcaps `max_peers` to 873 on my machine)
-    let peer_counts = vec![
+    let synth_counts = vec![
         1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 800,
     ];
 
@@ -89,22 +89,22 @@ async fn getdata_blocks_latency() {
     // with max peers set so that our peers should never be rejected.
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
-        .max_peers(peer_counts.iter().max().unwrap() * 2 + 10)
+        .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
         .await;
     let node_addr = node.addr();
 
-    for peers in peer_counts {
+    for synth_count in synth_counts {
         // clear and register metrics
         simple_metrics::clear();
         metrics::register_histogram!(METRIC_NAME);
 
         // create N peer nodes which send M requests's as fast as possible
-        let mut peer_handles = Vec::with_capacity(peers);
+        let mut synth_handles = Vec::with_capacity(synth_count);
 
         let test_start = tokio::time::Instant::now();
 
-        for _ in 0..peers {
+        for _ in 0..synth_count {
             // We want different blocks for consecutive requests, in order to determine if the node
             // has skipped a request or to tell if the reply is in response to a timed out request.
             //
@@ -119,24 +119,25 @@ async fn getdata_blocks_latency() {
                 })
                 .collect::<VecDeque<_>>();
 
-            peer_handles.push(tokio::spawn(async move {
-                let mut peer = SyntheticNode::builder()
+            synth_handles.push(tokio::spawn(async move {
+                let mut synth_node = SyntheticNode::builder()
                     .with_full_handshake()
                     .with_all_auto_reply()
                     .build()
                     .await
                     .unwrap();
 
-                peer.connect(node_addr).await.unwrap();
+                synth_node.connect(node_addr).await.unwrap();
 
                 for i in 0..REQUESTS {
                     let (request, expected) = &requests[i % requests.len()];
-                    peer.send_direct_message(node_addr, request.clone())
+                    synth_node
+                        .send_direct_message(node_addr, request.clone())
                         .await
                         .unwrap();
                     let now = tokio::time::Instant::now();
                     loop {
-                        match peer.recv_message_timeout(REQUEST_TIMEOUT).await {
+                        match synth_node.recv_message_timeout(REQUEST_TIMEOUT).await {
                             Err(_timeout) => {
                                 metrics::histogram!(METRIC_NAME, duration_as_ms(REQUEST_TIMEOUT))
                             }
@@ -158,7 +159,7 @@ async fn getdata_blocks_latency() {
         }
 
         // wait for peers to complete
-        for handle in peer_handles {
+        for handle in synth_handles {
             handle.await.unwrap();
         }
 
@@ -174,7 +175,7 @@ async fn getdata_blocks_latency() {
 
         // add stats to table display
         table.add_row(RequestStats::new(
-            peers as u16,
+            synth_count as u16,
             REQUESTS as u16,
             latencies,
             time_taken_secs,

@@ -25,27 +25,6 @@ use std::{
     time::Duration,
 };
 
-#[derive(Debug, Clone)]
-pub struct SyntheticNodeConfig {
-    pub network_config: Option<NodeConfig>,
-    pub handshake: Option<Handshake>,
-    pub message_filter: MessageFilter,
-}
-
-impl Default for SyntheticNodeConfig {
-    fn default() -> Self {
-        Self {
-            network_config: Some(NodeConfig {
-                // Set localhost as the default IP.
-                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
-                ..Default::default()
-            }),
-            handshake: None,
-            message_filter: MessageFilter::with_all_disabled(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Handshake {
     Full,
@@ -123,6 +102,21 @@ impl SyntheticNodeBuilder {
         self.handshake = Some(Handshake::VersionOnly);
         self
     }
+
+    /// Sets [MessageFilter]
+    pub fn with_message_filter(mut self, filter: MessageFilter) -> Self {
+        self.message_filter = filter;
+        self
+    }
+
+    /// Sets [NodeConfig]'s write buffer size. If the builder currently
+    /// has no [NodeConfig], then a default one is created first.
+    pub fn with_max_write_buffer_size(mut self, size: usize) -> Self {
+        let mut config = self.network_config.unwrap_or_default();
+        config.conn_write_buffer_size = size;
+        self.network_config = Some(config);
+        self
+    }
 }
 
 /// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
@@ -134,28 +128,6 @@ pub struct SyntheticNode {
 impl SyntheticNode {
     pub fn builder() -> SyntheticNodeBuilder {
         SyntheticNodeBuilder::default()
-    }
-
-    /// Creates a new synthetic node from a `pea2pea` node.
-    ///
-    /// The handshake protocol can also optionally enabled and the message filter must be set for
-    /// reads.
-    pub async fn new(config: SyntheticNodeConfig) -> Result<Self> {
-        // Create the pea2pea node from the config.
-        let node = Node::new(config.network_config).await?;
-
-        // Inbound channel size of 100 messages.
-        let (tx, rx) = mpsc::channel(100);
-        let inner_node = InnerNode::new(node, tx, config.message_filter, config.handshake);
-
-        // Enable the read and write protocols
-        inner_node.enable_reading();
-        inner_node.enable_writing();
-
-        Ok(Self {
-            inner_node,
-            inbound_rx: rx,
-        })
     }
 
     /// Returns the listening address of the node.

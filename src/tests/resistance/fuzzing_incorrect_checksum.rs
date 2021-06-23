@@ -1,23 +1,18 @@
 use crate::{
-    helpers::{autorespond_and_expect_disconnect, initiate_handshake, initiate_version_exchange},
+    helpers::synthetic_peers::SyntheticNode,
     protocol::{
         message::{constants::HEADER_LEN, Message},
         payload::{codec::Codec, Version},
     },
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
+    setup::node::{Action, Node},
+    tests::resistance::{
+        default_fuzz_messages, random_non_valid_u32, seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS,
     },
-    tests::resistance::{default_fuzz_messages, random_non_valid_u32, seeded_rng, ITERATIONS},
 };
 
 use assert_matches::assert_matches;
 use rand::prelude::SliceRandom;
 use rand_chacha::ChaCha8Rng;
-use tokio::{
-    io::AsyncWriteExt,
-    net::{TcpListener, TcpStream},
-};
 
 #[tokio::test]
 async fn version_with_incorrect_checksum_pre_handshake() {
@@ -32,20 +27,33 @@ async fn version_with_incorrect_checksum_pre_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        let version =
-            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
-        let mut message_buffer = vec![];
-        let mut header = version.encode(&mut message_buffer).unwrap();
+        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
+        let mut body_buffer = Vec::new();
+        let mut header = version.encode(&mut body_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&message_buffer).await;
+        let mut buffer = Vec::new();
+        header.encode(&mut buffer).unwrap();
+        buffer.append(&mut body_buffer);
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        synth_node
+            .send_direct_bytes(node.addr(), buffer)
+            .await
+            .unwrap();
+
+        assert!(synth_node
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -67,17 +75,31 @@ async fn incorrect_checksum_pre_handshake() {
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
-        let mut message_buffer = vec![];
-        let mut header = message.encode(&mut message_buffer).unwrap();
+        let mut body_buffer = Vec::new();
+        let mut header = message.encode(&mut body_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_u32(&mut rng, header.checksum);
+        let mut buffer = Vec::new();
+        header.encode(&mut buffer).unwrap();
+        buffer.append(&mut body_buffer);
 
-        let mut peer_stream = TcpStream::connect(node.addr()).await.unwrap();
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&message_buffer).await;
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        synth_node
+            .send_direct_bytes(node.addr(), buffer)
+            .await
+            .unwrap();
+
+        assert!(synth_node
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -97,20 +119,34 @@ async fn version_with_incorrect_checksum_during_handshake_responder_side() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .build()
+            .await
+            .unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        let version =
-            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
-        let mut message_buffer = vec![];
-        let mut header = version.encode(&mut message_buffer).unwrap();
+        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
+        let mut body_buffer = Vec::new();
+        let mut header = version.encode(&mut body_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&message_buffer).await;
+        let mut buffer = Vec::with_capacity(HEADER_LEN + body_buffer.len());
+        header.encode(&mut buffer).unwrap();
+        buffer.append(&mut body_buffer);
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        synth_node
+            .send_direct_bytes(node.addr(), buffer)
+            .await
+            .unwrap();
+
+        assert!(synth_node
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -128,20 +164,34 @@ async fn version_with_incorrect_checksum_post_handshake() {
     node.initial_action(Action::WaitForConnection).start().await;
 
     for _ in 0..ITERATIONS {
-        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+        let mut synth_node = SyntheticNode::builder()
+            .with_full_handshake()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        let version =
-            Message::Version(Version::new(node.addr(), peer_stream.local_addr().unwrap()));
-        let mut message_buffer = vec![];
-        let mut header = version.encode(&mut message_buffer).unwrap();
+        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
+        let mut body_buffer = Vec::new();
+        let mut header = version.encode(&mut body_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&message_buffer).await;
+        let mut buffer = Vec::with_capacity(HEADER_LEN + body_buffer.len());
+        header.encode(&mut buffer).unwrap();
+        buffer.append(&mut body_buffer);
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        synth_node
+            .send_direct_bytes(node.addr(), buffer)
+            .await
+            .unwrap();
+
+        assert!(synth_node
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -163,19 +213,33 @@ async fn incorrect_checksum_during_handshake_responder_side() {
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
-        let mut message_buffer = vec![];
-        let mut header = message.encode(&mut message_buffer).unwrap();
+        let mut body_buffer = Vec::new();
+        let mut header = message.encode(&mut body_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
-        let mut peer_stream = initiate_version_exchange(node.addr()).await.unwrap();
+        let mut buffer = Vec::new();
+        header.encode(&mut buffer).unwrap();
+        buffer.append(&mut body_buffer);
 
-        // Write messages with wrong checksum.
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&message_buffer).await;
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .build()
+            .await
+            .unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        synth_node
+            .send_direct_bytes(node.addr(), buffer)
+            .await
+            .unwrap();
+
+        assert!(synth_node
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
@@ -194,47 +258,48 @@ async fn incorrect_checksum_inplace_of_version_when_node_initiates_handshake() {
 
     let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
-    }
-
-    // get list of peer addresses to pass to node
-    let peer_addresses = listeners
-        .iter()
-        .map(|listener| listener.local_addr().unwrap())
-        .collect::<Vec<_>>();
+    // create peers (we need their ports to give to the node)
+    let (synth_nodes, synth_addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .build_n(ITERATIONS)
+        .await
+        .unwrap();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut synth_handles = Vec::with_capacity(synth_nodes.len());
+    for mut synth_node in synth_nodes {
         let payload = payloads.pop().unwrap();
 
-        peer_handles.push(tokio::time::timeout(
+        synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
+                let node_addr = synth_node.wait_for_connection().await;
+                let (_, version) = synth_node.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                let _ = peer_stream.write_all(&payload).await;
+                synth_node
+                    .send_direct_bytes(node_addr, payload)
+                    .await
+                    .unwrap();
 
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                assert!(synth_node
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
 
     let mut node: Node = Default::default();
     node.initial_action(Action::None)
-        .initial_peers(peer_addresses)
+        .initial_peers(synth_addrs)
         .start()
         .await;
 
     // join the peer processes
-    for handle in peer_handles {
+    for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
@@ -255,58 +320,50 @@ async fn incorrect_checksum_inplace_of_verack_when_node_initiates_handshake() {
 
     let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
-    // create tcp listeners for peer set (port is only assigned on tcp bind)
-    let mut listeners = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        listeners.push(TcpListener::bind(new_local_addr()).await.unwrap());
-    }
-
-    // get list of peer addresses to pass to node
-    let peer_addresses = listeners
-        .iter()
-        .map(|listener| listener.local_addr().unwrap())
-        .collect::<Vec<_>>();
+    // create peers (we need their ports to give to the node)
+    let (synth_nodes, synth_addrs) = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .with_version_exchange_handshake()
+        .build_n(ITERATIONS)
+        .await
+        .unwrap();
 
     // start peer processes
-    let mut peer_handles = Vec::with_capacity(listeners.len());
-    for peer in listeners {
+    let mut synth_handles = Vec::with_capacity(synth_nodes.len());
+    for mut synth_node in synth_nodes {
         let payload = payloads.pop().unwrap();
 
-        peer_handles.push(tokio::time::timeout(
+        synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                // Await connection and receive version
-                let (mut peer_stream, _) = peer.accept().await.unwrap();
-                let version = Message::read_from_stream(&mut peer_stream).await.unwrap();
-                assert_matches!(version, Message::Version(..));
-
-                // send version, receive verack
-                Message::Version(Version::new(
-                    peer_stream.peer_addr().unwrap(),
-                    peer_stream.local_addr().unwrap(),
-                ))
-                .write_to_stream(&mut peer_stream)
-                .await
-                .unwrap();
-                let verack = Message::read_from_stream(&mut peer_stream).await.unwrap();
-                assert_matches!(verack, Message::Verack);
+                // Await connection and receive verack,
+                // version's already exchanged as part of handshake
+                let node_addr = synth_node.wait_for_connection().await;
+                let (_, verack) = synth_node.recv_message().await;
+                assert_eq!(verack, Message::Verack);
 
                 // send bad verack
-                let _ = peer_stream.write_all(&payload).await;
+                synth_node
+                    .send_direct_bytes(node_addr, payload)
+                    .await
+                    .unwrap();
 
-                autorespond_and_expect_disconnect(&mut peer_stream).await;
+                assert!(synth_node
+                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                    .await
+                    .is_ok());
             }),
         ));
     }
 
     let mut node: Node = Default::default();
     node.initial_action(Action::None)
-        .initial_peers(peer_addresses)
+        .initial_peers(synth_addrs)
         .start()
         .await;
 
     // join the peer processes
-    for handle in peer_handles {
+    for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
@@ -328,19 +385,34 @@ async fn incorrect_checksum_post_handshake() {
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
-        let mut message_buffer = vec![];
-        let mut header = message.encode(&mut message_buffer).unwrap();
+        let mut body_buffer = Vec::new();
+        let mut header = message.encode(&mut body_buffer).unwrap();
 
         // Set the checksum to a random value which isn't the current value.
         header.checksum = random_non_valid_u32(&mut rng, header.checksum);
 
-        let mut peer_stream = initiate_handshake(node.addr()).await.unwrap();
+        let mut buffer = Vec::with_capacity(HEADER_LEN + body_buffer.len());
+        header.encode(&mut buffer).unwrap();
+        buffer.append(&mut body_buffer);
+
+        let mut synth_node = SyntheticNode::builder()
+            .with_full_handshake()
+            .with_all_auto_reply()
+            .build()
+            .await
+            .unwrap();
+        synth_node.connect(node.addr()).await.unwrap();
 
         // Write messages with wrong checksum.
-        let _ = header.write_to_stream(&mut peer_stream).await;
-        let _ = peer_stream.write_all(&message_buffer).await;
+        synth_node
+            .send_direct_bytes(node.addr(), buffer)
+            .await
+            .unwrap();
 
-        autorespond_and_expect_disconnect(&mut peer_stream).await;
+        assert!(synth_node
+            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
+            .await
+            .is_ok());
     }
 
     node.stop().await;
