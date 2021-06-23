@@ -115,7 +115,15 @@ lazy_static::lazy_static! {
 
 /// Enables the [SimpleRecorder] as the [metrics::Recorder] sink
 pub fn enable_simple_recorder() -> Result<(), SetRecorderError> {
-    metrics::set_recorder(&*SIMPLE_RECORDER)
+    // FIXME: This is a work-around while we don't have a test-runner
+    //        which can set this globally. Currently we are calling this
+    //        from every test which requires metrics. This will cause an
+    //        error when called multiple times.
+    //
+    //        The correct implementation will pass on the result of metric::set_recoder
+    //        instead of masking it.
+    let _ = metrics::set_recorder(&*SIMPLE_RECORDER);
+    Ok(())
 }
 
 /// Map of all counters recorded
