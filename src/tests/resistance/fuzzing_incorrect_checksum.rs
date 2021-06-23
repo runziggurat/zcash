@@ -1,5 +1,5 @@
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
+    tools::synthetic_peers::SyntheticNode,
     protocol::{
         message::{constants::HEADER_LEN, Message},
         payload::{codec::Codec, Version},

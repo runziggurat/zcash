@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use tokio::time::Duration;
 
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
+    tools::synthetic_peers::SyntheticNode,
     protocol::{
         message::Message,
         payload::{block::Block, Inv},

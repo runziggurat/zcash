@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
+    tools::synthetic_peers::SyntheticNode,
     setup::node::{Action, Node},
     tests::{performance::table_float_display, simple_metrics},
 };

@@ -1,6 +1,6 @@
 //! High level APIs and types for node setup and teardown.
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
+    tools::synthetic_peers::SyntheticNode,
     protocol::{
         message::filter::{Filter, MessageFilter},
         payload::{
