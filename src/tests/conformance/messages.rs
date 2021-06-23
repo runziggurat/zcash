@@ -13,10 +13,7 @@ use crate::{
             Addr, FilterAdd, FilterLoad, Hash, Inv, Nonce, Version,
         },
     },
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
-    },
+    setup::node::{Action, Node},
     wait_until,
 };
 
@@ -77,7 +74,7 @@ async fn reject_invalid_messages() {
     // List of test messages and their expected Reject kind.
     let cases = vec![
         (
-            Message::Version(Version::new(node.addr(), new_local_addr())),
+            Message::Version(Version::new(node.addr(), "0.0.0.0:0".parse().unwrap())),
             CCode::Duplicate,
         ),
         (Message::Verack, CCode::Duplicate),
