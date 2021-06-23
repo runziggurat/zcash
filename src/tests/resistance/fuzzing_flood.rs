@@ -1,4 +1,3 @@
-use pea2pea::NodeConfig;
 use rand::{prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
 use std::{net::SocketAddr, time::Duration};
@@ -480,11 +479,7 @@ async fn simulate_peer(
     let mut synth_node = SyntheticNode::builder()
         .with_all_auto_reply()
         .with_full_handshake()
-        .with_node_config(NodeConfig {
-            // this is required as the corrupt message can exceed the default buffer capacity
-            conn_write_buffer_size: std::cmp::max(corrupt_message.len(), 65536),
-            ..Default::default()
-        })
+        .with_max_write_buffer_size(std::cmp::max(corrupt_message.len(), 65536))
         .build()
         .await
         .unwrap();
