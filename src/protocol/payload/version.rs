@@ -15,7 +15,7 @@ pub struct Version {
     services: u64,
     timestamp: DateTime<Utc>,
     addr_recv: NetworkAddr,
-    addr_from: NetworkAddr,
+    pub addr_from: NetworkAddr,
     pub nonce: Nonce,
     user_agent: VarStr,
     start_height: u32,

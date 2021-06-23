@@ -1,6 +1,5 @@
 use crate::{
-    helpers::{initiate_handshake, is_rejection_error, is_termination_error},
-    protocol::message::filter::MessageFilter,
+    helpers::{is_rejection_error, synthetic_peers::SyntheticNode},
     setup::node::{Action, Node},
     tests::{performance::table_float_display, simple_metrics},
 };
@@ -59,17 +58,17 @@ async fn incoming_active_connections() {
     // ┌───────────┬───────┬──────────┬──────────┬────────────┬──────────┐
     // │ max peers │ peers │ accepted │ rejected │ terminated │ time (s) │
     // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
-    // │         50│    100│        42│        58│           0│      0.07│
+    // │         50│    100│        42│        58│           0│      0.08│
     // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
-    // │         50│   1000│        42│       958│           0│      0.17│
+    // │         50│   1000│        42│       958│           0│      0.10│
     // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
-    // │         50│   5000│        42│      4958│           0│      0.24│
+    // │         50│   5000│        42│      4958│           0│      0.32│
     // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
-    // │         50│  10000│        42│      9958│           0│      1.29│
+    // │         50│  10000│        42│      9958│           0│      0.60│
     // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
-    // │         50│  15000│        42│     14958│           0│      3.20│
+    // │         50│  15000│        42│     14958│           0│      1.48│
     // ├───────────┼───────┼──────────┼──────────┼────────────┼──────────┤
-    // │         50│  20000│        42│     19958│           0│      3.22│
+    // │         50│  20000│        42│     19958│           0│      1.59│
     // └───────────┴───────┴──────────┴──────────┴────────────┴──────────┘
     //
     // Zebra:
@@ -130,10 +129,17 @@ async fn incoming_active_connections() {
             let peer_handshaken = handshake_tx.clone();
 
             peer_handles.push(tokio::spawn(async move {
+                let mut peer = SyntheticNode::builder()
+                    .with_full_handshake()
+                    .with_all_auto_reply()
+                    .build()
+                    .await
+                    .unwrap();
+
                 // Establish peer connection
-                let handshake_result = initiate_handshake(node_addr).await;
+                let handshake_result = peer.connect(node_addr).await;
                 peer_handshaken.send(()).await.unwrap();
-                let mut stream = match handshake_result {
+                match handshake_result {
                     Ok(stream) => {
                         metrics::counter!(METRIC_ACCEPTED, 1);
                         stream
@@ -147,15 +153,10 @@ async fn incoming_active_connections() {
 
                 // Keep connection alive by replying to incoming Pings etc, until instructed to exit or
                 // connection is terminated (or something unexpected occurs).
-                let filter = MessageFilter::with_all_auto_reply();
                 tokio::select! {
                     _ = exit_rx => {},
-                    result = filter.read_from_stream(&mut stream) => {
-                        match result {
-                            Ok(message) => panic!("Unexpected message: {:?}", message),
-                            Err(err) if is_termination_error(&err) => metrics::counter!(METRIC_TERMINATED, 1),
-                            Err(err) => panic!("Read error: {}", err),
-                        }
+                    (_, message) = peer.recv_message() => {
+                        panic!("Unexpected message: {:?}", message);
                     }
                 }
             }));
