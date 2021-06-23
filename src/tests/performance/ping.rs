@@ -134,7 +134,7 @@ async fn ping_pong_latency() {
         for _ in 0..peers {
             synth_handles.push(tokio::spawn(async move {
                 // Create a synthetic node, enable handshaking and auto-reply
-                let mut synth_node =SyntheticNode::builder()
+                let mut synth_node = SyntheticNode::builder()
                     .with_full_handshake()
                     .with_all_auto_reply()
                     .build()
@@ -147,7 +147,8 @@ async fn ping_pong_latency() {
                     let expected = Message::Pong(nonce);
 
                     // send Ping(nonce)
-                    synth_node.send_direct_message(node_addr, Message::Ping(nonce))
+                    synth_node
+                        .send_direct_message(node_addr, Message::Ping(nonce))
                         .await
                         .unwrap();
 
