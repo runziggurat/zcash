@@ -1,5 +1,5 @@
 use crate::{
-    tools::synthetic_peers::SyntheticNode,
+    tools::synthetic_node::SyntheticNode,
     protocol::payload::{codec::Codec, Version},
     setup::node::{Action, Node},
     tests::resistance::{

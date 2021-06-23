@@ -1,5 +1,5 @@
 use crate::{
-    tools::{synthetic_peers::SyntheticNode, TIMEOUT},
+    tools::{synthetic_node::SyntheticNode, TIMEOUT},
     protocol::{
         message::{
             filter::{Filter, MessageFilter},

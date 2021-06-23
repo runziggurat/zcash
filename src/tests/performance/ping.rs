@@ -2,7 +2,7 @@ use simple_metrics::enable_simple_recorder;
 use tokio::time::Duration;
 
 use crate::{
-    tools::synthetic_peers::SyntheticNode,
+    tools::synthetic_node::SyntheticNode,
     protocol::{message::Message, payload::Nonce},
     setup::node::{Action, Node},
     tests::{
