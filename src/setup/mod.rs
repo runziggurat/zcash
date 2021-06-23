@@ -1,2 +1,2 @@
-pub mod config;
+mod config;
 pub mod node;
