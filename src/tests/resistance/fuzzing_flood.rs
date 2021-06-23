@@ -5,9 +5,9 @@ use std::{net::SocketAddr, time::Duration};
 use tabled::{table, Alignment, Style, Tabled};
 
 use crate::{
-    helpers::synthetic_peers::{Handshake, SyntheticNode, SyntheticNodeConfig},
+    helpers::synthetic_peers::SyntheticNode,
     protocol::{
-        message::{constants::MAGIC, filter::MessageFilter, Message, MessageHeader},
+        message::{constants::MAGIC, Message, MessageHeader},
         payload::{
             block::{Block, Headers, LocatorHashes},
             codec::Codec,
@@ -477,18 +477,17 @@ async fn simulate_peer(
 ) {
     const READ_TIMEOUT: Duration = Duration::from_secs(2);
 
-    let mut peer = SyntheticNode::new(SyntheticNodeConfig {
-        network_config: NodeConfig {
-            // this is required as the corrupt message can exceed the default
-            conn_write_buffer_size: corrupt_message.len().max(65536),
+    let mut peer = SyntheticNode::builder()
+        .with_all_auto_reply()
+        .with_full_handshake()
+        .with_node_config(NodeConfig {
+            // this is required as the corrupt message can exceed the default buffer capacity
+            conn_write_buffer_size: std::cmp::max(corrupt_message.len(), 65536),
             ..Default::default()
-        }
-        .into(),
-        handshake: Some(Handshake::Full),
-        message_filter: MessageFilter::with_all_auto_reply(),
-    })
-    .await
-    .unwrap();
+        })
+        .build()
+        .await
+        .unwrap();
 
     // handshake
     let timer = tokio::time::Instant::now();
