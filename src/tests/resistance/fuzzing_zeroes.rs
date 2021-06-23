@@ -1,7 +1,7 @@
 use std::cmp;
 
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
+    tools::synthetic_peers::SyntheticNode,
     protocol::message::{constants::MAX_MESSAGE_LEN, Message},
     setup::node::{Action, Node},
     tests::resistance::{seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS},

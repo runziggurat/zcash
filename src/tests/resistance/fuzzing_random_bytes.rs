@@ -1,7 +1,7 @@
 use std::cmp;
 
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
+    tools::synthetic_peers::SyntheticNode,
     protocol::{
         message::{constants::HEADER_LEN, Message, MessageHeader},
         payload::codec::Codec,
