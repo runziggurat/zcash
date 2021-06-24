@@ -162,7 +162,7 @@ async fn ignores_unsolicited_responses() {
             .unwrap();
 
         // A response to ping would indicate the previous message was ignored.
-        synthetic_node.assert_ping_pong(node.addr()).await;
+        synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await.unwrap();
     }
 
     // Gracefully shut down the nodes.
@@ -722,7 +722,7 @@ async fn get_blocks() {
         .unwrap();
 
     // Test message is ignored by sending Ping and receiving Pong.
-    synthetic_node.assert_ping_pong(node.addr()).await;
+    synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await.unwrap();
 
     // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
     synthetic_node
