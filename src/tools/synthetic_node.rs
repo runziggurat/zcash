@@ -1,10 +1,11 @@
-use crate::protocol::{
-    message::{
-        constants::HEADER_LEN,
-        filter::{Filter, MessageFilter},
-        Message, MessageHeader,
+//! A lightweight node implementation to be used as peers in tests.
+
+use crate::{
+    protocol::{
+        message::{constants::HEADER_LEN, Message, MessageHeader},
+        payload::{codec::Codec, Nonce, Version},
     },
-    payload::{codec::Codec, Nonce, Version},
+    tools::message_filter::{Filter, MessageFilter},
 };
 
 use assert_matches::assert_matches;
@@ -25,12 +26,31 @@ use std::{
     time::Duration,
 };
 
+/// Enables tracing for all [`SyntheticNode`] instances (usually scoped by test).
+pub fn enable_tracing() {
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    fmt()
+        .with_test_writer()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+}
+
+/// Describes the handshake to be performed by a [`SyntheticNode`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Handshake {
+    /// [`Version`] and [`Verack`] in both directions.
+    ///
+    /// [`Version`]: enum@crate::protocol::message::Message::Version
+    /// [`Verack`]: enum@crate::protocol::message::Message::Verack
     Full,
+    /// Only [`Version`] messages are exchanged.
+    ///
+    /// [`Version`]: enum@crate::protocol::message::Message::Version
     VersionOnly,
 }
 
+/// A builder for [`SyntheticNode`].
 #[derive(Debug, Clone)]
 pub struct SyntheticNodeBuilder {
     network_config: Option<NodeConfig>,
@@ -53,7 +73,7 @@ impl Default for SyntheticNodeBuilder {
 }
 
 impl SyntheticNodeBuilder {
-    /// Creates a [SyntheticNode] with the current configuration
+    /// Creates a [`SyntheticNode`] with the current configuration
     pub async fn build(&self) -> Result<SyntheticNode> {
         // Create the pea2pea node from the config.
         let node = Node::new(self.network_config.clone()).await?;
@@ -72,7 +92,7 @@ impl SyntheticNodeBuilder {
         })
     }
 
-    /// Creates `n` [SyntheticNode]'s with the current configuration, and also returns their listening address.
+    /// Creates `n` [`SyntheticNode`]'s with the current configuration, and also returns their listening address.
     pub async fn build_n(&self, n: usize) -> Result<(Vec<SyntheticNode>, Vec<SocketAddr>)> {
         let mut nodes = Vec::with_capacity(n);
         let mut addrs = Vec::with_capacity(n);
@@ -85,32 +105,31 @@ impl SyntheticNodeBuilder {
         Ok((nodes, addrs))
     }
 
-    /// Sets [MessageFilter] to [Filter::AutoReply]
+    /// Sets the node's [`MessageFilter`] to [`Filter::AutoReply`].
     pub fn with_all_auto_reply(mut self) -> Self {
         self.message_filter = MessageFilter::with_all_auto_reply();
         self
     }
 
-    /// Enables handshaking with [Handshake::Full]
+    /// Enables handshaking with [`Handshake::Full`].
     pub fn with_full_handshake(mut self) -> Self {
         self.handshake = Some(Handshake::Full);
         self
     }
 
-    /// Enables handshaking with [Handshake::VersionOnly]
+    /// Enables handshaking with [`Handshake::VersionOnly`].
     pub fn with_version_exchange_handshake(mut self) -> Self {
         self.handshake = Some(Handshake::VersionOnly);
         self
     }
 
-    /// Sets [MessageFilter]
+    /// Sets the node's [`MessageFilter`].
     pub fn with_message_filter(mut self, filter: MessageFilter) -> Self {
         self.message_filter = filter;
         self
     }
 
-    /// Sets [NodeConfig]'s write buffer size. If the builder currently
-    /// has no [NodeConfig], then a default one is created first.
+    /// Sets the node's write buffer size.
     pub fn with_max_write_buffer_size(mut self, size: usize) -> Self {
         let mut config = self.network_config.unwrap_or_default();
         config.conn_write_buffer_size = size;
@@ -119,13 +138,14 @@ impl SyntheticNodeBuilder {
     }
 }
 
-/// Conventient abstraction over the `pea2pea`-backed node to be used in tests.
+/// Conventient abstraction over a `pea2pea` node.
 pub struct SyntheticNode {
     inner_node: InnerNode,
     inbound_rx: Receiver<(SocketAddr, Message)>,
 }
 
 impl SyntheticNode {
+    // FIXME: remove in favour of calling `SyntheticNodeBuilder::default()` or `new` directly?
     pub fn builder() -> SyntheticNodeBuilder {
         SyntheticNodeBuilder::default()
     }
@@ -144,14 +164,17 @@ impl SyntheticNode {
         Ok(())
     }
 
+    /// Indicates if the `addr` is registerd as a connected peer.
     pub fn is_connected(&self, addr: SocketAddr) -> bool {
         self.inner_node.node().is_connected(addr)
     }
 
+    /// Returns the number of connected peers.
     pub fn num_connected(&self) -> usize {
         self.inner_node.node().num_connected()
     }
 
+    /// Returns a reference to the node's known peers.
     pub fn known_peers(&self) -> &KnownPeers {
         self.inner_node.node().known_peers()
     }
@@ -212,33 +235,16 @@ impl SyntheticNode {
         }
     }
 
-    /// Sends a ping, expecting a timely pong response.
+    /// Sends [`Ping`], and expects [`Pong`] with a matching [`Nonce`] in reply.
     ///
-    /// Panics if a correct pong isn't sent before the timeout.
-    /// FIXME: write  general `expect_message` macro.
-    pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
-        let ping_nonce = Nonce::default();
-        self.send_direct_message(target, Message::Ping(ping_nonce))
-            .await
-            .unwrap();
-
-        match timeout(Duration::from_secs(2), self.recv_message()).await {
-            Ok((_, message)) => {
-                // Recieve pong and verify the nonce matches.
-                assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce)
-            }
-            Err(e) => panic!("no pong response received: {}", e),
-        }
-    }
-
-    /// Sends Ping(nonce), and expects Pong(nonce) as a reply.
+    /// Uses polling to check that connection is still alive. Errors if:
+    /// - a non-[`Pong`] message is received
+    /// - the timeout expires
+    /// - the connection breaks
     ///
-    /// Uses polling to check that connection is still alive.
-    ///
-    /// Errors if:
-    ///     - a non-Pong(nonce) message is received
-    ///     - timeout expires
-    ///     - connection breaks
+    /// [`Ping`]: enum@crate::protocol::message::Message::Ping
+    /// [`Pong`]: enum@crate::protocol::message::Message::Pong
+    /// [`Nonce`]: struct@crate::protocol::payload::Nonce
     pub async fn ping_pong_timeout(
         &mut self,
         target: SocketAddr,
@@ -275,8 +281,10 @@ impl SyntheticNode {
         ))
     }
 
-    /// Waits for the target to disconnect by sending a ping request. Errors if
+    /// Waits for the target to disconnect by sending a [`Ping`] request. Errors if
     /// the target responds or doesn't disconnect within the timeout.
+    ///
+    /// [`Ping`]: enum@crate::protocol::message::Message::Ping
     pub async fn wait_for_disconnect(
         &mut self,
         target: SocketAddr,
@@ -289,6 +297,7 @@ impl SyntheticNode {
         }
     }
 
+    /// Gracefully shuts down the node.
     pub fn shut_down(&self) {
         self.inner_node.node().shut_down()
     }

@@ -1,10 +1,10 @@
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
     protocol::payload::{codec::Codec, Version},
     setup::node::{Action, Node},
     tests::resistance::{
         default_fuzz_messages, seeded_rng, Message, DISCONNECT_TIMEOUT, ITERATIONS,
     },
+    tools::synthetic_node::SyntheticNode,
 };
 
 use std::sync::Arc;

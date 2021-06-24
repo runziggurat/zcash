@@ -2,13 +2,13 @@ use simple_metrics::enable_simple_recorder;
 use tokio::time::Duration;
 
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
     protocol::{message::Message, payload::Nonce},
     setup::node::{Action, Node},
     tests::{
         performance::{duration_as_ms, RequestStats, RequestsTable},
         simple_metrics,
     },
+    tools::synthetic_node::SyntheticNode,
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]

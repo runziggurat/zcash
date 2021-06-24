@@ -1,13 +1,13 @@
 use std::cmp;
 
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
     protocol::{
         message::{constants::HEADER_LEN, Message, MessageHeader},
         payload::codec::Codec,
     },
     setup::node::{Action, Node},
     tests::resistance::{seeded_rng, COMMANDS_WITH_PAYLOADS, DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::synthetic_node::SyntheticNode,
 };
 
 use assert_matches::assert_matches;

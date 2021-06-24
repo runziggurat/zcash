@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use crate::{
-    helpers::{synthetic_peers::SyntheticNode, TIMEOUT},
     protocol::{
         message::Message,
         payload::{
@@ -11,6 +10,7 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
+    tools::{synthetic_node::SyntheticNode, TIMEOUT},
     wait_until,
 };
 
@@ -317,7 +317,10 @@ async fn ignore_non_verack_replies_to_verack() {
 
             // A ping/pong exchange indicates the node completed the handshake and ignored the
             // unsolicited message.
-            synthetic_node.assert_ping_pong(source).await;
+            synthetic_node
+                .ping_pong_timeout(source, TIMEOUT)
+                .await
+                .unwrap();
 
             // Gracefully shut down the synthetic node.
             synthetic_node.shut_down();

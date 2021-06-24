@@ -1,10 +1,6 @@
 use crate::{
-    helpers::{synthetic_peers::SyntheticNode, TIMEOUT},
     protocol::{
-        message::{
-            filter::{Filter, MessageFilter},
-            Message,
-        },
+        message::Message,
         payload::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
@@ -13,9 +9,11 @@ use crate::{
             Addr, FilterAdd, FilterLoad, Hash, Inv, Nonce, Version,
         },
     },
-    setup::{
-        config::new_local_addr,
-        node::{Action, Node},
+    setup::node::{Action, Node},
+    tools::{
+        message_filter::{Filter, MessageFilter},
+        synthetic_node::SyntheticNode,
+        TIMEOUT,
     },
     wait_until,
 };
@@ -77,7 +75,7 @@ async fn reject_invalid_messages() {
     // List of test messages and their expected Reject kind.
     let cases = vec![
         (
-            Message::Version(Version::new(node.addr(), new_local_addr())),
+            Message::Version(Version::new(node.addr(), "0.0.0.0:0".parse().unwrap())),
             CCode::Duplicate,
         ),
         (Message::Verack, CCode::Duplicate),
@@ -165,7 +163,10 @@ async fn ignores_unsolicited_responses() {
             .unwrap();
 
         // A response to ping would indicate the previous message was ignored.
-        synthetic_node.assert_ping_pong(node.addr()).await;
+        synthetic_node
+            .ping_pong_timeout(node.addr(), TIMEOUT)
+            .await
+            .unwrap();
     }
 
     // Gracefully shut down the nodes.
@@ -725,7 +726,10 @@ async fn get_blocks() {
         .unwrap();
 
     // Test message is ignored by sending Ping and receiving Pong.
-    synthetic_node.assert_ping_pong(node.addr()).await;
+    synthetic_node
+        .ping_pong_timeout(node.addr(), TIMEOUT)
+        .await
+        .unwrap();
 
     // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
     synthetic_node

@@ -1,18 +1,12 @@
-pub mod synthetic_peers;
+//! Utilities for network testing.
+
+pub mod message_filter;
+pub mod synthetic_node;
 
 use std::time::Duration;
 
-// Default timeout for connection reads in seconds.
+/// Default timeout for connection reads in seconds.
 pub const TIMEOUT: Duration = Duration::from_secs(10);
-
-pub fn enable_tracing() {
-    use tracing_subscriber::{fmt, EnvFilter};
-
-    fmt()
-        .with_test_writer()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init();
-}
 
 /// Waits until an expression is true or times out.
 ///
