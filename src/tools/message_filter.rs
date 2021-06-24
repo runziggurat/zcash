@@ -42,11 +42,10 @@ pub struct MessageFilter {
     // todo: inv
     // todo: getblocks
     // todo: mempool
-    logging: bool,
 }
 
 impl MessageFilter {
-    /// Constructs a `MessageFilter` which will filter no messages, and with logging disabled.
+    /// Constructs a `MessageFilter` which will filter no messages.
     pub fn with_all_disabled() -> Self {
         use Filter::Disabled;
 
@@ -55,12 +54,10 @@ impl MessageFilter {
             getheaders: Disabled,
             getaddr: Disabled,
             getdata: Disabled,
-
-            logging: false,
         }
     }
 
-    /// Constructs a `MessageFilter` which will filter all supported message types, and with logging disabled.
+    /// Constructs a `MessageFilter` which will filter all supported message types.
     pub fn with_all_enabled() -> Self {
         use Filter::Enabled;
 
@@ -69,12 +66,10 @@ impl MessageFilter {
             getheaders: Enabled,
             getaddr: Enabled,
             getdata: Enabled,
-
-            logging: false,
         }
     }
 
-    /// Constructs a `MessageFilter` which will filter and reply to all supported message types, and with logging disabled.
+    /// Constructs a `MessageFilter` which will filter and reply to all supported message types.
     pub fn with_all_auto_reply() -> Self {
         use Filter::AutoReply;
 
@@ -83,8 +78,6 @@ impl MessageFilter {
             getheaders: AutoReply,
             getaddr: AutoReply,
             getdata: AutoReply,
-
-            logging: false,
         }
     }
 
