@@ -5,8 +5,6 @@ use crate::protocol::{
     payload::{block::Headers, Addr},
 };
 
-use tokio::{io::Result, net::TcpStream};
-
 /// Controls the filter response of [`MessageFilter`] to messages it receives.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Filter {
