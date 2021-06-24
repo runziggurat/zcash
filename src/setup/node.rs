@@ -1,15 +1,15 @@
 //! High level APIs and types for node setup and teardown.
 
 use crate::{
-    protocol::{
-        message::filter::{Filter, MessageFilter},
-        payload::{
-            block::{Block, Headers},
-            Hash, Inv,
-        },
+    protocol::payload::{
+        block::{Block, Headers},
+        Hash, Inv,
     },
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
-    tools::synthetic_node::SyntheticNode,
+    tools::{
+        message_filter::{Filter, MessageFilter},
+        synthetic_node::SyntheticNode,
+    },
     wait_until,
 };
 
@@ -235,7 +235,10 @@ impl Node {
                 }
 
                 // Check that the node has received and processed all previous messages.
-                synthetic_node.ping_pong_timeout(source, TIMEOUT).await.unwrap();
+                synthetic_node
+                    .ping_pong_timeout(source, TIMEOUT)
+                    .await
+                    .unwrap();
             }
         }
 

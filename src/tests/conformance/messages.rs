@@ -1,10 +1,6 @@
 use crate::{
-    tools::{synthetic_node::SyntheticNode, TIMEOUT},
     protocol::{
-        message::{
-            filter::{Filter, MessageFilter},
-            Message,
-        },
+        message::Message,
         payload::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
@@ -14,6 +10,11 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
+    tools::{
+        message_filter::{Filter, MessageFilter},
+        synthetic_node::SyntheticNode,
+        TIMEOUT,
+    },
     wait_until,
 };
 
@@ -162,7 +163,10 @@ async fn ignores_unsolicited_responses() {
             .unwrap();
 
         // A response to ping would indicate the previous message was ignored.
-        synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await.unwrap();
+        synthetic_node
+            .ping_pong_timeout(node.addr(), TIMEOUT)
+            .await
+            .unwrap();
     }
 
     // Gracefully shut down the nodes.
@@ -722,7 +726,10 @@ async fn get_blocks() {
         .unwrap();
 
     // Test message is ignored by sending Ping and receiving Pong.
-    synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await.unwrap();
+    synthetic_node
+        .ping_pong_timeout(node.addr(), TIMEOUT)
+        .await
+        .unwrap();
 
     // Test `hash_stop` (it should be included in the range, but zcashd excludes it -- see note).
     synthetic_node

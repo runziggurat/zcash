@@ -1,9 +1,6 @@
 //! High level APIs and types for network messages.
 
 pub mod constants;
-// FIXME: move to tools module.
-pub mod filter;
-
 #[doc(hidden)]
 pub mod io;
 
