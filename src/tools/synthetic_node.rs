@@ -226,25 +226,6 @@ impl SyntheticNode {
         }
     }
 
-    /// Sends a ping, expecting a timely pong response.
-    ///
-    /// Panics if a correct pong isn't sent before the timeout.
-    /// FIXME: write  general `expect_message` macro.
-    pub async fn assert_ping_pong(&mut self, target: SocketAddr) {
-        let ping_nonce = Nonce::default();
-        self.send_direct_message(target, Message::Ping(ping_nonce))
-            .await
-            .unwrap();
-
-        match timeout(Duration::from_secs(2), self.recv_message()).await {
-            Ok((_, message)) => {
-                // Recieve pong and verify the nonce matches.
-                assert_matches!(message, Message::Pong(pong_nonce) if pong_nonce == ping_nonce)
-            }
-            Err(e) => panic!("no pong response received: {}", e),
-        }
-    }
-
     /// Sends [`Ping`], and expects [`Pong`] with a matching [`Nonce`] in reply.
     ///
     /// Uses polling to check that connection is still alive. Errors if:

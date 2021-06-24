@@ -235,7 +235,7 @@ impl Node {
                 }
 
                 // Check that the node has received and processed all previous messages.
-                synthetic_node.assert_ping_pong(source).await;
+                synthetic_node.ping_pong_timeout(source, TIMEOUT).await.unwrap();
             }
         }
 
