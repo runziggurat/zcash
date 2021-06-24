@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use tokio::time::Duration;
 
 use crate::{
-    tools::synthetic_node::SyntheticNode,
     protocol::{
         message::Message,
         payload::{block::Block, Inv},
@@ -12,6 +11,7 @@ use crate::{
         performance::{duration_as_ms, RequestStats, RequestsTable},
         simple_metrics::{self, enable_simple_recorder},
     },
+    tools::synthetic_node::SyntheticNode,
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
