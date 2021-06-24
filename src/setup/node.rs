@@ -1,13 +1,15 @@
+//! High level APIs and types for node setup and teardown.
+
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
-    protocol::{
-        message::filter::{Filter, MessageFilter},
-        payload::{
-            block::{Block, Headers},
-            Hash, Inv,
-        },
+    protocol::payload::{
+        block::{Block, Headers},
+        Hash, Inv,
     },
     setup::config::{NodeConfig, NodeKind, NodeMetaData, ZcashdConfigFile, ZebraConfigFile},
+    tools::{
+        message_filter::{Filter, MessageFilter},
+        synthetic_node::SyntheticNode,
+    },
     wait_until,
 };
 
@@ -15,18 +17,20 @@ use tokio::process::{Child, Command};
 
 use std::{fs, net::SocketAddr, process::Stdio, time::Duration};
 
+// The names of the files the node configurations will be written to.
 const ZEBRA_CONFIG: &str = "zebra.toml";
 const ZCASHD_CONFIG: &str = "zcash.conf";
 
+/// Actions to prepare node state on start.
 pub enum Action {
     /// Performs no action
     None,
-    /// Waits for the node to connect at the addr, connection is then terminated.
+    /// Waits for the node to connect to a local listener, connection is then terminated.
     /// This is useful for indicating that the node has started and is available for
     /// other connections.
     WaitForConnection,
-    /// Seeds the node with `block_count` blocks from the testnet chain, by connecting from a socket
-    /// on `socket_addr` and sending the appropriate data. After this, the connection is terminated.
+    /// Seeds the node with `n` blocks from the testnet chain, by connecting from a local socket
+    /// and sending the appropriate data. After this, the connection is terminated.
     ///
     /// **Warning**: this currently only works for zcashd type nodes, for zebra the behaviour
     /// is equivalent to WaitForConnection.
@@ -99,7 +103,7 @@ impl Node {
         self
     }
 
-    /// Sets the initial action to undertake once the node has started. See [Action] for more
+    /// Sets the initial action to undertake once the node has started. See [`Action`] for more
     /// information on what the actions pertain.
     pub fn initial_action(&mut self, action: Action) -> &mut Self {
         self.config.initial_action = action;
@@ -231,7 +235,10 @@ impl Node {
                 }
 
                 // Check that the node has received and processed all previous messages.
-                synthetic_node.assert_ping_pong(source).await;
+                synthetic_node
+                    .ping_pong_timeout(source, TIMEOUT)
+                    .await
+                    .unwrap();
             }
         }
 

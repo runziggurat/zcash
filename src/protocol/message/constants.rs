@@ -1,8 +1,14 @@
-// Message dimensions.
+//! Useful message constants.
+//!
+//! The `*_COMMAND` constants are to be included in message headers to indicate which message is
+//! being sent.
+
+/// Message header length (24 bytes).
 pub const HEADER_LEN: usize = 24;
+/// Maximum message length (2 MiB).
 pub const MAX_MESSAGE_LEN: usize = 2 * 1024 * 1024;
 
-// Network version identifier.
+/// The current network version identifier.
 pub const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
 // Message command bytes.

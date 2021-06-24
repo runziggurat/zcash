@@ -1,5 +1,4 @@
 use crate::{
-    helpers::synthetic_peers::SyntheticNode,
     protocol::{
         message::{constants::HEADER_LEN, Message},
         payload::{codec::Codec, Version},
@@ -8,6 +7,7 @@ use crate::{
     tests::resistance::{
         default_fuzz_messages, random_non_valid_u32, seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS,
     },
+    tools::synthetic_node::SyntheticNode,
 };
 
 use std::sync::Arc;

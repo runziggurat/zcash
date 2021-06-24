@@ -14,11 +14,6 @@ use crate::setup::node::Action;
 const CONFIG: &str = "config.toml";
 const DEFAULT_PORT: u16 = 8080;
 
-/// Returns a new address suitable for starting a local listener.
-pub fn new_local_addr() -> SocketAddr {
-    SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)
-}
-
 /// Convenience struct for reading Ziggurat's configuration file.
 #[derive(Deserialize)]
 struct ConfigFile {
@@ -49,7 +44,7 @@ pub(super) struct NodeConfig {
 impl NodeConfig {
     pub(super) fn new() -> Self {
         // Set the port explicitly.
-        let mut local_addr = new_local_addr();
+        let mut local_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
         local_addr.set_port(DEFAULT_PORT);
 
         Self {
@@ -72,7 +67,7 @@ pub(super) enum NodeKind {
 
 /// Node configuration read from the `config.toml` file.
 #[derive(Clone)]
-pub struct NodeMetaData {
+pub(super) struct NodeMetaData {
     /// The node kind (one of `Zebra` or `Zcashd`).
     pub(super) kind: NodeKind,
     /// The path to run the node's commands in.

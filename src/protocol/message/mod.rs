@@ -1,6 +1,6 @@
-pub mod constants;
-pub mod filter;
+//! High level APIs and types for network messages.
 
+pub mod constants;
 #[doc(hidden)]
 pub mod io;
 
@@ -17,11 +17,16 @@ use sha2::{Digest, Sha256};
 
 use std::io::{Cursor, Result, Write};
 
+/// The header of a network message.
 #[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
+    /// The network protocol version.
     pub magic: [u8; 4],
+    /// The message command, identifies the type of message being sent.
     pub command: [u8; 12],
+    /// The length of the message's body.
     pub body_length: u32,
+    /// The checksum of the encoded message body.
     pub checksum: u32,
 }
 
@@ -46,6 +51,7 @@ impl Codec for MessageHeader {
 }
 
 impl MessageHeader {
+    /// Returns a `MessageHeader` constructed from the message body.
     pub fn new(command: [u8; 12], body: &[u8]) -> Self {
         MessageHeader {
             magic: MAGIC,
@@ -56,6 +62,10 @@ impl MessageHeader {
     }
 }
 
+/// A network message.
+///
+/// All the message types and their payloads are documented by the [Bitcoin protocol
+/// documentation](https://en.bitcoin.it/wiki/Protocol_documentation#Message_types).
 #[derive(Debug, PartialEq, Clone)]
 pub enum Message {
     Version(Version),
@@ -81,6 +91,7 @@ pub enum Message {
 
 impl Message {
     // FIXME: implement Codec?
+    /// Encodes a message into the supplied buffer and returns its header.
     pub fn encode(&self, buffer: &mut Vec<u8>) -> Result<MessageHeader> {
         let header = match self {
             Self::Version(version) => {
@@ -152,6 +163,7 @@ impl Message {
         Ok(header)
     }
 
+    /// Decodes the bytes into a message.
     pub fn decode(command: [u8; 12], bytes: &mut Cursor<&[u8]>) -> Result<Self> {
         let message = match command {
             VERSION_COMMAND => Self::Version(Version::decode(bytes)?),
