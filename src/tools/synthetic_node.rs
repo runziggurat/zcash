@@ -1,12 +1,11 @@
 //! A lightweight node implementation to be used as peers in tests.
 
-use crate::protocol::{
-    message::{
-        constants::HEADER_LEN,
-        filter::{Filter, MessageFilter},
-        Message, MessageHeader,
+use crate::{
+    protocol::{
+        message::{constants::HEADER_LEN, Message, MessageHeader},
+        payload::{codec::Codec, Nonce, Version},
     },
-    payload::{codec::Codec, Nonce, Version},
+    tools::message_filter::{Filter, MessageFilter},
 };
 
 use assert_matches::assert_matches;
