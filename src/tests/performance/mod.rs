@@ -1,9 +1,9 @@
-mod getdata_blocks;
 mod connections;
+mod getdata_blocks;
 mod ping_pong;
 
 use histogram::Histogram;
-use tabled::{table, Alignment, Style, Tabled};
+use tabled::{Alignment, Modify, Style, Table, Tabled};
 use tokio::time::Duration;
 
 /// Provides a simplified interface to producde a well-formatted
@@ -70,13 +70,7 @@ impl RequestsTable {
 
 impl std::fmt::Display for RequestsTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&table!(
-            &self.rows,
-            Style::pseudo(),
-            Alignment::center_vertical(tabled::Full),
-            Alignment::right(tabled::Column(..)),
-            Alignment::center_horizontal(tabled::Head),
-        ))
+        f.write_str(&fmt_table(Table::new(self.rows.iter())))
     }
 }
 
@@ -87,4 +81,17 @@ pub fn table_float_display(x: &f64) -> String {
 
 pub fn duration_as_ms(duration: Duration) -> f64 {
     duration.as_millis() as f64
+}
+
+/// Formats a [Table] with our style:
+///  - [pseudo style](tabled::Style::pseudo) (todo - fix this link)
+///  - centered headers
+///  - right aligned data
+pub fn fmt_table(table: Table) -> String {
+    // table with pseudo style, right aligned data and center aligned headers
+    table
+        .with(Style::pseudo())
+        .with(Modify::new(tabled::Full).with(Alignment::right()))
+        .with(Modify::new(tabled::Head).with(Alignment::center_horizontal()))
+        .to_string()
 }

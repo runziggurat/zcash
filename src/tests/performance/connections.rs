@@ -2,11 +2,14 @@ use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     setup::node::{Action, Node},
-    tests::{performance::table_float_display, simple_metrics},
+    tests::{
+        performance::{fmt_table, table_float_display},
+        simple_metrics,
+    },
     tools::synthetic_node::SyntheticNode,
 };
 
-use tabled::{table, Alignment, Style, Tabled};
+use tabled::{Table, Tabled};
 use tokio::sync::mpsc::Sender;
 
 #[derive(Tabled, Default, Debug, Clone)]
@@ -205,16 +208,7 @@ async fn load_bearing() {
     node.stop().await;
 
     // Display results table
-    println!(
-        "{}",
-        table!(
-            all_stats.clone(),
-            Style::pseudo(),
-            Alignment::center_vertical(tabled::Full),
-            Alignment::right(tabled::Column(..)),
-            Alignment::center_horizontal(tabled::Head),
-        )
-    );
+    println!("{}", fmt_table(Table::new(&all_stats)));
 
     // Check that results are okay
     for stats in all_stats.iter() {

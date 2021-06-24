@@ -1,7 +1,7 @@
 use rand::{prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
 use std::{net::SocketAddr, time::Duration};
-use tabled::{table, Alignment, Style, Tabled};
+use tabled::{Table, Tabled};
 
 use crate::{
     protocol::{
@@ -14,7 +14,9 @@ use crate::{
     },
     setup::node::{Action, Node},
     tests::{
-        performance::{duration_as_ms, table_float_display, RequestStats, RequestsTable},
+        performance::{
+            duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable,
+        },
         resistance::{
             default_fuzz_messages,
             fuzzing_corrupted_messages::slightly_corrupted_messages,
@@ -377,16 +379,7 @@ async fn rising_fuzz() {
     }
 
     // Display tables
-    println!(
-        "Stats\n{}\n",
-        table!(
-            stats,
-            Style::pseudo(),
-            Alignment::center_vertical(tabled::Full),
-            Alignment::right(tabled::Column(..)),
-            Alignment::center_horizontal(tabled::Head),
-        )
-    );
+    println!("Stats\n{}\n", fmt_table(Table::new(stats)));
     println!("Request latencies\n{}\n", request_table);
     println!("Handshake latencies\n{}\n", handshake_table);
 
