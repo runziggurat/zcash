@@ -1,4 +1,4 @@
-//! Lightweight node to be used as peers in tests.
+//! A lightweight node implementation to be used as peers in tests.
 
 use crate::protocol::{
     message::{
@@ -26,6 +26,16 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
+
+/// Enables tracing for all [`SyntheticNode`] instances (usually scoped by test).
+pub fn enable_tracing() {
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    fmt()
+        .with_test_writer()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+}
 
 /// Describes the handshake to be performed by a [`SyntheticNode`].
 #[derive(Debug, Clone, Copy, PartialEq)]
