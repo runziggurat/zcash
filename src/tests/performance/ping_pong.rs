@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn ping_pong_latency() {
+async fn throughput() {
     // ZG-PERFORMANCE-001, Ping-Pong latency
     //
     // The node behaves as expected under load from other peers.
@@ -28,7 +28,7 @@ async fn ping_pong_latency() {
     // Zebra: Starts dropping connections from 300 peers onwards.
     //
     // Example test result (with percentile latencies):
-    //  *NOTE* run with `cargo test --release tests::performance::ping::ping_pong_latency -- --nocapture`
+    //  *NOTE* run with `cargo test --release tests::performance::ping_pong::throughput -- --nocapture`
     //
     //  ZCashd
     //

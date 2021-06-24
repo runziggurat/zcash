@@ -1,6 +1,6 @@
-mod blocks;
+mod getdata_blocks;
 mod connections;
-mod ping;
+mod ping_pong;
 
 use histogram::Histogram;
 use tabled::{table, Alignment, Style, Tabled};
