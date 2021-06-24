@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn getdata_blocks_latency() {
+async fn throughput() {
     // ZG-PERFORMANCE-001, GetData-Block latency
     //
     // The node behaves as expected under load from other peers.
@@ -31,7 +31,7 @@ async fn getdata_blocks_latency() {
     // Zebra: Does not support block seeding and therefore cannot run this test.
     //
     // Example test result (with percentile latencies):
-    //  *NOTE* run with `cargo test --release tests::performance::blocks::getdata_blocks_latency -- --nocapture`
+    //  *NOTE* run with `cargo test --release tests::performance::getdata_blocks::latency -- --nocapture`
     //
     //  ZCashd
     //
