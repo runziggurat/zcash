@@ -9,21 +9,27 @@ use std::{
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
 
+/// The payload for an [`Addr`] message.
+///
+/// [`Addr`]: crate::protocol::message::Message::Addr
 #[derive(Debug, PartialEq, Clone)]
 pub struct Addr {
-    addrs: Vec<NetworkAddr>,
+    /// A list of network addresses.
+    pub addrs: Vec<NetworkAddr>,
 }
 
 impl Addr {
+    /// Returns an `Addr` with no addresses.
     pub fn empty() -> Self {
         Self { addrs: Vec::new() }
     }
 
+    /// Returns an `Addr` with the given addresses.
     pub fn new(addrs: Vec<NetworkAddr>) -> Self {
         Addr { addrs }
     }
 
-    /// Returns an iterator over its list of [NetworkAddr]'s
+    /// Returns an iterator over the list of network addresses.
     pub fn iter(&self) -> std::slice::Iter<NetworkAddr> {
         self.addrs.iter()
     }
@@ -39,28 +45,27 @@ impl Codec for Addr {
     }
 }
 
+/// A network address.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NetworkAddr {
-    // Note: Present only when version is >= 31402
-    pub(super) last_seen: Option<DateTime<Utc>>,
-    pub(super) services: u64,
+    /// The last time this address was seen.
+    /// Note: Present only when version is >= 31402
+    pub last_seen: Option<DateTime<Utc>>,
+    /// The services supported by this address.
+    pub services: u64,
+    /// The socket address.
     pub addr: SocketAddr,
 }
 
 impl NetworkAddr {
     /// Creates a new NetworkAddr with the given socket address, `last_seen=chrono::Utc::now()`,
-    /// and `services=1` (only NODE_NETWORK is enabled)
+    /// and `services=1` (only `NODE_NETWORK` is enabled).
     pub fn new(addr: SocketAddr) -> Self {
         Self {
             last_seen: Some(chrono::Utc::now()),
             services: 1,
             addr,
         }
-    }
-
-    pub fn with_last_seen(mut self, last_seen: Option<DateTime<Utc>>) -> Self {
-        self.last_seen = last_seen;
-        self
     }
 
     pub(super) fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
