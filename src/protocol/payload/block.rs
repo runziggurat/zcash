@@ -209,7 +209,7 @@ impl Codec for Header {
 }
 
 impl Header {
-    /// Calculates the double Sha256 hash for [Header]
+    /// Calculates the double Sha256 hash for this header.
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         let mut buffer = Vec::new();
 

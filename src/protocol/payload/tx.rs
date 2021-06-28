@@ -25,6 +25,7 @@ pub enum Tx {
 }
 
 impl Tx {
+    /// Calculates the double Sha256 hash for this transaction.
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         let mut buffer = Vec::new();
 
@@ -38,7 +39,7 @@ impl Tx {
         Ok(hash)
     }
 
-    /// Convenience function which creates the [InvHash] for this [Tx]
+    /// Convenience function which creates the [`InvHash`] for this `Tx`.
     pub fn inv_hash(&self) -> InvHash {
         InvHash::new(ObjectKind::Tx, self.double_sha256().unwrap())
     }
@@ -102,6 +103,7 @@ impl Codec for Tx {
     }
 }
 
+/// A V1 transaction.
 #[derive(Debug, PartialEq, Clone)]
 pub struct TxV1 {
     tx_in: Vec<TxIn>,
@@ -135,6 +137,7 @@ impl Codec for TxV1 {
     }
 }
 
+/// A V2 transaction.
 #[derive(Debug, PartialEq, Clone)]
 pub struct TxV2 {
     tx_in: Vec<TxIn>,
@@ -208,6 +211,7 @@ impl Codec for TxV2 {
     }
 }
 
+/// A V3 transaction.
 #[derive(Debug, PartialEq, Clone)]
 pub struct TxV3 {
     group_id: u32,
@@ -292,6 +296,7 @@ impl Codec for TxV3 {
     }
 }
 
+/// A V4 transaction.
 #[derive(Debug, PartialEq, Clone)]
 pub struct TxV4 {
     group_id: u32,
