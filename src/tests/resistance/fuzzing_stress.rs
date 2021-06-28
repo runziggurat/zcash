@@ -74,7 +74,7 @@ const CORRUPT_REPLY: &str = "fuzz_flood_corrupt_reply";
 const CORRUPT_IGNORED: &str = "fuzz_flood_corrupt_ignored";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn rising_fuzz() {
+async fn throughput() {
     // ZG-RESISTANCE-006
     //
     // Simulate high load situations, while also sending corrupt messages.
@@ -82,7 +82,7 @@ async fn rising_fuzz() {
     // We simulate active peers which send 100 requests (and validate the replies), and finally send a corrupt message
     // which ends the connection. We measure the latency of the replies and the type of response to the corrupt message.
     //
-    //  *NOTE* run with `cargo test --release tests::resistance::fuzzing_flood::rising_fuzz -- --nocapture`
+    //  *NOTE* run with `cargo test --release tests::resistance::fuzzing_flood::throughput -- --nocapture`
     //
     // Currently only works for zcashd as zebra does not support block seeding.
     //
