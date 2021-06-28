@@ -4,16 +4,19 @@ use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
 
 use std::io::{self, Cursor, Write};
 
+/// An inventory vector.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Inv {
     pub inventory: Vec<InvHash>,
 }
 
 impl Inv {
+    /// Returns a new inventory vector from the supplied hashes.
     pub fn new(inventory: Vec<InvHash>) -> Self {
         Self { inventory }
     }
 
+    // Returns a new empty inventory vector.
     pub fn empty() -> Self {
         Self::new(Vec::new())
     }
@@ -31,13 +34,17 @@ impl Codec for Inv {
     }
 }
 
+/// An inventory hash.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct InvHash {
+    /// The object type linked to this inventory.
     kind: ObjectKind,
+    /// The hash of the object.
     hash: Hash,
 }
 
 impl InvHash {
+    /// Returns a new `InvHash` instance.
     pub fn new(kind: ObjectKind, hash: Hash) -> Self {
         Self { kind, hash }
     }
@@ -59,11 +66,16 @@ impl Codec for InvHash {
     }
 }
 
+/// The inventory object kind.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ObjectKind {
+    /// Any data of this kind may be ignored.
     Error,
+    /// The hash is that of a transaction.
     Tx,
+    /// The hash is that of a block.
     Block,
+    /// The hash is that of a block header.
     FilteredBlock,
 }
 
