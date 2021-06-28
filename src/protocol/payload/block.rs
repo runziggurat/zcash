@@ -11,14 +11,22 @@ use std::{
 
 use sha2::Digest;
 
+/// The locator hash object, used to communicate chain state.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocatorHashes {
-    version: ProtocolVersion,
+    /// The protocol version.
+    pub version: ProtocolVersion,
+    /// The block locator hashes describing current chain state.
+    ///
+    /// The order is from newest to genesis (dense to start, then sparse).
     pub block_locator_hashes: Vec<Hash>,
+    /// The hash of the last desired block or header. Setting this to `0` will ask for as many
+    /// blocks as possible.
     pub hash_stop: Hash,
 }
 
 impl LocatorHashes {
+    /// Returns a new `LocatorHashes` instance with the current protocol version.
     pub fn new(block_locator_hashes: Vec<Hash>, hash_stop: Hash) -> Self {
         Self {
             version: ProtocolVersion::current(),
@@ -27,6 +35,7 @@ impl LocatorHashes {
         }
     }
 
+    /// Returns an empty `LocatorHashes` instance.
     pub fn empty() -> Self {
         Self::new(Vec::new(), Hash::zeroed())
     }
@@ -54,37 +63,40 @@ impl Codec for LocatorHashes {
     }
 }
 
+/// A block, composed of its header and transactions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
+    /// The block's header.
     pub header: Header,
+    /// The block's transactions.
     pub txs: Vec<Tx>,
 }
 
 impl Block {
-    /// Calculates the double Sha256 hash for this [Block]
+    /// Calculates the double Sha256 hash for this block.
     pub fn double_sha256(&self) -> std::io::Result<Hash> {
         self.header.double_sha256()
     }
 
-    /// Creates the first block on the testnet chain
+    /// Creates the first block on the testnet chain.
     pub fn testnet_genesis() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_GENESIS_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Creates the second block on the testnet chain
+    /// Creates the second block on the testnet chain.
     pub fn testnet_1() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_1_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Creates the third block on the testnet chain
+    /// Creates the third block on the testnet chain.
     pub fn testnet_2() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Returns the initial 3 testnet blocks
+    /// Returns the initial 3 testnet blocks.
     pub fn initial_testnet_blocks() -> Vec<Self> {
         vec![
             Self::testnet_genesis(),
@@ -93,7 +105,7 @@ impl Block {
         ]
     }
 
-    /// Convenience function which creates the [InvHash] for this block
+    /// Convenience function which creates the [`InvHash`] for this block.
     pub fn inv_hash(&self) -> InvHash {
         InvHash::new(ObjectKind::Block, self.double_sha256().unwrap())
     }
@@ -112,18 +124,21 @@ impl Codec for Block {
     }
 }
 
+/// A list of block headers.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Headers {
     pub headers: Vec<Header>,
 }
 
 impl Headers {
+    /// Returns a new `Headers` instance.
     pub fn new(headers: Vec<Header>) -> Self {
         Self { headers }
     }
 
+    /// Returns an empty `Headers` instance.
     pub fn empty() -> Self {
-        Headers {
+        Self {
             headers: Vec::new(),
         }
     }
@@ -140,19 +155,29 @@ impl Codec for Headers {
     }
 }
 
+/// A block header, see the [Zcash protocol
+/// spec](https://zips.z.cash/protocol/protocol.pdf#blockheader) for details.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Header {
-    version: ProtocolVersion,
-    prev_block: Hash,
-    merkle_root: Hash,
-    light_client_root: Hash,
-    timestamp: u32,
-    bits: u32,
-    // The nonce used in the version messages (`Nonce(u64)`) is NOT the same as the nonce the block
-    // was generated with as it uses a `u32`.
-    nonce: [u8; 32],
-    solution_size: VarInt,
-    solution: [u8; 1344],
+    /// The block version number.
+    pub version: ProtocolVersion,
+    /// The hash of the previous block.
+    pub prev_block: Hash,
+    /// The hash of the merkle root.
+    pub merkle_root: Hash,
+    /// Field usage varies depending on version, see spec.
+    pub light_client_root: Hash,
+    /// The block timestamp.
+    pub timestamp: u32,
+    /// An encoded version of the target threshold.
+    pub bits: u32,
+    /// The nonce used in the version messages, `Nonce(u64)`, is NOT the same as the nonce the
+    /// block was generated with as it uses a `u32`.
+    pub nonce: [u8; 32],
+    /// The size of the Equihash solution in bytes (always `1344`).
+    pub solution_size: VarInt,
+    /// The Equihash solution.
+    pub solution: [u8; 1344],
 }
 
 impl Codec for Header {
