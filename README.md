@@ -38,6 +38,10 @@ Information about the node to be tested can be set under the `[node]` table:
 
 When starting the node, this information and the configuration provided in the tests will be written to a configuration file compatible with and read by the node under test.
 
+## Building the docs
+
+Ziggurat's documentation can be built with `cargo doc --no-deps --open`.
+
 ## Running the Tests
 
 Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --test-threads=1` should suffice. We use the single threaded executor as spinning up multiple test nodes isn't currently supported.
@@ -146,3 +150,5 @@ Short overview of test cases and their current status. In case of failure, the b
 | [004](SPEC.md#ZG-RESISTANCE-004)  |   ✓    |   ✓   | Zcashd is extremely slow
 | [005](SPEC.md#ZG-RESISTANCE-005)  |   ✓    |   ✓   |
 | [006](SPEC.md#ZG-RESISTANCE-006)  |   ✓    |   -   |
+
+
