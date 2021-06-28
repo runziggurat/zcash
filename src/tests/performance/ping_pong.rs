@@ -29,7 +29,9 @@ async fn throughput() {
     //
     // ZCashd: Performs well.
     //
-    // Zebra: Starts exceeding the response timeout from 200 onwards.
+    // Zebra: Starts exceeding the response timeout from 200 onwards. Occasionally triggers a possible
+    //        internal bug, logs "thread 'tokio-runtime-worker' panicked at 'internal error: entered unreachable code'".
+    //        See [SyntheticNode::perform_handshake()] comments for more information.
     //
     // Example test result (with percentile latencies):
     //  *NOTE* run with `cargo test --release tests::performance::ping_pong::throughput -- --nocapture`
