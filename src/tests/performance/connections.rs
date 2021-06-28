@@ -2,11 +2,14 @@ use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     setup::node::{Action, Node},
-    tests::{performance::table_float_display, simple_metrics},
+    tests::{
+        performance::{fmt_table, table_float_display},
+        simple_metrics,
+    },
     tools::synthetic_node::SyntheticNode,
 };
 
-use tabled::{table, Alignment, Style, Tabled};
+use tabled::{Table, Tabled};
 use tokio::sync::mpsc::Sender;
 
 #[derive(Tabled, Default, Debug, Clone)]
@@ -46,7 +49,7 @@ const METRIC_REJECTED: &str = "perf_conn_rejected";
 const METRIC_ERROR: &str = "perf_conn_error";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn incoming_active_connections() {
+async fn load_bearing() {
     // ZG-PERFORMANCE-002
     //
     // The node sheds or rejects connections when necessary.
@@ -64,7 +67,7 @@ async fn incoming_active_connections() {
     //        set. Start getting "address is in use" errors from M >= 15k.
     //
     // Example result:
-    // *NOTE* run with `cargo test --release tests::performance::connections::incoming_active_connections -- --nocapture`
+    // *NOTE* run with `cargo test --release tests::performance::connections::load_bearing -- --nocapture`
     //
     // ZCashd:
     // ┌───────────┬───────┬────────────┬────────────┬────────────┬────────────┬────────────┬──────────┐
@@ -205,16 +208,7 @@ async fn incoming_active_connections() {
     node.stop().await;
 
     // Display results table
-    println!(
-        "{}",
-        table!(
-            all_stats.clone(),
-            Style::pseudo(),
-            Alignment::center_vertical(tabled::Full),
-            Alignment::right(tabled::Column(..)),
-            Alignment::center_horizontal(tabled::Head),
-        )
-    );
+    println!("{}", fmt_table(Table::new(&all_stats)));
 
     // Check that results are okay
     for stats in all_stats.iter() {

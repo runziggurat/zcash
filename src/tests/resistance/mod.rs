@@ -1,8 +1,8 @@
 mod fuzzing_corrupted_messages;
-mod fuzzing_flood;
 mod fuzzing_incorrect_checksum;
 mod fuzzing_incorrect_length;
 mod fuzzing_random_bytes;
+mod fuzzing_stress;
 mod fuzzing_zeroes;
 
 use std::time::Duration;
