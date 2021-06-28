@@ -1,3 +1,5 @@
+//! Version payload types.
+
 use crate::protocol::payload::{
     addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
 };
@@ -9,22 +11,32 @@ use std::{
     net::SocketAddr,
 };
 
+/// A version payload.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Version {
-    version: ProtocolVersion,
-    services: u64,
-    timestamp: DateTime<Utc>,
-    addr_recv: NetworkAddr,
+    /// The protocol version of the sender.
+    pub version: ProtocolVersion,
+    /// The services supported by the sender.
+    pub services: u64,
+    /// The timestamp of the message.
+    pub timestamp: DateTime<Utc>,
+    /// The receiving address of the message.
+    pub addr_recv: NetworkAddr,
+    /// The sender of the message.
     pub addr_from: NetworkAddr,
+    /// The nonce associated with this message.
     pub nonce: Nonce,
-    user_agent: VarStr,
-    start_height: u32,
-    relay: bool,
+    /// The user agent of the sender.
+    pub user_agent: VarStr,
+    /// The start last block received by the sender.
+    pub start_height: u32,
+    /// Specifies if the receiver should relay transactions.
+    pub relay: bool,
 }
 
 impl Version {
-    /// Constructs a [Version], where `addr_recv` is the remote ZCashd/Zebra Node address and
-    /// `addr_from` is our local peer node address.
+    /// Constructs a `Version`, where `addr_recv` is the remote `zcashd`/`zebra` node address and
+    /// `addr_from` is our local node address.
     pub fn new(addr_recv: SocketAddr, addr_from: SocketAddr) -> Self {
         Self {
             version: ProtocolVersion::current(),
@@ -47,6 +59,7 @@ impl Version {
         }
     }
 
+    /// Sets the protocol version.
     pub fn with_version(mut self, version: u32) -> Self {
         self.version = ProtocolVersion(version);
         self

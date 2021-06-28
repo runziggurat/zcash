@@ -1,7 +1,13 @@
+//! Traits for encoding and decoding network message types.
+
 use super::VarInt;
 
+/// A trait for unifying encoding and decoding.
 pub trait Codec {
+    /// Encodes the payload into the supplied buffer.
     fn encode(&self, buffer: &mut Vec<u8>) -> std::io::Result<()>;
+
+    /// Decodes the bytes and returns the payload.
     fn decode(bytes: &mut std::io::Cursor<&[u8]>) -> std::io::Result<Self>
     where
         Self: Sized;

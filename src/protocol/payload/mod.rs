@@ -31,6 +31,7 @@ pub mod codec;
 pub mod filter;
 pub use filter::{FilterAdd, FilterLoad};
 
+/// A `u64`-backed nonce.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Nonce(u64);
 
@@ -54,11 +55,13 @@ impl Codec for Nonce {
     }
 }
 
+/// Specifies the protocol version.
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct ProtocolVersion(u32);
+pub struct ProtocolVersion(u32);
 
 impl ProtocolVersion {
-    fn current() -> Self {
+    /// The current protocol version.
+    pub fn current() -> Self {
         Self(170_013)
     }
 }
@@ -77,8 +80,9 @@ impl Codec for ProtocolVersion {
     }
 }
 
+/// A variable length integer.
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct VarInt(usize);
+pub struct VarInt(usize);
 
 impl std::ops::Deref for VarInt {
     type Target = usize;
@@ -137,8 +141,9 @@ impl Codec for VarInt {
     }
 }
 
+/// A variable length string.
 #[derive(Debug, PartialEq, Clone)]
-struct VarStr(String);
+pub struct VarStr(String);
 
 impl VarStr {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
@@ -170,14 +175,17 @@ impl VarStr {
     }
 }
 
+/// A general purpose hash of length `32`.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Hash([u8; 32]);
 
 impl Hash {
+    /// Creates a `Hash` instance.
     pub fn new(hash: [u8; 32]) -> Self {
         Hash(hash)
     }
 
+    /// Returns a `Hash` with only `0`s.
     pub fn zeroed() -> Self {
         Self([0; 32])
     }
@@ -198,6 +206,7 @@ impl Codec for Hash {
     }
 }
 
+/// Reads `n` bytes from the bytes.
 pub fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8; N]> {
     let mut buffer = [0u8; N];
     bytes.read_exact(&mut buffer)?;
@@ -205,6 +214,7 @@ pub fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8
     Ok(buffer)
 }
 
+/// Reads a timestamp from the bytes.
 pub fn read_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<DateTime<Utc>> {
     let timestamp_i64 = i64::from_le_bytes(read_n_bytes(bytes)?);
     let timestamp = NaiveDateTime::from_timestamp_opt(timestamp_i64, 0)

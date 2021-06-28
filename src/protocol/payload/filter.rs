@@ -1,18 +1,27 @@
+//! Bloom filtering types, see [BIP 37](https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki).
+
 use std::io::{self, Cursor, ErrorKind, Read, Write};
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes};
 
+/// A modification to an existing filter.
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct FilterAdd {
-    data: Vec<u8>,
+    /// The data element to add to the current filter.
+    pub data: Vec<u8>,
 }
 
+/// A new filter on the connection.
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct FilterLoad {
-    filter: Vec<u8>,
-    hash_fn_count: u32,
-    tweak: u32,
-    flags: u8,
+    /// The filter itself.
+    pub filter: Vec<u8>,
+    /// The number of hash functions to use in this filter.
+    pub hash_fn_count: u32,
+    /// A random value to add to the hash function's seed.
+    pub tweak: u32,
+    /// Flags that control how matched items are added to the filter.
+    pub flags: u8,
 }
 
 impl Codec for FilterAdd {
