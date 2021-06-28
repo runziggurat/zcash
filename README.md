@@ -50,6 +50,8 @@ Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --t
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
 
+These results were obtained by running the test suite against [ZCashd v4.4.1](https://github.com/zcash/zcash/releases/tag/v4.4.1) (0dade79ce) and [Zebra 1.0.0-alpha.11](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-alpha.11) (6396ac2).
+
 | Legend | |
 | :----: |--|
 | ✓ | pass |
