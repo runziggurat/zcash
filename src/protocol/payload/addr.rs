@@ -9,12 +9,9 @@ use std::{
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
 
-/// The payload for an [`Addr`] message.
-///
-/// [`Addr`]: crate::protocol::message::Message::Addr
+/// A list of network addresses, used for peering.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Addr {
-    /// A list of network addresses.
     pub addrs: Vec<NetworkAddr>,
 }
 

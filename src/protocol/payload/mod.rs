@@ -55,7 +55,7 @@ impl Codec for Nonce {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct ProtocolVersion(u32);
+pub struct ProtocolVersion(u32);
 
 impl ProtocolVersion {
     fn current() -> Self {
@@ -78,7 +78,7 @@ impl Codec for ProtocolVersion {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct VarInt(usize);
+pub struct VarInt(usize);
 
 impl std::ops::Deref for VarInt {
     type Target = usize;
