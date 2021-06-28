@@ -138,7 +138,7 @@ impl Codec for VarInt {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct VarStr(String);
+pub struct VarStr(String);
 
 impl VarStr {
     fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {

@@ -4,18 +4,22 @@ use crate::protocol::payload::{codec::Codec, read_n_bytes, VarStr};
 
 use std::io::{self, Cursor, Read, Write};
 
+/// A reject message payload.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Reject {
-    message: VarStr,
+    /// The type of message rejected.
+    pub message: VarStr,
+    /// The code of the reason for rejection.
     pub ccode: CCode,
-    reason: VarStr,
-    // Optional extra data provided by some errors.
-    // Currently, all errors which provide this field fill it with
-    // the TXID or block header hash of the object being rejected,
-    // so the field is 32 bytes.
-    //
-    // We support any length data to fully adhere to the spec.
-    data: Vec<u8>,
+    /// The reason.
+    pub reason: VarStr,
+    /// Optional extra data provided by some errors.
+    /// Currently, all errors which provide this field fill it with
+    /// the TXID or block header hash of the object being rejected,
+    /// so the field is 32 bytes.
+    ///
+    /// We support any length data to fully adhere to the spec.
+    pub data: Vec<u8>,
 }
 
 impl Codec for Reject {
@@ -55,6 +59,7 @@ const INSUFFICIENT_FEE_CODE: u8 = 0x42;
 const CHECKPOINT_CODE: u8 = 0x43;
 const OTHER_CODE: u8 = 0x50;
 
+/// The code specifying the reject reason.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CCode {
     Malformed,
@@ -103,15 +108,5 @@ impl Codec for CCode {
                 format!("Invalid CCode {:#x}", code[0]),
             )),
         }
-    }
-}
-
-impl CCode {
-    pub fn is_obsolete(&self) -> bool {
-        *self == Self::Obsolete
-    }
-
-    pub fn is_invalid(&self) -> bool {
-        *self == Self::Invalid
     }
 }
