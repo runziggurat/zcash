@@ -88,7 +88,7 @@ pub fn duration_as_ms(duration: Duration) -> f64 {
 }
 
 /// Formats a [Table] with our style:
-///  - [pseudo style](Style) (todo - fix this link)
+///  - [pseudo style](https://docs.rs/tabled/0.2.1/tabled/style/struct.Style.html#method.pseudo)
 ///  - centered headers
 ///  - right aligned data
 pub fn fmt_table(table: Table) -> String {
