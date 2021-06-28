@@ -162,8 +162,6 @@ async fn throughput() {
             latencies,
             time_taken_secs,
         ));
-
-        println!("{}", table);
     }
 
     node.stop().await;
