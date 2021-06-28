@@ -1,3 +1,5 @@
+//! Inventory vector types.
+
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
 
 use std::io::{self, Cursor, Write};

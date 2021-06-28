@@ -1,3 +1,5 @@
+//! Transaction-related types.
+
 use sha2::Digest;
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, VarInt};

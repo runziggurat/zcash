@@ -1,3 +1,5 @@
+//! Reject payload types.
+
 use crate::protocol::payload::{codec::Codec, read_n_bytes, VarStr};
 
 use std::io::{self, Cursor, Read, Write};
