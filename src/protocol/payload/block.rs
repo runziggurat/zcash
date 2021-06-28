@@ -1,3 +1,5 @@
+//! Block-related types.
+
 use crate::protocol::payload::{
     codec::Codec,
     inv::{InvHash, ObjectKind},

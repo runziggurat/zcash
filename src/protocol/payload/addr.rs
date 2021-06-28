@@ -1,3 +1,5 @@
+//! Network address types.
+
 use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
 
 use std::convert::TryInto;

@@ -1,3 +1,5 @@
+//! Version payload types.
+
 use crate::protocol::payload::{
     addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
 };
