@@ -18,7 +18,7 @@ use rand_chacha::ChaCha8Rng;
 const CORRUPTION_PROBABILITY: f64 = 0.5;
 
 #[tokio::test]
-async fn corrupted_messages_pre_handshake() {
+async fn instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 4)
     //
     // zebra: responds with a version before disconnecting (however, quite slow running).
@@ -56,7 +56,7 @@ async fn corrupted_messages_pre_handshake() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_during_handshake_responder_side() {
+async fn instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 4)
     //
     // zebra: responds with verack before disconnecting (however, quite slow running).
@@ -97,7 +97,7 @@ async fn corrupted_messages_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
+async fn instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 4)
     //
     // zebra: disconnects immediately.
@@ -160,7 +160,7 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
+async fn instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 4)
     //
     // zebra: disconnects immediately.
@@ -226,7 +226,7 @@ async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_post_handshake() {
+async fn post_handshake() {
     // ZG-RESISTANCE-005 (part 4)
     //
     // zebra: sends getdata and ignores message.
