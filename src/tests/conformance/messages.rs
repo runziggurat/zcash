@@ -988,10 +988,10 @@ async fn get_data_blocks() {
             .unwrap();
 
         // Expect the i blocks
-        for j in 0..=i {
+        for (j, expected_block) in blocks.iter().enumerate().take(i + 1) {
             let (_, block) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
             let block = assert_matches!(block, Message::Block(block) => block);
-            assert_eq!(block, blocks[j], "run {}, {}", i, j);
+            assert_eq!(block, *expected_block, "run {}, {}", i, j);
         }
     }
 

@@ -271,7 +271,7 @@ pub fn slightly_corrupted_messages(
     (0..n)
         .map(|_| {
             let message = messages.choose(rng).unwrap();
-            corrupt_message(rng, &message)
+            corrupt_message(rng, message)
         })
         .collect()
 }
