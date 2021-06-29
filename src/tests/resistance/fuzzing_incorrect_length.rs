@@ -23,7 +23,7 @@ async fn incorrect_length_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -65,7 +65,7 @@ async fn incorrect_length_during_handshake_responder_side() {
 
     let mut rng = seeded_rng();
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -147,7 +147,7 @@ async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake(
         ));
     }
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
@@ -215,7 +215,7 @@ async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake()
         ));
     }
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
@@ -238,7 +238,7 @@ async fn incorrect_length_post_handshake() {
     // zcashd: disconnects (sometimes sends ping and getheaders)
 
     let mut rng = seeded_rng();
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -294,7 +294,7 @@ pub fn encode_messages_and_corrupt_body_length_field(
         .map(|_| {
             let message = message_pool.choose(rng).unwrap();
 
-            encode_with_corrupt_body_length(rng, &message)
+            encode_with_corrupt_body_length(rng, message)
         })
         .collect()
 }
