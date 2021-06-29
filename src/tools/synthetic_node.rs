@@ -21,7 +21,7 @@ use tokio::{
 use tracing::*;
 
 use std::{
-    io::{Cursor, Error, ErrorKind, self},
+    io::{self, Cursor, Error, ErrorKind},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
@@ -193,7 +193,11 @@ impl SyntheticNode {
     }
 
     /// Sends a direct message to the target address.
-    pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
+    pub async fn send_direct_message(
+        &self,
+        target: SocketAddr,
+        message: Message,
+    ) -> io::Result<()> {
         self.inner_node.send_direct_message(target, message).await?;
 
         Ok(())
