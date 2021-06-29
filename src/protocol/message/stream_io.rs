@@ -7,13 +7,13 @@ use crate::protocol::{
     },
 };
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt, Result};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, self};
 
 use std::io::Cursor;
 
 impl MessageHeader {
     /// Writes the message header to the stream.
-    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> Result<()> {
+    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> io::Result<()> {
         let mut buffer = Vec::with_capacity(24);
         self.encode(&mut buffer)?;
 
@@ -23,7 +23,7 @@ impl MessageHeader {
     }
 
     /// Reads a message header from the stream.
-    pub async fn read_from_stream<T: AsyncReadExt + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn read_from_stream<T: AsyncReadExt + Unpin>(stream: &mut T) -> io::Result<Self> {
         let mut header: MessageHeader = Default::default();
 
         stream.read_exact(&mut header.magic).await?;
@@ -37,7 +37,7 @@ impl MessageHeader {
 
 impl Message {
     /// Writes the message to the stream.
-    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> Result<()> {
+    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> io::Result<()> {
         // Buffer for the message payload.
         let mut buffer = vec![];
         let header = self.encode(&mut buffer)?;
@@ -49,7 +49,7 @@ impl Message {
     }
 
     /// Reads a message from the stream.
-    pub async fn read_from_stream<T: AsyncReadExt + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn read_from_stream<T: AsyncReadExt + Unpin>(stream: &mut T) -> io::Result<Self> {
         let header = MessageHeader::read_from_stream(stream).await?;
 
         let mut buffer = vec![0u8; header.body_length as usize];
