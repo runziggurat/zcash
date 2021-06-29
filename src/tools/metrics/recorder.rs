@@ -1,4 +1,4 @@
-//! Metrics types and utilities.
+//! Metrics recording types and utilites.
 
 use std::{collections::HashMap, sync::Arc};
 
