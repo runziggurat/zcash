@@ -3,7 +3,7 @@ mod fuzzing_incorrect_checksum;
 mod fuzzing_incorrect_length;
 mod fuzzing_random_bytes;
 mod fuzzing_stress;
-mod fuzzing_zeroes;
+mod zeroes;
 
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},

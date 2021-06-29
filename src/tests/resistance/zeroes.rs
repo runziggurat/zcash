@@ -1,3 +1,4 @@
+//! Contains fuzz tests where messages are replaced with random length payloads of 0x00.
 use std::cmp;
 
 use crate::{
@@ -12,7 +13,7 @@ use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
-async fn zeroes_pre_handshake() {
+async fn instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 1)
     //
     // zebra: sends a version before disconnecting.
@@ -51,7 +52,7 @@ async fn zeroes_pre_handshake() {
 }
 
 #[tokio::test]
-async fn zeroes_during_handshake_responder_side() {
+async fn instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 1)
     //
     // zebra: responds with verack before disconnecting.
@@ -92,7 +93,7 @@ async fn zeroes_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn zeroes_for_version_when_node_initiates_handshake() {
+async fn instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 1)
     //
     // zebra: disconnects immediately.
@@ -155,7 +156,7 @@ async fn zeroes_for_version_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn zeroes_for_verack_when_node_initiates_handshake() {
+async fn instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 1)
     //
     // zebra: disconnects immediately.
@@ -221,7 +222,7 @@ async fn zeroes_for_verack_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn zeroes_post_handshake() {
+async fn post_handshake() {
     // ZG-RESISTANCE-005 (part 1)
     //
     // zebra: disconnects.
