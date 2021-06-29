@@ -59,7 +59,7 @@ async fn version_with_incorrect_checksum_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -108,7 +108,7 @@ async fn incorrect_checksum_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -158,7 +158,7 @@ async fn version_with_incorrect_checksum_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -206,7 +206,7 @@ async fn version_with_incorrect_checksum_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -257,7 +257,7 @@ async fn incorrect_checksum_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -319,7 +319,7 @@ async fn incorrect_checksum_inplace_of_version_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -384,7 +384,7 @@ async fn incorrect_checksum_inplace_of_verack_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -435,7 +435,7 @@ async fn incorrect_checksum_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 /// Picks `n` random messages from `message_pool`, encodes them and corrupts the checksum bytes.

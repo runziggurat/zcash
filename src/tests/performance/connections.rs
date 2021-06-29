@@ -206,7 +206,7 @@ async fn load_bearing() {
         all_stats.push(stats);
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 
     // Display results table
     println!("{}", fmt_table(Table::new(&all_stats)));

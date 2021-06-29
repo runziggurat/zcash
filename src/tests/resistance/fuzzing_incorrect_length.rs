@@ -54,7 +54,7 @@ async fn version_with_incorrect_length_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -96,7 +96,7 @@ async fn incorrect_length_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -137,7 +137,7 @@ async fn version_with_incorrect_length_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -199,7 +199,7 @@ async fn version_with_incorrect_length_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -265,7 +265,7 @@ async fn version_with_incorrect_length_inplace_of_verack_when_node_initiates_han
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -305,7 +305,7 @@ async fn version_with_incorrect_length_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -348,7 +348,7 @@ async fn incorrect_length_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -411,7 +411,7 @@ async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake(
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -479,7 +479,7 @@ async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake()
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -521,7 +521,7 @@ async fn incorrect_length_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 fn encode_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {

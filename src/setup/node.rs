@@ -226,8 +226,7 @@ impl Node {
                         for block in blocks {
                             synthetic_node
                                 .send_direct_message(source, Message::Block(Box::new(block)))
-                                .await
-                                .unwrap();
+                                .await?;
                         }
                     }
 
@@ -249,27 +248,29 @@ impl Node {
     ///
     /// The stop command will only be run if provided in the `config.toml` file as it may not be
     /// necessary to shutdown a node (killing the process is sometimes sufficient).
-    pub async fn stop(&mut self) {
-        let mut child = self.process.take().unwrap();
+    pub async fn stop(&mut self) -> Result<()> {
+        if let Some(mut child) = self.process.take() {
+            // Stop node process, and check for crash
+            // (needs to happen before cleanup)
+            let crashed = match child.try_wait()? {
+                None => {
+                    child.kill().await?;
+                    None
+                }
+                Some(exit_code) if exit_code.success() => {
+                    Some("but exited successfully somehow".to_string())
+                }
+                Some(exit_code) => Some(format!("crashed with {}", exit_code)),
+            };
 
-        // Stop node process, and check for crash
-        // (needs to happen before cleanup)
-        let crashed = match child.try_wait().unwrap() {
-            None => {
-                child.kill().await.unwrap();
-                None
+            self.cleanup();
+
+            if let Some(crash_msg) = crashed {
+                panic!("Node exited early, {}", crash_msg);
             }
-            Some(exit_code) if exit_code.success() => {
-                Some("but exited successfully somehow".to_string())
-            }
-            Some(exit_code) => Some(format!("crashed with {}", exit_code)),
-        };
-
-        self.cleanup();
-
-        if let Some(crash_msg) = crashed {
-            panic!("Node exited early, {}", crash_msg);
         }
+
+        Ok(())
     }
 
     fn generate_config_file(&self) {

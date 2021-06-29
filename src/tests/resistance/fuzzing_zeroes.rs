@@ -47,7 +47,7 @@ async fn zeroes_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -88,7 +88,7 @@ async fn zeroes_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -151,7 +151,7 @@ async fn zeroes_for_version_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -217,7 +217,7 @@ async fn zeroes_for_verack_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -257,7 +257,7 @@ async fn zeroes_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 // Random length zeroes.

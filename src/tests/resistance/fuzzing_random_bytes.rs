@@ -49,7 +49,7 @@ async fn random_bytes_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -90,7 +90,7 @@ async fn random_bytes_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -152,7 +152,7 @@ async fn random_bytes_for_version_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -215,7 +215,7 @@ async fn random_bytes_for_verack_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -255,7 +255,7 @@ async fn random_bytes_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -295,7 +295,7 @@ async fn metadata_compliant_random_bytes_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -336,7 +336,7 @@ async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -400,7 +400,7 @@ async fn metadata_compliant_random_bytes_for_version_when_node_initiates_handsha
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -468,7 +468,7 @@ async fn metadata_compliant_random_bytes_for_verack_when_node_initiates_handshak
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -509,7 +509,7 @@ async fn metadata_compliant_random_bytes_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 // Random length, random bytes.

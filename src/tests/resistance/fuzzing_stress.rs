@@ -382,7 +382,7 @@ async fn throughput() {
     println!("Request latencies\n{}\n", request_table);
     println!("Handshake latencies\n{}\n", handshake_table);
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 // A list of valid queries and their expected responses
