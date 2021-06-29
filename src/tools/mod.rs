@@ -1,6 +1,7 @@
 //! Utilities for network testing.
 
 pub mod message_filter;
+pub mod simple_metrics;
 pub mod synthetic_node;
 
 use std::time::Duration;

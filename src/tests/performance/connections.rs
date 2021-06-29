@@ -2,11 +2,8 @@ use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     setup::node::{Action, Node},
-    tests::{
-        performance::{fmt_table, table_float_display},
-        simple_metrics,
-    },
-    tools::synthetic_node::SyntheticNode,
+    tests::performance::{fmt_table, table_float_display},
+    tools::{simple_metrics, synthetic_node::SyntheticNode},
 };
 
 use tabled::{Table, Tabled};
