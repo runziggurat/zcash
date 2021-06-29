@@ -7,13 +7,16 @@ use crate::protocol::{
     },
 };
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt, self};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 
 use std::io::Cursor;
 
 impl MessageHeader {
     /// Writes the message header to the stream.
-    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> io::Result<()> {
+    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(
+        &self,
+        stream: &mut T,
+    ) -> io::Result<()> {
         let mut buffer = Vec::with_capacity(24);
         self.encode(&mut buffer)?;
 
@@ -37,7 +40,10 @@ impl MessageHeader {
 
 impl Message {
     /// Writes the message to the stream.
-    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(&self, stream: &mut T) -> io::Result<()> {
+    pub async fn write_to_stream<T: AsyncWriteExt + Unpin>(
+        &self,
+        stream: &mut T,
+    ) -> io::Result<()> {
         // Buffer for the message payload.
         let mut buffer = vec![];
         let header = self.encode(&mut buffer)?;

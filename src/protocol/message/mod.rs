@@ -15,7 +15,7 @@ use crate::protocol::{
 
 use sha2::{Digest, Sha256};
 
-use std::io::{Cursor, self, Write};
+use std::io::{self, Cursor, Write};
 
 /// The header of a network message.
 #[derive(Debug, Default, Clone)]
