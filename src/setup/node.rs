@@ -142,7 +142,7 @@ impl Node {
         };
 
         // Generate config files for Zebra or Zcashd node.
-        self.generate_config_file();
+        self.generate_config_file()?;
 
         let (stdout, stderr) = match self.config.log_to_stdout {
             true => (Stdio::inherit(), Stdio::inherit()),
@@ -273,14 +273,14 @@ impl Node {
         Ok(())
     }
 
-    fn generate_config_file(&self) {
+    fn generate_config_file(&self) -> Result<()> {
         let path = self.config_filepath();
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config),
             NodeKind::Zcashd => ZcashdConfigFile::generate(&self.config),
         };
 
-        fs::write(path, content).unwrap();
+        fs::write(path, content)
     }
 
     fn config_filepath(&self) -> std::path::PathBuf {
