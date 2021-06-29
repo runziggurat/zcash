@@ -2,11 +2,13 @@ use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     setup::node::{Action, Node},
-    tests::{
-        performance::{fmt_table, table_float_display},
-        simple_metrics,
+    tools::{
+        metrics::{
+            recorder,
+            tables::{fmt_table, table_float_display},
+        },
+        synthetic_node::SyntheticNode,
     },
-    tools::synthetic_node::SyntheticNode,
 };
 
 use tabled::{Table, Tabled};
@@ -107,7 +109,7 @@ async fn load_bearing() {
     //
 
     // setup metrics recorder
-    simple_metrics::enable_simple_recorder().unwrap();
+    recorder::enable_simple_recorder().unwrap();
 
     // maximum time allowed for a single iteration of the test
     const MAX_ITER_TIME: Duration = Duration::from_secs(20);
@@ -129,7 +131,7 @@ async fn load_bearing() {
 
     for synth_count in synth_counts {
         // clear and register metrics
-        simple_metrics::clear();
+        recorder::clear();
         metrics::register_counter!(METRIC_ACCEPTED);
         metrics::register_counter!(METRIC_TERMINATED);
         metrics::register_counter!(METRIC_REJECTED);
@@ -183,7 +185,7 @@ async fn load_bearing() {
         let mut stats = Stats::new(MAX_PEERS, synth_count);
         stats.time = test_start.elapsed().as_secs_f64();
         {
-            let counters = simple_metrics::counters();
+            let counters = recorder::counters();
             let counters_lock = counters.lock();
             stats.accepted = counters_lock
                 .get(&metrics::Key::from_name(METRIC_ACCEPTED))
