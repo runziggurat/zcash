@@ -1,33 +1,30 @@
-pub mod bad_checksum;
-pub mod incorrect_length;
-pub mod random_payload;
+use std::cmp;
 
 use crate::{
-    protocol::payload::codec::Codec,
-    setup::node::{Action, Node},
-    tests::resistance::{
-        default_fuzz_messages, seeded_rng, Message, DISCONNECT_TIMEOUT, ITERATIONS,
+    protocol::{
+        message::{constants::HEADER_LEN, Message, MessageHeader},
+        payload::codec::Codec,
     },
+    setup::node::{Action, Node},
+    tests::resistance::{seeded_rng, COMMANDS_WITH_PAYLOADS, DISCONNECT_TIMEOUT, ITERATIONS},
     tools::synthetic_node::SyntheticNode,
 };
 
 use assert_matches::assert_matches;
-use rand::prelude::{Rng, SliceRandom};
+use rand::{distributions::Standard, prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
 
-const CORRUPTION_PROBABILITY: f64 = 0.5;
-
 #[tokio::test]
-async fn corrupted_messages_pre_handshake() {
-    // ZG-RESISTANCE-001 (part 4)
+async fn metadata_compliant_random_bytes_pre_handshake() {
+    // ZG-RESISTANCE-001 (part 3)
     //
-    // zebra: responds with a version before disconnecting (however, quite slow running).
+    // zebra: breaks with a version command in header, otherwise sends verack before closing the
+    // connection.
     // zcashd: just ignores the message and doesn't disconnect.
 
-    let test_messages = default_fuzz_messages();
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
@@ -35,17 +32,19 @@ async fn corrupted_messages_pre_handshake() {
         .await
         .unwrap();
 
-    let synth_builder = SyntheticNode::builder().with_all_auto_reply();
-
     for payload in payloads {
-        let mut synth_node = synth_builder.build().await.unwrap();
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_max_write_buffer_size(cmp::max(payload.len(), 65536))
+            .build()
+            .await
+            .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
 
         synth_node
             .send_direct_bytes(node.addr(), payload)
             .await
             .unwrap();
-
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
@@ -56,16 +55,16 @@ async fn corrupted_messages_pre_handshake() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_during_handshake_responder_side() {
-    // ZG-RESISTANCE-002 (part 4)
+async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
+    // ZG-RESISTANCE-002 (part 3)
     //
-    // zebra: responds with verack before disconnecting (however, quite slow running).
-    // zcashd: Some variants result in a terminated connect, some get ignored.
+    // zebra: breaks with a version command in header, otherwise sends verack before closing the
+    // connection.
+    // zcashd: responds with reject, ccode malformed and doesn't disconnect.
 
-    let test_messages = default_fuzz_messages();
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
@@ -73,20 +72,20 @@ async fn corrupted_messages_during_handshake_responder_side() {
         .await
         .unwrap();
 
-    let synth_builder = SyntheticNode::builder()
-        .with_version_exchange_handshake()
-        .with_all_auto_reply();
-
     for payload in payloads {
-        let mut synth_node = synth_builder.build().await.unwrap();
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_version_exchange_handshake()
+            .with_max_write_buffer_size(cmp::max(payload.len(), 65536))
+            .build()
+            .await
+            .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
 
-        // Write the corrupted message in place of Verack.
         synth_node
             .send_direct_bytes(node.addr(), payload)
             .await
             .unwrap();
-
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
@@ -97,22 +96,25 @@ async fn corrupted_messages_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
-    // ZG-RESISTANCE-003 (part 4)
+async fn metadata_compliant_random_bytes_for_version_when_node_initiates_handshake() {
+    // ZG-RESISTANCE-003 (part 3)
     //
-    // zebra: disconnects immediately.
-    // zcashd: Some messages get ignored and timeout.
+    // zebra: breaks with a version command in header, otherwise sends verack before closing the
+    //        connection.
+    // zcashd: just ignores the message and doesn't disconnect.
     //
     // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
 
-    let test_messages = default_fuzz_messages();
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let mut payloads =
+        metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
+    let max_payload = payloads.iter().map(|p| p.len()).max().unwrap().max(65536);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
         .with_all_auto_reply()
+        .with_max_write_buffer_size(max_payload)
         .build_n(ITERATIONS)
         .await
         .unwrap();
@@ -125,9 +127,8 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
                 // Await connection and receive version
-                let node_addr = synth_node.wait_for_connection().await;
-
-                let (_, version) = synth_node.recv_message().await;
+                synth_node.wait_for_connection().await;
+                let (node_addr, version) = synth_node.recv_message().await;
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
@@ -135,7 +136,6 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
                     .send_direct_bytes(node_addr, payload)
                     .await
                     .unwrap();
-
                 assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
@@ -160,24 +160,28 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
-    // ZG-RESISTANCE-004 (part 4)
+async fn metadata_compliant_random_bytes_for_verack_when_node_initiates_handshake() {
+    // ZG-RESISTANCE-004 (part 3)
     //
-    // zebra: disconnects immediately.
-    // zcashd: Some messages get ignored and timeout. Otherwise sends GetAddr, Ping and GetHeaders
-    //         before disconnecting.
+    // zebra: breaks with a version command in header, otherwise sends verack before closing the
+    //        connection.
+    // zcashd: Sends GetAddr, Ping, GetHeaders
+    //         Sometimes responds to malformed Ping's
+    //         Never disconnects
     //
-    // Note: zcashd is two orders of magnitude slower (~52 vs ~0.5 seconds)
+    // Caution: zcashd takes extremely long in this test
 
-    let test_messages = default_fuzz_messages();
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let mut payloads =
+        metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
+    let max_payload = payloads.iter().map(|p| p.len()).max().unwrap().max(65536);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
-        .with_version_exchange_handshake()
         .with_all_auto_reply()
+        .with_version_exchange_handshake()
+        .with_max_write_buffer_size(max_payload)
         .build_n(ITERATIONS)
         .await
         .unwrap();
@@ -189,19 +193,17 @@ async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
         synth_handles.push(tokio::time::timeout(
             tokio::time::Duration::from_secs(120),
             tokio::spawn(async move {
-                // Await connection
-                let node_addr = synth_node.wait_for_connection().await;
-
-                // Receive verack
-                let (_, verack) = synth_node.recv_message().await;
+                // Await connection and receive verack.
+                // Version exchange already completed by handshake.
+                synth_node.wait_for_connection().await;
+                let (node_addr, verack) = synth_node.recv_message().await;
                 assert_matches!(verack, Message::Verack);
 
-                // send bad verack
+                // send bad version
                 synth_node
                     .send_direct_bytes(node_addr, payload)
                     .await
                     .unwrap();
-
                 assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
@@ -226,16 +228,16 @@ async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn corrupted_messages_post_handshake() {
-    // ZG-RESISTANCE-005 (part 4)
+async fn metadata_compliant_random_bytes_post_handshake() {
+    // ZG-RESISTANCE-005 (part 3)
     //
-    // zebra: sends getdata and ignores message.
-    // zcashd: disconnects for some messages, hangs for others.
+    // zebra: breaks with a version command in header, spams getdata, doesn't disconnect.
+    // zcashd: does a combination of ignoring messages, returning cc malformed or accepting messages (`addr`)
+    // for instance.
 
-    let test_messages = default_fuzz_messages();
-
+    // Payloadless messages are omitted.
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let payloads = metadata_compliant_random_bytes(&mut rng, ITERATIONS, &COMMANDS_WITH_PAYLOADS);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
@@ -243,20 +245,20 @@ async fn corrupted_messages_post_handshake() {
         .await
         .unwrap();
 
-    let synth_builder = SyntheticNode::builder()
-        .with_all_auto_reply()
-        .with_full_handshake();
-
     for payload in payloads {
-        let mut synth_node = synth_builder.build().await.unwrap();
+        let mut synth_node = SyntheticNode::builder()
+            .with_all_auto_reply()
+            .with_full_handshake()
+            .with_max_write_buffer_size(cmp::max(payload.len(), 65536))
+            .build()
+            .await
+            .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
 
-        // Write the corrupted message in place of Verack.
         synth_node
             .send_direct_bytes(node.addr(), payload)
             .await
             .unwrap();
-
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
@@ -266,44 +268,25 @@ async fn corrupted_messages_post_handshake() {
     node.stop().await.unwrap();
 }
 
-// Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.
-pub fn slightly_corrupted_messages(
+// Valid message header, random bytes as message.
+pub fn metadata_compliant_random_bytes(
     rng: &mut ChaCha8Rng,
     n: usize,
-    messages: &[Message],
+    commands: &[[u8; 12]],
 ) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
-            let message = messages.choose(rng).unwrap();
-            corrupt_message(rng, message)
-        })
-        .collect()
-}
+            let random_len: usize = rng.gen_range(1..(64 * 1024));
+            let mut random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
 
-fn corrupt_message(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
-    let mut message_buffer = vec![];
-    let header = message.encode(&mut message_buffer).unwrap();
-    let mut header_buffer = vec![];
-    header.encode(&mut header_buffer).unwrap();
+            let command = commands.choose(rng).unwrap();
+            let header = MessageHeader::new(*command, &random_payload);
 
-    let mut corrupted_header = corrupt_bytes(rng, &header_buffer);
-    let mut corrupted_message = corrupt_bytes(rng, &message_buffer);
+            let mut buffer = Vec::with_capacity(HEADER_LEN + random_payload.len());
+            header.encode(&mut buffer).unwrap();
+            buffer.append(&mut random_payload);
 
-    corrupted_header.append(&mut corrupted_message);
-
-    // Contains header + message.
-    corrupted_header
-}
-
-fn corrupt_bytes(rng: &mut ChaCha8Rng, serialized: &[u8]) -> Vec<u8> {
-    serialized
-        .iter()
-        .map(|byte| {
-            if rng.gen_bool(CORRUPTION_PROBABILITY) {
-                rng.gen()
-            } else {
-                *byte
-            }
+            buffer
         })
         .collect()
 }
