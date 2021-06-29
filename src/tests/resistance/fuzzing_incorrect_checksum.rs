@@ -23,7 +23,7 @@ async fn incorrect_checksum_pre_handshake() {
 
     let mut rng = seeded_rng();
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -72,7 +72,7 @@ async fn incorrect_checksum_during_handshake_responder_side() {
 
     let mut rng = seeded_rng();
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -161,7 +161,7 @@ async fn incorrect_checksum_inplace_of_version_when_node_initiates_handshake() {
         ));
     }
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
@@ -226,7 +226,7 @@ async fn incorrect_checksum_inplace_of_verack_when_node_initiates_handshake() {
         ));
     }
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
@@ -249,7 +249,7 @@ async fn incorrect_checksum_post_handshake() {
     // zcashd: logs indicate message was ignored, doesn't disconnect.
 
     let mut rng = seeded_rng();
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await

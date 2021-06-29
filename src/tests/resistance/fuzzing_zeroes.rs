@@ -21,7 +21,7 @@ async fn zeroes_pre_handshake() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -60,7 +60,7 @@ async fn zeroes_during_handshake_responder_side() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -139,7 +139,7 @@ async fn zeroes_for_version_when_node_initiates_handshake() {
         ));
     }
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
@@ -205,7 +205,7 @@ async fn zeroes_for_verack_when_node_initiates_handshake() {
         ));
     }
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
@@ -230,7 +230,7 @@ async fn zeroes_post_handshake() {
     let mut rng = seeded_rng();
     let payloads = zeroes(&mut rng, ITERATIONS);
 
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await

@@ -21,7 +21,7 @@ async fn handshake_responder_side() {
     // ZG-CONFORMANCE-001
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -57,7 +57,7 @@ async fn handshake_initiator_side() {
         .unwrap();
 
     // Spin up a node and set the synthetic node as an initial peer.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_peers(vec![synthetic_node.listening_addr()])
         .start()
         .await
@@ -102,7 +102,7 @@ async fn ignore_non_version_before_handshake() {
     ];
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -192,7 +192,7 @@ async fn ignore_non_version_replies_to_version() {
         .await
         .unwrap();
     // Instantiate a node instance without starting it (so we have access to its addr).
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     let node_addr = node.addr();
 
     // Create a future for each message.
@@ -283,7 +283,7 @@ async fn ignore_non_verack_replies_to_verack() {
         .unwrap();
 
     // Instantiate a node instance without starting it (so we have access to its addr).
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     let node_addr = node.addr();
 
     // Create a future for each message.
@@ -361,7 +361,7 @@ async fn reject_version_reusing_nonce() {
     let mut synthetic_node = SyntheticNode::builder().build().await.unwrap();
 
     // Spin up a node instance with the synthetic node set as an initial peer.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_peers(vec![synthetic_node.listening_addr()])
         .start()
         .await
@@ -399,7 +399,7 @@ async fn reject_obsolete_versions() {
     let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
