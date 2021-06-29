@@ -7,9 +7,11 @@ use crate::{
         payload::{block::Block, Inv},
     },
     setup::node::{Action, Node},
-    tests::performance::{duration_as_ms, RequestStats, RequestsTable},
     tools::{
-        simple_metrics::{self, enable_simple_recorder},
+        metrics::{
+            recorder::{self, enable_simple_recorder},
+            tables::{duration_as_ms, RequestStats, RequestsTable},
+        },
         synthetic_node::SyntheticNode,
     },
 };
@@ -97,7 +99,7 @@ async fn throughput() {
 
     for synth_count in synth_counts {
         // clear and register metrics
-        simple_metrics::clear();
+        recorder::clear();
         metrics::register_histogram!(METRIC_LATENCY);
 
         // create N peer nodes which send M requests's as fast as possible
@@ -158,7 +160,7 @@ async fn throughput() {
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
         // get latency stats
-        let latencies = simple_metrics::histograms()
+        let latencies = recorder::histograms()
             .lock()
             .get(&metrics::Key::from_name(METRIC_LATENCY))
             .unwrap()
