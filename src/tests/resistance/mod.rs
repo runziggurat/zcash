@@ -1,5 +1,4 @@
 mod corrupt_message;
-mod fuzzing_corrupted_messages;
 mod fuzzing_random_bytes;
 mod fuzzing_stress;
 mod zeroes;

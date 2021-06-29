@@ -17,9 +17,9 @@ use crate::{
         corrupt_message::{
             bad_checksum::encode_messages_and_corrupt_checksum,
             incorrect_length::encode_messages_and_corrupt_body_length_field,
+            slightly_corrupted_messages,
         },
         default_fuzz_messages,
-        fuzzing_corrupted_messages::slightly_corrupted_messages,
         fuzzing_random_bytes::{metadata_compliant_random_bytes, random_bytes},
         seeded_rng,
         zeroes::zeroes,
