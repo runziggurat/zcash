@@ -123,7 +123,7 @@ async fn throughput() {
 
     // start node, with max peers set so that our peers should
     // never be rejected.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()

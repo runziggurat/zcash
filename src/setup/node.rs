@@ -52,7 +52,7 @@ pub struct Node {
     process: Option<Child>,
 }
 
-impl Default for Node {
+impl Node {
     /// Creates a new [`Node`] instance.
     ///
     /// Once created, it can be configured with calls to [`initial_peers`], [`max_peers`] and [`log_to_stdout`].
@@ -62,20 +62,6 @@ impl Default for Node {
     /// [`initial_peers`]: method@Node::initial_peers
     /// [`max_peers`]: method@Node::max_peers
     /// [`log_to_stdout`]: method@Node::log_to_stdout
-    fn default() -> Self {
-        // Config (to be written to node configuration file).
-        let config = NodeConfig::new();
-        let meta = NodeMetaData::new().unwrap();
-
-        Self {
-            config,
-            meta,
-            process: None,
-        }
-    }
-}
-
-impl Node {
     pub fn new() -> io::Result<Self> {
         // Config (to be written to node configuration file).
         let config = NodeConfig::new();
