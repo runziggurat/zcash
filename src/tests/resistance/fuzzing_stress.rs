@@ -223,7 +223,7 @@ async fn throughput() {
     // Start node with arbitrarily higher max peer count than what we
     // need for the test. Note that zcashd node appears to reserver 8
     // slots (hence the +10).
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()

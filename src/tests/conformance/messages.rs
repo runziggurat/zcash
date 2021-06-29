@@ -60,7 +60,7 @@ async fn reject_invalid_messages() {
     //     FilterClear:        ignored
 
     // Spin up a node instance (so we have acces to its addr).
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -135,7 +135,7 @@ async fn ignores_unsolicited_responses() {
     //      3. Receive a pong response
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -207,7 +207,7 @@ async fn basic_query_response_seeded() {
     let genesis_block = Block::testnet_genesis();
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
         .await
@@ -354,7 +354,7 @@ async fn basic_query_response_unseeded() {
     ];
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -421,7 +421,7 @@ async fn disconnects_for_trivial_issues() {
     //      Pong            - ignores the message
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -522,7 +522,7 @@ async fn eagerly_crawls_network_for_peers() {
     //                         https://github.com/ZcashFoundation/zebra/issues/2163
 
     // Spin up a node instance.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .start()
         .await
@@ -616,7 +616,7 @@ async fn correctly_lists_peers() {
     let (synthetic_nodes, expected_addrs) = node_builder.build_n(N).await.unwrap();
 
     // Start node with the synthetic nodes as initial peers.
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .initial_peers(expected_addrs.clone())
         .start()
@@ -685,7 +685,7 @@ async fn get_blocks() {
     // Note: zcashd ignores requests for the final block in the chain
 
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
         .await
@@ -825,7 +825,7 @@ async fn correctly_lists_blocks() {
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
         .await
@@ -949,7 +949,7 @@ async fn get_data_blocks() {
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
     // Create a node with knowledge of the initial three testnet blocks
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
         .await

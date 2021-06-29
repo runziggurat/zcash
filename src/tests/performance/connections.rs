@@ -120,7 +120,7 @@ async fn load_bearing() {
     let mut all_stats = Vec::new();
 
     // start node
-    let mut node: Node = Default::default();
+    let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
         .max_peers(MAX_PEERS as usize)
         .start()
