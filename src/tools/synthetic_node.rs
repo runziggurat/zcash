@@ -452,7 +452,7 @@ impl Handshaking for InnerNode {
     async fn perform_handshake(&self, mut conn: Connection) -> io::Result<Connection> {
         match (self.handshake, !conn.side) {
             (Some(Handshake::Full), ConnectionSide::Initiator) => {
-                // Possible bug: running zebra node io::Results in internal pea2pea panics:
+                // Possible bug: running zebra node results in internal pea2pea panics:
                 //  "thread 'tokio-runtime-worker' panicked at 'internal error: entered unreachable code'"
                 // which gets "fixed" by reversing the parameters in Version::new -- no current insight into
                 // why this is the case. The panic is triggered by the following code in pea2pea:
