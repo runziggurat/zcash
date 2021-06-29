@@ -294,7 +294,7 @@ pub fn encode_messages_and_corrupt_body_length_field(
         .map(|_| {
             let message = message_pool.choose(rng).unwrap();
 
-            encode_with_corrupt_body_length(rng, &message)
+            encode_with_corrupt_body_length(rng, message)
         })
         .collect()
 }
