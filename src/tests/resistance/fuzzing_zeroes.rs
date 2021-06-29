@@ -22,7 +22,10 @@ async fn zeroes_pre_handshake() {
     let payloads = zeroes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     for payload in payloads {
         let mut synth_node = SyntheticNode::builder()
@@ -44,7 +47,7 @@ async fn zeroes_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -58,7 +61,10 @@ async fn zeroes_during_handshake_responder_side() {
     let payloads = zeroes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     for payload in payloads {
         let mut synth_node = SyntheticNode::builder()
@@ -82,7 +88,7 @@ async fn zeroes_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -137,14 +143,15 @@ async fn zeroes_for_version_when_node_initiates_handshake() {
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // join the peer processes
     for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -202,14 +209,15 @@ async fn zeroes_for_verack_when_node_initiates_handshake() {
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // join the peer processes
     for handle in synth_handles {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -223,7 +231,10 @@ async fn zeroes_post_handshake() {
     let payloads = zeroes(&mut rng, ITERATIONS);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     for payload in payloads {
         let mut synth_node = SyntheticNode::builder()
@@ -246,7 +257,7 @@ async fn zeroes_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 // Random length zeroes.

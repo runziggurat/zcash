@@ -22,7 +22,10 @@ async fn handshake_responder_side() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Create a synthetic node and enable handshaking.
     let synthetic_node = SyntheticNode::builder()
@@ -39,7 +42,7 @@ async fn handshake_responder_side() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -57,7 +60,8 @@ async fn handshake_initiator_side() {
     let mut node: Node = Default::default();
     node.initial_peers(vec![synthetic_node.listening_addr()])
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // Check the connection has been established (this is only set post-handshake). We can't check
     // for the addr as nodes use ephemeral addresses when initiating connections.
@@ -65,7 +69,7 @@ async fn handshake_initiator_side() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -99,7 +103,10 @@ async fn ignore_non_version_before_handshake() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Configuration to be used by all synthetic nodes, no handshaking, no message filters.
     let node_builder = SyntheticNode::builder();
@@ -145,7 +152,7 @@ async fn ignore_non_version_before_handshake() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -226,7 +233,7 @@ async fn ignore_non_version_replies_to_version() {
     }
 
     // Start the node instance with the initial peers.
-    node.initial_peers(addrs).start().await;
+    node.initial_peers(addrs).start().await.unwrap();
 
     // Run each future to completion.
     for handle in handles {
@@ -234,7 +241,7 @@ async fn ignore_non_version_replies_to_version() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -330,7 +337,7 @@ async fn ignore_non_verack_replies_to_verack() {
     }
 
     // Start the node instance with the initial peers.
-    node.initial_peers(addrs).start().await;
+    node.initial_peers(addrs).start().await.unwrap();
 
     // Run each future to completion.
     for handle in handles {
@@ -338,7 +345,7 @@ async fn ignore_non_verack_replies_to_verack() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -357,7 +364,8 @@ async fn reject_version_reusing_nonce() {
     let mut node: Node = Default::default();
     node.initial_peers(vec![synthetic_node.listening_addr()])
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // Receive a Version.
     let (source, version) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
@@ -376,7 +384,7 @@ async fn reject_version_reusing_nonce() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -392,7 +400,10 @@ async fn reject_obsolete_versions() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Configuration for all synthetic nodes, no handshake, no message filter.
     let node_builder = SyntheticNode::builder();
@@ -426,5 +437,5 @@ async fn reject_obsolete_versions() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }

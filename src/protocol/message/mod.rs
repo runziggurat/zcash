@@ -2,7 +2,7 @@
 
 pub mod constants;
 #[doc(hidden)]
-pub mod io;
+pub mod stream_io;
 
 use crate::protocol::{
     message::constants::*,
@@ -15,7 +15,7 @@ use crate::protocol::{
 
 use sha2::{Digest, Sha256};
 
-use std::io::{Cursor, Result, Write};
+use std::io::{self, Cursor, Write};
 
 /// The header of a network message.
 #[derive(Debug, Default, Clone)]
@@ -31,7 +31,7 @@ pub struct MessageHeader {
 }
 
 impl Codec for MessageHeader {
-    fn encode(&self, buffer: &mut Vec<u8>) -> Result<()> {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.magic)?;
         buffer.write_all(&self.command)?;
         buffer.write_all(&self.body_length.to_le_bytes())?;
@@ -40,7 +40,7 @@ impl Codec for MessageHeader {
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         Ok(MessageHeader {
             magic: read_n_bytes(bytes)?,
             command: read_n_bytes(bytes)?,
@@ -92,7 +92,7 @@ pub enum Message {
 impl Message {
     // FIXME: implement Codec?
     /// Encodes a message into the supplied buffer and returns its header.
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> Result<MessageHeader> {
+    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<MessageHeader> {
         let header = match self {
             Self::Version(version) => {
                 version.encode(buffer)?;
@@ -164,7 +164,7 @@ impl Message {
     }
 
     /// Decodes the bytes into a message.
-    pub fn decode(command: [u8; 12], bytes: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn decode(command: [u8; 12], bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
         let message = match command {
             VERSION_COMMAND => Self::Version(Version::decode(bytes)?),
             VERACK_COMMAND => Self::Verack,
