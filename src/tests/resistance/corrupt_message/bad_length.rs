@@ -15,7 +15,7 @@ use rand::prelude::SliceRandom;
 use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
-async fn incorrect_length_pre_handshake() {
+async fn instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 6)
     //
     // zebra: sends version before disconnecting.
@@ -57,7 +57,7 @@ async fn incorrect_length_pre_handshake() {
 }
 
 #[tokio::test]
-async fn incorrect_length_during_handshake_responder_side() {
+async fn instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 6)
     //
     // zebra: disconnects.
@@ -100,7 +100,7 @@ async fn incorrect_length_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake() {
+async fn instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 6)
     //
     // zebra: disconnects
@@ -163,7 +163,7 @@ async fn incorrect_body_length_inplace_of_version_when_node_initiates_handshake(
 }
 
 #[tokio::test]
-async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake() {
+async fn instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 6)
     //
     // zebra: disconnects, logs:
@@ -231,7 +231,7 @@ async fn incorrect_body_length_inplace_of_verack_when_node_initiates_handshake()
 }
 
 #[tokio::test]
-async fn incorrect_length_post_handshake() {
+async fn post_handshake() {
     // ZG-RESISTANCE-005 (part 6)
     //
     // zebra: disconnects.

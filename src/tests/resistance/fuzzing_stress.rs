@@ -16,11 +16,11 @@ use crate::{
     tests::resistance::{
         corrupt_message::{
             bad_checksum::encode_messages_and_corrupt_checksum,
-            incorrect_length::encode_messages_and_corrupt_body_length_field,
+            bad_length::encode_messages_and_corrupt_body_length_field,
             random_payload::metadata_compliant_random_bytes, slightly_corrupted_messages,
         },
         default_fuzz_messages,
-        fuzzing_random_bytes::random_bytes,
+        random_bytes::random_bytes,
         seeded_rng,
         zeroes::zeroes,
         COMMANDS_WITH_PAYLOADS,
