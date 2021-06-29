@@ -1,6 +1,6 @@
 mod corrupt_message;
-mod fuzzing_stress;
 mod random_bytes;
+mod stress_test;
 mod zeroes;
 
 use std::{
