@@ -124,7 +124,8 @@ async fn load_bearing() {
     node.initial_action(Action::WaitForConnection)
         .max_peers(MAX_PEERS as usize)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     for synth_count in synth_counts {
         // clear and register metrics
@@ -205,7 +206,7 @@ async fn load_bearing() {
         all_stats.push(stats);
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 
     // Display results table
     println!("{}", fmt_table(Table::new(&all_stats)));

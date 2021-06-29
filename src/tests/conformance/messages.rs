@@ -61,7 +61,10 @@ async fn reject_invalid_messages() {
 
     // Spin up a node instance (so we have acces to its addr).
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Generate a mixed Inventory hash set.
     let genesis_block = Block::testnet_genesis();
@@ -113,7 +116,7 @@ async fn reject_invalid_messages() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -133,7 +136,10 @@ async fn ignores_unsolicited_responses() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::builder()
@@ -171,7 +177,7 @@ async fn ignores_unsolicited_responses() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -204,7 +210,8 @@ async fn basic_query_response_seeded() {
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // Create a synthetic node.
     let mut synthetic_node = SyntheticNode::builder()
@@ -316,7 +323,7 @@ async fn basic_query_response_seeded() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -348,7 +355,10 @@ async fn basic_query_response_unseeded() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Create a synthetic node with message filtering.
     let mut synthetic_node = SyntheticNode::builder()
@@ -377,7 +387,7 @@ async fn basic_query_response_unseeded() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -412,7 +422,10 @@ async fn disconnects_for_trivial_issues() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Configuration letting through ping messages for the first case.
     let node_builder = SyntheticNode::builder()
@@ -478,7 +491,7 @@ async fn disconnects_for_trivial_issues() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -510,7 +523,10 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Spin up a node instance.
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     // Create 5 synthetic nodes.
     const N: usize = 5;
@@ -558,7 +574,7 @@ async fn eagerly_crawls_network_for_peers() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -604,7 +620,8 @@ async fn correctly_lists_peers() {
     node.initial_action(Action::WaitForConnection)
         .initial_peers(expected_addrs.clone())
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // Connect to node and request GetAddr. We perform multiple iterations to exercise the #2120
     // zebra bug.
@@ -632,7 +649,7 @@ async fn correctly_lists_peers() {
         synthetic_node.shut_down();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -671,7 +688,8 @@ async fn get_blocks() {
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
-        .await;
+        .await
+        .unwrap();
 
     let blocks = Block::initial_testnet_blocks();
 
@@ -775,7 +793,7 @@ async fn get_blocks() {
     assert_eq!(inv, expected);
 
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -810,7 +828,8 @@ async fn correctly_lists_blocks() {
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // block headers and hashes
     let expected = Block::initial_testnet_blocks()
@@ -899,7 +918,7 @@ async fn correctly_lists_blocks() {
     let headers = assert_matches!(headers, Message::Headers(headers) => headers);
     assert_eq!(headers.headers, expected[2..], "test for forked Headers");
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -933,7 +952,8 @@ async fn get_data_blocks() {
     let mut node: Node = Default::default();
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // block headers and hashes
     let blocks = vec![
@@ -1013,5 +1033,5 @@ async fn get_data_blocks() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await;
+    node.stop().await.unwrap();
 }

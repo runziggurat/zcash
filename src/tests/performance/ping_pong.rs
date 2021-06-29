@@ -127,7 +127,8 @@ async fn throughput() {
     node.initial_action(Action::WaitForConnection)
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
-        .await;
+        .await
+        .unwrap();
     let node_addr = node.addr();
 
     for synth_count in synth_counts {
@@ -166,7 +167,7 @@ async fn throughput() {
         ));
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 
     // Display results table
     println!("{}", table);

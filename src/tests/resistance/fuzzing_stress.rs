@@ -227,7 +227,8 @@ async fn throughput() {
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     let node_addr = node.addr();
 
@@ -381,7 +382,7 @@ async fn throughput() {
     println!("Request latencies\n{}\n", request_table);
     println!("Handshake latencies\n{}\n", handshake_table);
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 // A list of valid queries and their expected responses
