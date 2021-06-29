@@ -4,7 +4,7 @@ use std::{
     collections::HashSet,
     env,
     ffi::OsString,
-    fs,
+    fs, io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
@@ -79,10 +79,10 @@ pub(super) struct NodeMetaData {
 }
 
 impl NodeMetaData {
-    pub(super) fn new() -> Self {
-        let path = &env::current_dir().unwrap().join(CONFIG);
-        let config_string = fs::read_to_string(path).unwrap();
-        let config_file: ConfigFile = toml::from_str(&config_string).unwrap();
+    pub(super) fn new() -> io::Result<Self> {
+        let path = &env::current_dir()?.join(CONFIG);
+        let config_string = fs::read_to_string(path)?;
+        let config_file: ConfigFile = toml::from_str(&config_string)?;
 
         let args_from = |command: &str| -> Vec<OsString> {
             command.split_whitespace().map(OsString::from).collect()
@@ -91,12 +91,12 @@ impl NodeMetaData {
         let mut start_args = args_from(&config_file.start_command);
         let start_command = start_args.remove(0);
 
-        Self {
+        Ok(Self {
             kind: config_file.kind,
             path: config_file.path,
             start_command,
             start_args,
-        }
+        })
     }
 }
 
@@ -110,7 +110,7 @@ pub(super) struct ZebraConfigFile {
 
 impl ZebraConfigFile {
     /// Generate the toml configuration as a string.
-    pub(super) fn generate(config: &NodeConfig) -> String {
+    pub(super) fn generate(config: &NodeConfig) -> Result<String, toml::ser::Error> {
         // Create the structs to prepare for encoding.
         let initial_testnet_peers: HashSet<String> = config
             .initial_peers
@@ -136,7 +136,7 @@ impl ZebraConfigFile {
         };
 
         // Write the toml to a string.
-        toml::to_string(&zebra_config).unwrap()
+        toml::to_string(&zebra_config)
     }
 }
 
