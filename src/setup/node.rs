@@ -15,7 +15,7 @@ use crate::{
 
 use tokio::process::{Child, Command};
 
-use std::{fs, net::SocketAddr, process::Stdio, time::Duration};
+use std::{fs, io::Result, net::SocketAddr, process::Stdio, time::Duration};
 
 // The names of the files the node configurations will be written to.
 const ZEBRA_CONFIG: &str = "zebra.toml";
@@ -114,7 +114,7 @@ impl Node {
     ///
     /// This function will write the appropriate configuration file and run the start command
     /// provided in `config.toml`.
-    pub async fn start(&mut self) {
+    pub async fn start(&mut self) -> Result<()> {
         // cleanup any previous runs (node.stop won't always be reached e.g. test panics, or SIGINT)
         self.cleanup();
 
@@ -131,8 +131,7 @@ impl Node {
                             .with_getdata_filter(Filter::Disabled),
                     )
                     .build()
-                    .await
-                    .unwrap();
+                    .await?;
 
                 self.config
                     .initial_peers
@@ -163,11 +162,13 @@ impl Node {
         self.process = Some(process);
 
         if let Some(synthetic_node) = synthetic_node {
-            self.perform_initial_action(synthetic_node).await;
+            self.perform_initial_action(synthetic_node).await?;
         }
+
+        Ok(())
     }
 
-    async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) {
+    async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) -> Result<()> {
         const TIMEOUT: Duration = Duration::from_secs(10);
 
         match self.config.initial_action {
@@ -191,7 +192,7 @@ impl Node {
                     .collect::<Vec<_>>();
 
                 // respond to GetHeaders(Block[0])
-                let source = match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+                let source = match synthetic_node.recv_message_timeout(TIMEOUT).await? {
                     (source, Message::GetHeaders(locations)) => {
                         // The request should be from the genesis hash onwards,
                         // i.e. locator_hash = [genesis.hash], stop_hash = [0]
@@ -205,8 +206,7 @@ impl Node {
                         let headers = blocks.iter().map(|block| block.header.clone()).collect();
                         synthetic_node
                             .send_direct_message(source, Message::Headers(Headers::new(headers)))
-                            .await
-                            .unwrap();
+                            .await?;
 
                         source
                     }
@@ -215,7 +215,7 @@ impl Node {
                 };
 
                 // respond to GetData(inv) for the initial blocks
-                match synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap() {
+                match synthetic_node.recv_message_timeout(TIMEOUT).await? {
                     (source, Message::GetData(inv)) => {
                         // The request must be for the initial blocks
                         let inv_hashes = blocks.iter().map(|block| block.inv_hash()).collect();
@@ -235,15 +235,14 @@ impl Node {
                 }
 
                 // Check that the node has received and processed all previous messages.
-                synthetic_node
-                    .ping_pong_timeout(source, TIMEOUT)
-                    .await
-                    .unwrap();
+                synthetic_node.ping_pong_timeout(source, TIMEOUT).await?;
             }
         }
 
         // Setup is complete, we no longer require this synthetic node.
         synthetic_node.shut_down();
+
+        Ok(())
     }
 
     /// Stops the node instance.
