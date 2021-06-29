@@ -60,7 +60,7 @@ async fn corrupted_version_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -106,7 +106,7 @@ async fn corrupted_version_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -174,7 +174,7 @@ async fn corrupted_version_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -243,7 +243,7 @@ async fn corrupted_version_inplace_of_verack_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -288,7 +288,7 @@ async fn corrupted_version_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -326,7 +326,7 @@ async fn corrupted_messages_pre_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -367,7 +367,7 @@ async fn corrupted_messages_during_handshake_responder_side() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -430,7 +430,7 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -496,7 +496,7 @@ async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 #[tokio::test]
@@ -537,7 +537,7 @@ async fn corrupted_messages_post_handshake() {
             .is_ok());
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 }
 
 // Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.

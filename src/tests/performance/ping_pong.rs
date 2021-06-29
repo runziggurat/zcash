@@ -167,7 +167,7 @@ async fn throughput() {
         ));
     }
 
-    node.stop().await;
+    node.stop().await.unwrap();
 
     // Display results table
     println!("{}", table);
