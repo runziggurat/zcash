@@ -15,7 +15,7 @@ use crate::{
 
 use tokio::process::{Child, Command};
 
-use std::{fs, io::Result, net::SocketAddr, process::Stdio, time::Duration};
+use std::{fs, io, net::SocketAddr, process::Stdio, time::Duration};
 
 // The names of the files the node configurations will be written to.
 const ZEBRA_CONFIG: &str = "zebra.toml";
@@ -114,7 +114,7 @@ impl Node {
     ///
     /// This function will write the appropriate configuration file and run the start command
     /// provided in `config.toml`.
-    pub async fn start(&mut self) -> Result<()> {
+    pub async fn start(&mut self) -> io::Result<()> {
         // cleanup any previous runs (node.stop won't always be reached e.g. test panics, or SIGINT)
         self.cleanup();
 
@@ -168,7 +168,7 @@ impl Node {
         Ok(())
     }
 
-    async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) -> Result<()> {
+    async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) -> io::Result<()> {
         const TIMEOUT: Duration = Duration::from_secs(10);
 
         match self.config.initial_action {
@@ -248,7 +248,7 @@ impl Node {
     ///
     /// The stop command will only be run if provided in the `config.toml` file as it may not be
     /// necessary to shutdown a node (killing the process is sometimes sufficient).
-    pub async fn stop(&mut self) -> Result<()> {
+    pub async fn stop(&mut self) -> io::Result<()> {
         if let Some(mut child) = self.process.take() {
             // Stop node process, and check for crash
             // (needs to happen before cleanup)
@@ -273,7 +273,7 @@ impl Node {
         Ok(())
     }
 
-    fn generate_config_file(&self) -> Result<()> {
+    fn generate_config_file(&self) -> io::Result<()> {
         let path = self.config_filepath();
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config),

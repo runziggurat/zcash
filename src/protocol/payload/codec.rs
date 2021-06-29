@@ -2,19 +2,21 @@
 
 use super::VarInt;
 
+use std::io;
+
 /// A trait for unifying encoding and decoding.
 pub trait Codec {
     /// Encodes the payload into the supplied buffer.
-    fn encode(&self, buffer: &mut Vec<u8>) -> std::io::Result<()>;
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()>;
 
     /// Decodes the bytes and returns the payload.
-    fn decode(bytes: &mut std::io::Cursor<&[u8]>) -> std::io::Result<Self>
+    fn decode(bytes: &mut io::Cursor<&[u8]>) -> io::Result<Self>
     where
         Self: Sized;
 }
 
 impl<T: Codec> Codec for Vec<T> {
-    fn encode(&self, buffer: &mut Vec<u8>) -> std::io::Result<()> {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         VarInt(self.len()).encode(buffer)?;
         for element in self {
             element.encode(buffer)?;
@@ -23,13 +25,13 @@ impl<T: Codec> Codec for Vec<T> {
         Ok(())
     }
 
-    fn decode(bytes: &mut std::io::Cursor<&[u8]>) -> std::io::Result<Self>
+    fn decode(bytes: &mut io::Cursor<&[u8]>) -> io::Result<Self>
     where
         Self: Sized,
     {
         let length = *VarInt::decode(bytes)?;
         (0..length)
             .map(|_| T::decode(bytes))
-            .collect::<std::io::Result<Self>>()
+            .collect::<io::Result<Self>>()
     }
 }
