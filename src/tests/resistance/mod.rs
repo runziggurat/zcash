@@ -5,13 +5,16 @@ mod fuzzing_random_bytes;
 mod fuzzing_stress;
 mod fuzzing_zeroes;
 
-use std::time::Duration;
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
 
 use crate::protocol::{
     message::{constants::*, Message},
     payload::{
         block::{Headers, LocatorHashes},
-        Addr, Inv, Nonce,
+        Addr, Inv, Nonce, Version,
     },
 };
 
@@ -69,6 +72,10 @@ fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
 /// usually tested separately.
 fn default_fuzz_messages() -> Vec<Message> {
     vec![
+        Message::Version(Version::new(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+        )),
         Message::MemPool,
         Message::Verack,
         Message::Ping(Nonce::default()),
