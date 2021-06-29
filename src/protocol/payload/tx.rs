@@ -26,7 +26,7 @@ pub enum Tx {
 
 impl Tx {
     /// Calculates the double Sha256 hash for this transaction.
-    pub fn double_sha256(&self) -> std::io::Result<Hash> {
+    pub fn double_sha256(&self) -> io::Result<Hash> {
         let mut buffer = Vec::new();
 
         self.encode(&mut buffer)?;

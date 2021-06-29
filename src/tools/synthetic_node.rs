@@ -21,7 +21,7 @@ use tokio::{
 use tracing::*;
 
 use std::{
-    io::{Cursor, Error, ErrorKind, Result},
+    io::{Cursor, Error, ErrorKind, self},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
@@ -74,7 +74,7 @@ impl Default for SyntheticNodeBuilder {
 
 impl SyntheticNodeBuilder {
     /// Creates a [`SyntheticNode`] with the current configuration
-    pub async fn build(&self) -> Result<SyntheticNode> {
+    pub async fn build(&self) -> io::Result<SyntheticNode> {
         // Create the pea2pea node from the config.
         let node = Node::new(self.network_config.clone()).await?;
 
@@ -93,7 +93,7 @@ impl SyntheticNodeBuilder {
     }
 
     /// Creates `n` [`SyntheticNode`]'s with the current configuration, and also returns their listening address.
-    pub async fn build_n(&self, n: usize) -> Result<(Vec<SyntheticNode>, Vec<SocketAddr>)> {
+    pub async fn build_n(&self, n: usize) -> io::Result<(Vec<SyntheticNode>, Vec<SocketAddr>)> {
         let mut nodes = Vec::with_capacity(n);
         let mut addrs = Vec::with_capacity(n);
         for _ in 0..n {
@@ -158,7 +158,7 @@ impl SyntheticNode {
     /// Connects to the target address.
     ///
     /// If the handshake protocol is enabled it will be executed as well.
-    pub async fn connect(&self, target: SocketAddr) -> Result<()> {
+    pub async fn connect(&self, target: SocketAddr) -> io::Result<()> {
         self.inner_node.node().connect(target).await?;
 
         Ok(())
@@ -193,14 +193,14 @@ impl SyntheticNode {
     }
 
     /// Sends a direct message to the target address.
-    pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
+    pub async fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
         self.inner_node.send_direct_message(target, message).await?;
 
         Ok(())
     }
 
     /// Sends bytes directly to the target address.
-    pub async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> Result<()> {
+    pub async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
         self.inner_node.send_direct_bytes(target, data).await?;
 
         Ok(())
@@ -222,7 +222,7 @@ impl SyntheticNode {
     pub async fn recv_message_timeout(
         &mut self,
         duration: Duration,
-    ) -> Result<(SocketAddr, Message)> {
+    ) -> io::Result<(SocketAddr, Message)> {
         match timeout(duration, self.recv_message()).await {
             Ok(message) => Ok(message),
             Err(_e) => Err(Error::new(
@@ -249,7 +249,7 @@ impl SyntheticNode {
         &mut self,
         target: SocketAddr,
         duration: Duration,
-    ) -> Result<()> {
+    ) -> io::Result<()> {
         const SLEEP: Duration = Duration::from_millis(10);
 
         let now = std::time::Instant::now();
@@ -289,7 +289,7 @@ impl SyntheticNode {
         &mut self,
         target: SocketAddr,
         duration: Duration,
-    ) -> Result<()> {
+    ) -> io::Result<()> {
         match self.ping_pong_timeout(target, duration).await {
             Ok(_) => Err(Error::new(ErrorKind::Other, "connection still active")),
             Err(err) if err.kind() == ErrorKind::ConnectionAborted => Ok(()),
@@ -338,7 +338,7 @@ impl InnerNode {
         node
     }
 
-    async fn send_direct_message(&self, target: SocketAddr, message: Message) -> Result<()> {
+    async fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
         let mut payload = vec![];
         let header = message.encode(&mut payload)?;
 
@@ -354,7 +354,7 @@ impl InnerNode {
         Ok(())
     }
 
-    async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> Result<()> {
+    async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
         self.node.send_direct_message(target, data.into()).await
     }
 }
@@ -373,7 +373,7 @@ impl Reading for InnerNode {
         &self,
         _source: SocketAddr,
         buffer: &[u8],
-    ) -> Result<Option<(Self::Message, usize)>> {
+    ) -> io::Result<Option<(Self::Message, usize)>> {
         // Check buffer contains a full header.
         if buffer.len() < HEADER_LEN {
             return Ok(None);
@@ -396,7 +396,7 @@ impl Reading for InnerNode {
         Ok(Some((message, HEADER_LEN + bytes.position() as usize)))
     }
 
-    async fn process_message(&self, source: SocketAddr, message: Self::Message) -> Result<()> {
+    async fn process_message(&self, source: SocketAddr, message: Self::Message) -> io::Result<()> {
         let span = self.node().span().clone();
 
         debug!(parent: span.clone(), "processing {:?}", message);
@@ -437,7 +437,7 @@ impl Writing for InnerNode {
         _target: SocketAddr,
         payload: &[u8],
         buffer: &mut [u8],
-    ) -> Result<usize> {
+    ) -> io::Result<usize> {
         buffer[..payload.len()].copy_from_slice(payload);
         Ok(payload.len())
     }
@@ -445,10 +445,10 @@ impl Writing for InnerNode {
 
 #[async_trait::async_trait]
 impl Handshaking for InnerNode {
-    async fn perform_handshake(&self, mut conn: Connection) -> Result<Connection> {
+    async fn perform_handshake(&self, mut conn: Connection) -> io::Result<Connection> {
         match (self.handshake, !conn.side) {
             (Some(Handshake::Full), ConnectionSide::Initiator) => {
-                // Possible bug: running zebra node results in internal pea2pea panics:
+                // Possible bug: running zebra node io::Results in internal pea2pea panics:
                 //  "thread 'tokio-runtime-worker' panicked at 'internal error: entered unreachable code'"
                 // which gets "fixed" by reversing the parameters in Version::new -- no current insight into
                 // why this is the case. The panic is triggered by the following code in pea2pea:
