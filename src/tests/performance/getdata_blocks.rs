@@ -7,11 +7,11 @@ use crate::{
         payload::{block::Block, Inv},
     },
     setup::node::{Action, Node},
-    tests::{
-        performance::{duration_as_ms, RequestStats, RequestsTable},
+    tests::performance::{duration_as_ms, RequestStats, RequestsTable},
+    tools::{
         simple_metrics::{self, enable_simple_recorder},
+        synthetic_node::SyntheticNode,
     },
-    tools::synthetic_node::SyntheticNode,
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]

@@ -26,9 +26,8 @@ use crate::{
             fuzzing_zeroes::zeroes,
             seeded_rng, COMMANDS_WITH_PAYLOADS,
         },
-        simple_metrics,
     },
-    tools::synthetic_node::SyntheticNode,
+    tools::{simple_metrics, synthetic_node::SyntheticNode},
 };
 
 #[derive(Default, Tabled)]

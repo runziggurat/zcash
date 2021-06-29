@@ -5,11 +5,8 @@ use simple_metrics::enable_simple_recorder;
 use crate::{
     protocol::{message::Message, payload::Nonce},
     setup::node::{Action, Node},
-    tests::{
-        performance::{duration_as_ms, RequestStats, RequestsTable},
-        simple_metrics,
-    },
-    tools::synthetic_node::SyntheticNode,
+    tests::performance::{duration_as_ms, RequestStats, RequestsTable},
+    tools::{simple_metrics, synthetic_node::SyntheticNode},
 };
 
 const PINGS: u16 = 1000;

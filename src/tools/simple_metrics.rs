@@ -1,9 +1,11 @@
+//! Metrics types and utilities.
+
 use std::{collections::HashMap, sync::Arc};
 
 use metrics::{GaugeValue, Key, SetRecorderError, Unit};
 use parking_lot::Mutex;
 
-/// A counter metric
+/// A counter metric.
 #[derive(Default)]
 pub struct Counter {
     pub value: u64,
@@ -11,7 +13,7 @@ pub struct Counter {
     pub description: Option<String>,
 }
 
-/// A gauge metric
+/// A gauge metric.
 #[derive(Default)]
 pub struct Gauge {
     pub value: f64,
@@ -19,7 +21,7 @@ pub struct Gauge {
     pub description: Option<String>,
 }
 
-/// A histogram metric
+/// A histogram metric.
 #[derive(Default)]
 pub struct Histogram {
     pub value: histogram::Histogram,
@@ -27,14 +29,15 @@ pub struct Histogram {
     pub description: Option<String>,
 }
 
-/// A simple [metrics::Recorder] singleton implementation, that stores metrics for all registered counters, gauges and histograms.
-/// Attempts to update unregistered metrics are ignored and logged to std::err.
+/// A simple [`metrics::Recorder`](https://docs.rs/metrics/0.16.0/metrics/trait.Recorder.html)
+/// singleton implementation, that stores metrics for all registered counters, gauges and
+/// histograms.
 ///
-/// These metrics can then be retrieved via the [counters], [gauges] and [histograms] getters.
-///
-/// This recorder is enabled by calling [enable_simple_recorder].
+/// Attempts to update unregistered metrics are ignored and logged to `std::err`. These metrics can
+/// then be retrieved via the [`counters`], [`gauges`] and [`histograms`] getters. This recorder is
+/// enabled by calling [`enable_simple_recorder`].
 #[derive(Default)]
-struct SimpleRecorder {
+pub struct SimpleRecorder {
     counters: Arc<Mutex<HashMap<Key, Counter>>>,
     gauges: Arc<Mutex<HashMap<Key, Gauge>>>,
     histograms: Arc<Mutex<HashMap<Key, Histogram>>>,
@@ -113,7 +116,8 @@ lazy_static::lazy_static! {
     static ref SIMPLE_RECORDER: SimpleRecorder = SimpleRecorder::default();
 }
 
-/// Enables the [SimpleRecorder] as the [metrics::Recorder] sink
+/// Enables the [`SimpleRecorder`] as the
+/// [`metrics::Recorder`](https://docs.rs/metrics/0.16.0/metrics/trait.Recorder.html) sink.
 pub fn enable_simple_recorder() -> Result<(), SetRecorderError> {
     // FIXME: This is a work-around while we don't have a test-runner
     //        which can set this globally. Currently we are calling this
@@ -126,22 +130,22 @@ pub fn enable_simple_recorder() -> Result<(), SetRecorderError> {
     Ok(())
 }
 
-/// Map of all counters recorded
+/// Map of all counters recorded.
 pub fn counters() -> Arc<Mutex<HashMap<Key, Counter>>> {
     SIMPLE_RECORDER.counters.clone()
 }
 
-/// Map of all gauges recorded
+/// Map of all gauges recorded.
 pub fn gauges() -> Arc<Mutex<HashMap<Key, Gauge>>> {
     SIMPLE_RECORDER.gauges.clone()
 }
 
-/// Map of all histograms recorded
+/// Map of all histograms recorded.
 pub fn histograms() -> Arc<Mutex<HashMap<Key, Histogram>>> {
     SIMPLE_RECORDER.histograms.clone()
 }
 
-/// Removes all previously registered metrics
+/// Removes all previously registered metrics.
 pub fn clear() {
     SIMPLE_RECORDER.counters.lock().clear();
     SIMPLE_RECORDER.gauges.lock().clear();
