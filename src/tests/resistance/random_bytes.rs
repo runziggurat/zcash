@@ -1,21 +1,18 @@
 use std::cmp;
 
 use crate::{
-    protocol::{
-        message::{constants::HEADER_LEN, Message, MessageHeader},
-        payload::codec::Codec,
-    },
+    protocol::message::Message,
     setup::node::{Action, Node},
     tests::resistance::{seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS},
     tools::synthetic_node::SyntheticNode,
 };
 
 use assert_matches::assert_matches;
-use rand::{distributions::Standard, prelude::SliceRandom, Rng};
+use rand::{distributions::Standard, Rng};
 use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
-async fn random_bytes_pre_handshake() {
+async fn instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 2)
     //
     // zebra: sends a version before disconnecting.
@@ -53,7 +50,7 @@ async fn random_bytes_pre_handshake() {
 }
 
 #[tokio::test]
-async fn random_bytes_during_handshake_responder_side() {
+async fn instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 2)
     //
     // zebra: responds with verack before disconnecting.
@@ -94,7 +91,7 @@ async fn random_bytes_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn random_bytes_for_version_when_node_initiates_handshake() {
+async fn instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 2)
     //
     // zebra: disconnects immediately.
@@ -156,7 +153,7 @@ async fn random_bytes_for_version_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn random_bytes_for_verack_when_node_initiates_handshake() {
+async fn instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 2)
     //
     // zebra: disconnects immediately.
@@ -219,7 +216,7 @@ async fn random_bytes_for_verack_when_node_initiates_handshake() {
 }
 
 #[tokio::test]
-async fn random_bytes_post_handshake() {
+async fn post_handshake() {
     // ZG-RESISTANCE-005 (part 2)
     //
     // zebra: disconnects.
