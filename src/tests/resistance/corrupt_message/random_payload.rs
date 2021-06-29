@@ -15,7 +15,7 @@ use rand::{distributions::Standard, prelude::SliceRandom, Rng};
 use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
-async fn metadata_compliant_random_bytes_pre_handshake() {
+async fn instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -55,7 +55,7 @@ async fn metadata_compliant_random_bytes_pre_handshake() {
 }
 
 #[tokio::test]
-async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
+async fn instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -96,7 +96,7 @@ async fn metadata_compliant_random_bytes_during_handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn metadata_compliant_random_bytes_for_version_when_node_initiates_handshake() {
+async fn instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -160,7 +160,7 @@ async fn metadata_compliant_random_bytes_for_version_when_node_initiates_handsha
 }
 
 #[tokio::test]
-async fn metadata_compliant_random_bytes_for_verack_when_node_initiates_handshake() {
+async fn instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -228,7 +228,7 @@ async fn metadata_compliant_random_bytes_for_verack_when_node_initiates_handshak
 }
 
 #[tokio::test]
-async fn metadata_compliant_random_bytes_post_handshake() {
+async fn post_handshake() {
     // ZG-RESISTANCE-005 (part 3)
     //
     // zebra: breaks with a version command in header, spams getdata, doesn't disconnect.
