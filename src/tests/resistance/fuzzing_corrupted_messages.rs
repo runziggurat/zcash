@@ -33,7 +33,10 @@ async fn corrupted_version_pre_handshake() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     let synth_builder = SyntheticNode::builder().with_all_auto_reply();
 
@@ -73,7 +76,10 @@ async fn corrupted_version_during_handshake_responder_side() {
     let mut rng = seeded_rng();
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     let synth_builder = SyntheticNode::builder()
         .with_version_exchange_handshake()
@@ -160,7 +166,8 @@ async fn corrupted_version_when_node_initiates_handshake() {
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // join the peer processes
     for handle in synth_handles {
@@ -228,7 +235,8 @@ async fn corrupted_version_inplace_of_verack_when_node_initiates_handshake() {
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // join the peer processes
     for handle in synth_handles {
@@ -250,7 +258,10 @@ async fn corrupted_version_post_handshake() {
 
     let mut rng = seeded_rng();
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     let synth_builder = SyntheticNode::builder()
         .with_all_auto_reply()
@@ -293,7 +304,10 @@ async fn corrupted_messages_pre_handshake() {
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     let synth_builder = SyntheticNode::builder().with_all_auto_reply();
 
@@ -328,7 +342,10 @@ async fn corrupted_messages_during_handshake_responder_side() {
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     let synth_builder = SyntheticNode::builder()
         .with_version_exchange_handshake()
@@ -405,7 +422,8 @@ async fn corrupted_messages_inplace_of_version_when_node_initiates_handshake() {
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // join the peer processes
     for handle in synth_handles {
@@ -470,7 +488,8 @@ async fn corrupted_messages_inplace_of_verack_when_node_initiates_handshake() {
     node.initial_action(Action::None)
         .initial_peers(synth_addrs)
         .start()
-        .await;
+        .await
+        .unwrap();
 
     // join the peer processes
     for handle in synth_handles {
@@ -493,7 +512,10 @@ async fn corrupted_messages_post_handshake() {
     let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection).start().await;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
 
     let synth_builder = SyntheticNode::builder()
         .with_all_auto_reply()

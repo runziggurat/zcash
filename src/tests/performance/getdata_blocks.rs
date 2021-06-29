@@ -91,7 +91,8 @@ async fn throughput() {
     node.initial_action(Action::SeedWithTestnetBlocks(3))
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
-        .await;
+        .await
+        .unwrap();
     let node_addr = node.addr();
 
     for synth_count in synth_counts {
