@@ -13,22 +13,22 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tests::{
-        performance::{
-            duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable,
-        },
-        resistance::{
-            default_fuzz_messages,
-            fuzzing_corrupted_messages::slightly_corrupted_messages,
-            fuzzing_incorrect_checksum::encode_messages_and_corrupt_checksum,
-            fuzzing_incorrect_length::encode_messages_and_corrupt_body_length_field,
-            fuzzing_random_bytes::{metadata_compliant_random_bytes, random_bytes},
-            fuzzing_zeroes::zeroes,
-            seeded_rng, COMMANDS_WITH_PAYLOADS,
-        },
-        simple_metrics,
+    tests::resistance::{
+        default_fuzz_messages,
+        fuzzing_corrupted_messages::slightly_corrupted_messages,
+        fuzzing_incorrect_checksum::encode_messages_and_corrupt_checksum,
+        fuzzing_incorrect_length::encode_messages_and_corrupt_body_length_field,
+        fuzzing_random_bytes::{metadata_compliant_random_bytes, random_bytes},
+        fuzzing_zeroes::zeroes,
+        seeded_rng, COMMANDS_WITH_PAYLOADS,
     },
-    tools::synthetic_node::SyntheticNode,
+    tools::{
+        metrics::{
+            recorder,
+            tables::{duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable},
+        },
+        synthetic_node::SyntheticNode,
+    },
 };
 
 #[derive(Default, Tabled)]
@@ -203,7 +203,7 @@ async fn throughput() {
     // └───────┴──────────┴──────────┴──────────┴──────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────────┴──────────┴────────────┘
 
     // enable simple metrics recording
-    simple_metrics::enable_simple_recorder().unwrap();
+    recorder::enable_simple_recorder().unwrap();
 
     const TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(20);
 
@@ -238,7 +238,7 @@ async fn throughput() {
     for peers in synth_counts {
         let iteration_timer = tokio::time::Instant::now();
         // register metrics
-        simple_metrics::clear();
+        recorder::clear();
         metrics::register_histogram!(REQUEST_LATENCY);
         metrics::register_histogram!(HANDSHAKE_LATENCY);
         metrics::register_counter!(HANDSHAKE_ACCEPTED);
@@ -302,7 +302,7 @@ async fn throughput() {
         let iteration_time = iteration_timer.elapsed().as_secs_f64();
 
         // update request latencies table
-        let request_latencies = simple_metrics::histograms()
+        let request_latencies = recorder::histograms()
             .lock()
             .get(&metrics::Key::from_name(REQUEST_LATENCY))
             .unwrap()
@@ -317,7 +317,7 @@ async fn throughput() {
         request_table.add_row(row);
 
         // update handshake latencies table
-        let handshake_latencies = simple_metrics::histograms()
+        let handshake_latencies = recorder::histograms()
             .lock()
             .get(&metrics::Key::from_name(HANDSHAKE_LATENCY))
             .unwrap()
@@ -335,7 +335,7 @@ async fn throughput() {
             ..Default::default()
         };
         {
-            let counters = simple_metrics::counters();
+            let counters = recorder::counters();
             let locked_counters = counters.lock();
 
             stat.handshake_accepted = locked_counters

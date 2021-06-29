@@ -1,15 +1,17 @@
 use std::{net::SocketAddr, time::Duration};
 
-use simple_metrics::enable_simple_recorder;
+use recorder::enable_simple_recorder;
 
 use crate::{
     protocol::{message::Message, payload::Nonce},
     setup::node::{Action, Node},
-    tests::{
-        performance::{duration_as_ms, RequestStats, RequestsTable},
-        simple_metrics,
+    tools::{
+        metrics::{
+            recorder,
+            tables::{duration_as_ms, RequestStats, RequestsTable},
+        },
+        synthetic_node::SyntheticNode,
     },
-    tools::synthetic_node::SyntheticNode,
 };
 
 const PINGS: u16 = 1000;
@@ -133,7 +135,7 @@ async fn throughput() {
 
     for synth_count in synth_counts {
         // clear metrics and register metrics
-        simple_metrics::clear();
+        recorder::clear();
         metrics::register_histogram!(METRIC_LATENCY);
 
         // create N peer nodes which send M ping's as fast as possible
@@ -151,7 +153,7 @@ async fn throughput() {
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
         // get latency stats
-        let latencies = simple_metrics::histograms()
+        let latencies = recorder::histograms()
             .lock()
             .get(&metrics::Key::from_name(METRIC_LATENCY))
             .unwrap()
