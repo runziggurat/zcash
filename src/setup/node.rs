@@ -65,7 +65,7 @@ impl Default for Node {
     fn default() -> Self {
         // Config (to be written to node configuration file).
         let config = NodeConfig::new();
-        let meta = NodeMetaData::new();
+        let meta = NodeMetaData::new().unwrap();
 
         Self {
             config,
@@ -76,6 +76,18 @@ impl Default for Node {
 }
 
 impl Node {
+    pub fn new() -> io::Result<Self> {
+        // Config (to be written to node configuration file).
+        let config = NodeConfig::new();
+        let meta = NodeMetaData::new()?;
+
+        Ok(Self {
+            config,
+            meta,
+            process: None,
+        })
+    }
+
     /// Returns the (external) address of the node.
     pub fn addr(&self) -> SocketAddr {
         self.config.local_addr
@@ -116,7 +128,7 @@ impl Node {
     /// provided in `config.toml`.
     pub async fn start(&mut self) -> io::Result<()> {
         // cleanup any previous runs (node.stop won't always be reached e.g. test panics, or SIGINT)
-        self.cleanup();
+        self.cleanup()?;
 
         // Setup the listener if there is some initial action required
         let synthetic_node = match self.config.initial_action {
@@ -263,7 +275,7 @@ impl Node {
                 Some(exit_code) => Some(format!("crashed with {}", exit_code)),
             };
 
-            self.cleanup();
+            self.cleanup()?;
 
             if let Some(crash_msg) = crashed {
                 panic!("Node exited early, {}", crash_msg);
@@ -276,7 +288,8 @@ impl Node {
     fn generate_config_file(&self) -> io::Result<()> {
         let path = self.config_filepath();
         let content = match self.meta.kind {
-            NodeKind::Zebra => ZebraConfigFile::generate(&self.config),
+            NodeKind::Zebra => ZebraConfigFile::generate(&self.config)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
             NodeKind::Zcashd => ZcashdConfigFile::generate(&self.config),
         };
 
@@ -290,35 +303,34 @@ impl Node {
         }
     }
 
-    fn cleanup(&self) {
-        self.cleanup_config_file();
-        self.cleanup_cache();
+    fn cleanup(&self) -> io::Result<()> {
+        self.cleanup_config_file()?;
+        self.cleanup_cache()
     }
 
-    fn cleanup_config_file(&self) {
+    fn cleanup_config_file(&self) -> io::Result<()> {
         let path = self.config_filepath();
-        match std::fs::remove_file(path) {
-            // File may not exist, so we let that error through
-            Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
-                panic!("Error removing config file: {}", err)
-            }
-            _ => {}
+        match fs::remove_file(path) {
+            // File may not exist, so we surpress the error.
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
         }
     }
 
-    fn cleanup_cache(&self) {
+    fn cleanup_cache(&self) -> io::Result<()> {
         // No cache for zebra as it is configured in ephemeral mode
-        if let NodeKind::Zcashd = self.meta.kind {
+        if let (NodeKind::Zcashd, Some(path)) = (self.meta.kind, home::home_dir()) {
             // Default cache location is ~/.zcash
-            let path = home::home_dir().unwrap().join(".zcash");
+            let path = path.join(".zcash");
 
-            match std::fs::remove_dir_all(path) {
+            if let Err(e) = fs::remove_dir_all(path) {
                 // Directory may not exist, so we let that error through
-                Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
-                    panic!("Error cleaning up zcashd cache: {}", err)
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    return Err(e);
                 }
-                _ => {}
             }
         }
+
+        Ok(())
     }
 }
