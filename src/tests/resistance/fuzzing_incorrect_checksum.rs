@@ -1,7 +1,7 @@
 use crate::{
     protocol::{
         message::{constants::HEADER_LEN, Message},
-        payload::{codec::Codec, Version},
+        payload::codec::Codec,
     },
     setup::node::{Action, Node},
     tests::resistance::{
@@ -13,54 +13,6 @@ use crate::{
 use assert_matches::assert_matches;
 use rand::prelude::SliceRandom;
 use rand_chacha::ChaCha8Rng;
-
-#[tokio::test]
-async fn version_with_incorrect_checksum_pre_handshake() {
-    // ZG-RESISTANCE-001 (part 5)
-    //
-    // zebra: sends version before disconnecting.
-    // zcashd: log suggests messages was ignored, doesn't disconnect.
-
-    let mut rng = seeded_rng();
-
-    let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await
-        .unwrap();
-
-    for _ in 0..ITERATIONS {
-        let mut synth_node = SyntheticNode::builder()
-            .with_all_auto_reply()
-            .build()
-            .await
-            .unwrap();
-        synth_node.connect(node.addr()).await.unwrap();
-
-        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
-        let mut body_buffer = Vec::new();
-        let mut header = version.encode(&mut body_buffer).unwrap();
-
-        // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
-
-        let mut buffer = Vec::new();
-        header.encode(&mut buffer).unwrap();
-        buffer.append(&mut body_buffer);
-
-        synth_node
-            .send_direct_bytes(node.addr(), buffer)
-            .await
-            .unwrap();
-
-        assert!(synth_node
-            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
-            .await
-            .is_ok());
-    }
-
-    node.stop().await.unwrap();
-}
 
 #[tokio::test]
 async fn incorrect_checksum_pre_handshake() {
@@ -96,104 +48,6 @@ async fn incorrect_checksum_pre_handshake() {
             .await
             .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
-
-        synth_node
-            .send_direct_bytes(node.addr(), buffer)
-            .await
-            .unwrap();
-
-        assert!(synth_node
-            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
-            .await
-            .is_ok());
-    }
-
-    node.stop().await.unwrap();
-}
-
-#[tokio::test]
-async fn version_with_incorrect_checksum_during_handshake_responder_side() {
-    // ZG-RESISTANCE-002 (part 5)
-    //
-    // zebra: sends verack before disconnecting.
-    // zcashd: log suggests messages was ignored, sends verack, ping, getheaders but doesn't
-    // disconnect.
-
-    let mut rng = seeded_rng();
-
-    let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await
-        .unwrap();
-
-    for _ in 0..ITERATIONS {
-        let mut synth_node = SyntheticNode::builder()
-            .with_all_auto_reply()
-            .with_version_exchange_handshake()
-            .build()
-            .await
-            .unwrap();
-        synth_node.connect(node.addr()).await.unwrap();
-
-        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
-        let mut body_buffer = Vec::new();
-        let mut header = version.encode(&mut body_buffer).unwrap();
-
-        // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
-
-        let mut buffer = Vec::with_capacity(HEADER_LEN + body_buffer.len());
-        header.encode(&mut buffer).unwrap();
-        buffer.append(&mut body_buffer);
-
-        synth_node
-            .send_direct_bytes(node.addr(), buffer)
-            .await
-            .unwrap();
-
-        assert!(synth_node
-            .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
-            .await
-            .is_ok());
-    }
-
-    node.stop().await.unwrap();
-}
-
-#[tokio::test]
-async fn version_with_incorrect_checksum_post_handshake() {
-    // ZG-RESISTANCE-005 (part 5)
-    //
-    // zebra: disconnects.
-    // zcashd: logs indicate message was ignored, no disconnect.
-
-    let mut rng = seeded_rng();
-    let mut node: Node = Default::default();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await
-        .unwrap();
-
-    for _ in 0..ITERATIONS {
-        let mut synth_node = SyntheticNode::builder()
-            .with_full_handshake()
-            .with_all_auto_reply()
-            .build()
-            .await
-            .unwrap();
-        synth_node.connect(node.addr()).await.unwrap();
-
-        let version = Message::Version(Version::new(node.addr(), synth_node.listening_addr()));
-        let mut body_buffer = Vec::new();
-        let mut header = version.encode(&mut body_buffer).unwrap();
-
-        // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
-
-        let mut buffer = Vec::with_capacity(HEADER_LEN + body_buffer.len());
-        header.encode(&mut buffer).unwrap();
-        buffer.append(&mut body_buffer);
 
         synth_node
             .send_direct_bytes(node.addr(), buffer)
