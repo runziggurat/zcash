@@ -4,8 +4,8 @@ use crate::{
     tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
     tools::{
         fuzzing::{
-            default_fuzz_messages, encode_messages_and_corrupt_body_length_field,
-            encode_with_corrupt_body_length, seeded_rng,
+            default_fuzz_messages, encode_messages_with_corrupt_body_length,
+            encode_message_with_corrupt_body_length, seeded_rng,
         },
         synthetic_node::SyntheticNode,
     },
@@ -40,7 +40,7 @@ async fn instead_of_version_when_node_receives_connection() {
         synth_node.connect(node.addr()).await.unwrap();
 
         let message = test_messages.choose(&mut rng).unwrap();
-        let payload = encode_with_corrupt_body_length(&mut rng, message);
+        let payload = encode_message_with_corrupt_body_length(&mut rng, message);
 
         synth_node
             .send_direct_bytes(node.addr(), payload)
@@ -83,7 +83,7 @@ async fn instead_of_verack_when_node_receives_connection() {
         synth_node.connect(node.addr()).await.unwrap();
 
         let message = test_messages.choose(&mut rng).unwrap();
-        let payload = encode_with_corrupt_body_length(&mut rng, message);
+        let payload = encode_message_with_corrupt_body_length(&mut rng, message);
 
         synth_node
             .send_direct_bytes(node.addr(), payload)
@@ -111,7 +111,7 @@ async fn instead_of_version_when_node_initiates_connection() {
     let test_messages = default_fuzz_messages();
 
     let mut payloads =
-        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
+        encode_messages_with_corrupt_body_length(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
@@ -177,7 +177,7 @@ async fn instead_of_verack_when_node_initiates_connection() {
     let test_messages = default_fuzz_messages();
 
     let mut payloads =
-        encode_messages_and_corrupt_body_length_field(&mut rng, ITERATIONS, &test_messages);
+        encode_messages_with_corrupt_body_length(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
@@ -256,7 +256,7 @@ async fn post_handshake() {
         synth_node.connect(node.addr()).await.unwrap();
 
         let message = test_messages.choose(&mut rng).unwrap();
-        let payload = encode_with_corrupt_body_length(&mut rng, message);
+        let payload = encode_message_with_corrupt_body_length(&mut rng, message);
 
         synth_node
             .send_direct_bytes(node.addr(), payload)

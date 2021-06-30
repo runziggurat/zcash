@@ -18,7 +18,7 @@ use rand::{
 };
 use rand_chacha::ChaCha8Rng;
 
-/// List of message commands which contain payload bytes
+/// A list of message commands which contain payload bytes.
 pub const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [
     VERSION_COMMAND,
     PING_COMMAND,
@@ -37,7 +37,7 @@ pub const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [
 
 const CORRUPTION_PROBABILITY: f64 = 0.5;
 
-// Returns a randomly seeded `ChaCha8Rng` instance.
+/// Returns a randomly seeded `ChaCha8Rng` instance, useful for making tests reproducable.
 pub fn seeded_rng() -> ChaCha8Rng {
     let mut seed: <ChaCha8Rng as SeedableRng>::Seed = Default::default();
     thread_rng().fill(&mut seed);
@@ -49,19 +49,8 @@ pub fn seeded_rng() -> ChaCha8Rng {
     ChaCha8Rng::from_seed(seed)
 }
 
-// Returns a random u32 which isn't the supplied value.
-pub fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
-    // Make sure the generated value isn't the same.
-    let random_value = rng.gen();
-    if value != random_value {
-        random_value
-    } else {
-        random_value + 1
-    }
-}
-
 /// Returns the set of messages used for fuzz-testing.
-/// This notably excludes [Message::Version] because it is
+/// This notably excludes [`Message::Version`] because it is
 /// usually tested separately.
 pub fn default_fuzz_messages() -> Vec<Message> {
     vec![
@@ -84,7 +73,7 @@ pub fn default_fuzz_messages() -> Vec<Message> {
     ]
 }
 
-// Random length zeroes.
+/// Returns `n` random length sets of zeroes.
 pub fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -94,7 +83,7 @@ pub fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
         .collect()
 }
 
-// Random length, random bytes.
+/// Returns `n` random length sets of random bytes.
 pub fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     (0..n)
         .map(|_| {
@@ -106,8 +95,31 @@ pub fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
         .collect()
 }
 
-// Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.
-pub fn slightly_corrupted_messages(
+/// Returns a message with a valid header and payload of random bytes.
+pub fn metadata_compliant_random_bytes(
+    rng: &mut ChaCha8Rng,
+    n: usize,
+    commands: &[[u8; 12]],
+) -> Vec<Vec<u8>> {
+    (0..n)
+        .map(|_| {
+            let random_len: usize = rng.gen_range(1..(64 * 1024));
+            let mut random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
+
+            let command = commands.choose(rng).unwrap();
+            let header = MessageHeader::new(*command, &random_payload);
+
+            let mut buffer = Vec::with_capacity(HEADER_LEN + random_payload.len());
+            header.encode(&mut buffer).unwrap();
+            buffer.append(&mut random_payload);
+
+            buffer
+        })
+        .collect()
+}
+
+/// Corrupts `n` messages from the supplied set by replacing a random number of bytes with random bytes.
+pub fn encode_slightly_corrupted_messages(
     rng: &mut ChaCha8Rng,
     n: usize,
     messages: &[Message],
@@ -148,7 +160,8 @@ fn corrupt_bytes(rng: &mut ChaCha8Rng, serialized: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-pub fn encode_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
+/// Encodes a message and corrupts the body length bytes.
+pub fn encode_message_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
     let mut body_buffer = Vec::new();
     let mut header = message.encode(&mut body_buffer).unwrap();
 
@@ -160,8 +173,32 @@ pub fn encode_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &Message) 
     buffer
 }
 
-/// Picks `n` random messages from `message_pool`, encodes them and corrupts the body-length field
-pub fn encode_messages_and_corrupt_body_length_field(
+/// Encodes a message and corrupts the checksum bytes.
+pub fn encode_message_with_corrupt_checksum(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
+    let mut body_buffer = Vec::new();
+    let mut header = message.encode(&mut body_buffer).unwrap();
+
+    let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
+    header.checksum = random_non_valid_u32(rng, header.checksum);
+    header.encode(&mut buffer).unwrap();
+    buffer.append(&mut body_buffer);
+
+    buffer
+}
+
+/// Returns a random u32 which isn't the supplied value.
+fn random_non_valid_u32(rng: &mut ChaCha8Rng, value: u32) -> u32 {
+    // Make sure the generated value isn't the same.
+    let random_value = rng.gen();
+    if value != random_value {
+        random_value
+    } else {
+        random_value + 1
+    }
+}
+
+/// Picks `n` random messages from `message_pool`, encodes them and corrupts the body length bytes.
+pub fn encode_messages_with_corrupt_body_length(
     rng: &mut ChaCha8Rng,
     n: usize,
     message_pool: &[Message],
@@ -170,13 +207,13 @@ pub fn encode_messages_and_corrupt_body_length_field(
         .map(|_| {
             let message = message_pool.choose(rng).unwrap();
 
-            encode_with_corrupt_body_length(rng, message)
+            encode_message_with_corrupt_body_length(rng, message)
         })
         .collect()
 }
 
 /// Picks `n` random messages from `message_pool`, encodes them and corrupts the checksum bytes.
-pub fn encode_messages_and_corrupt_checksum(
+pub fn encode_messages_with_corrupt_checksum(
     rng: &mut ChaCha8Rng,
     n: usize,
     message_pool: &[Message],
@@ -185,38 +222,7 @@ pub fn encode_messages_and_corrupt_checksum(
         .map(|_| {
             let message = message_pool.choose(rng).unwrap();
 
-            let mut body_buffer = Vec::new();
-            let mut header = message.encode(&mut body_buffer).unwrap();
-
-            let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
-            header.checksum = random_non_valid_u32(rng, header.checksum);
-            header.encode(&mut buffer).unwrap();
-            buffer.append(&mut body_buffer);
-
-            buffer
-        })
-        .collect()
-}
-
-// Valid message header, random bytes as message.
-pub fn metadata_compliant_random_bytes(
-    rng: &mut ChaCha8Rng,
-    n: usize,
-    commands: &[[u8; 12]],
-) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let random_len: usize = rng.gen_range(1..(64 * 1024));
-            let mut random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
-
-            let command = commands.choose(rng).unwrap();
-            let header = MessageHeader::new(*command, &random_payload);
-
-            let mut buffer = Vec::with_capacity(HEADER_LEN + random_payload.len());
-            header.encode(&mut buffer).unwrap();
-            buffer.append(&mut random_payload);
-
-            buffer
+            encode_message_with_corrupt_checksum(rng, message)
         })
         .collect()
 }

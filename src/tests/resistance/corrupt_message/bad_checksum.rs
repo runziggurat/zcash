@@ -1,14 +1,11 @@
 use crate::{
-    protocol::{
-        message::{constants::HEADER_LEN, Message},
-        payload::codec::Codec,
-    },
+    protocol::message::Message,
     setup::node::{Action, Node},
     tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
     tools::{
         fuzzing::{
-            default_fuzz_messages, encode_messages_and_corrupt_checksum, random_non_valid_u32,
-            seeded_rng,
+            default_fuzz_messages, encode_message_with_corrupt_checksum,
+            encode_messages_with_corrupt_checksum, seeded_rng,
         },
         synthetic_node::SyntheticNode,
     },
@@ -36,14 +33,7 @@ async fn instead_of_version_when_node_receives_connection() {
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
-        let mut body_buffer = Vec::new();
-        let mut header = message.encode(&mut body_buffer).unwrap();
-
-        // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
-        let mut buffer = Vec::new();
-        header.encode(&mut buffer).unwrap();
-        buffer.append(&mut body_buffer);
+        let payload = encode_message_with_corrupt_checksum(&mut rng, message);
 
         let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
@@ -53,7 +43,7 @@ async fn instead_of_version_when_node_receives_connection() {
         synth_node.connect(node.addr()).await.unwrap();
 
         synth_node
-            .send_direct_bytes(node.addr(), buffer)
+            .send_direct_bytes(node.addr(), payload)
             .await
             .unwrap();
 
@@ -85,15 +75,7 @@ async fn instead_of_verack_when_node_receives_connection() {
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
-        let mut body_buffer = Vec::new();
-        let mut header = message.encode(&mut body_buffer).unwrap();
-
-        // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
-
-        let mut buffer = Vec::new();
-        header.encode(&mut buffer).unwrap();
-        buffer.append(&mut body_buffer);
+        let payload = encode_message_with_corrupt_checksum(&mut rng, message);
 
         let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
@@ -104,7 +86,7 @@ async fn instead_of_verack_when_node_receives_connection() {
         synth_node.connect(node.addr()).await.unwrap();
 
         synth_node
-            .send_direct_bytes(node.addr(), buffer)
+            .send_direct_bytes(node.addr(), payload)
             .await
             .unwrap();
 
@@ -128,7 +110,8 @@ async fn instead_of_version_when_node_initiates_connection() {
 
     let test_messages = default_fuzz_messages();
 
-    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
+    let mut payloads =
+        encode_messages_with_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
@@ -191,7 +174,8 @@ async fn instead_of_verack_when_node_initiates_connection() {
 
     let test_messages = default_fuzz_messages();
 
-    let mut payloads = encode_messages_and_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
+    let mut payloads =
+        encode_messages_with_corrupt_checksum(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
@@ -262,15 +246,7 @@ async fn post_handshake() {
 
     for _ in 0..ITERATIONS {
         let message = test_messages.choose(&mut rng).unwrap();
-        let mut body_buffer = Vec::new();
-        let mut header = message.encode(&mut body_buffer).unwrap();
-
-        // Set the checksum to a random value which isn't the current value.
-        header.checksum = random_non_valid_u32(&mut rng, header.checksum);
-
-        let mut buffer = Vec::with_capacity(HEADER_LEN + body_buffer.len());
-        header.encode(&mut buffer).unwrap();
-        buffer.append(&mut body_buffer);
+        let payload = encode_message_with_corrupt_checksum(&mut rng, message);
 
         let mut synth_node = SyntheticNode::builder()
             .with_full_handshake()
@@ -282,7 +258,7 @@ async fn post_handshake() {
 
         // Write messages with wrong checksum.
         synth_node
-            .send_direct_bytes(node.addr(), buffer)
+            .send_direct_bytes(node.addr(), payload)
             .await
             .unwrap();
 
