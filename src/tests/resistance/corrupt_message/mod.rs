@@ -7,7 +7,7 @@ use crate::{
     setup::node::{Action, Node},
     tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
     tools::{
-        fuzzing::{default_fuzz_messages, seeded_rng, slightly_corrupted_messages},
+        fuzzing::{default_fuzz_messages, seeded_rng, encode_slightly_corrupted_messages},
         synthetic_node::SyntheticNode,
     },
 };
@@ -24,7 +24,7 @@ async fn instead_of_version_when_node_receives_connection() {
     let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let payloads = encode_slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
@@ -62,7 +62,7 @@ async fn instead_of_verack_when_node_receives_connection() {
     let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let payloads = encode_slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
@@ -105,7 +105,7 @@ async fn instead_of_version_when_node_initiates_connection() {
     let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let mut payloads = encode_slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
@@ -169,7 +169,7 @@ async fn instead_of_verack_when_node_initiates_connection() {
     let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let mut payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let mut payloads = encode_slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
@@ -232,7 +232,7 @@ async fn post_handshake() {
     let test_messages = default_fuzz_messages();
 
     let mut rng = seeded_rng();
-    let payloads = slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
+    let payloads = encode_slightly_corrupted_messages(&mut rng, ITERATIONS, &test_messages);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
