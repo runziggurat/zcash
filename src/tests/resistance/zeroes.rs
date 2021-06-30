@@ -2,15 +2,16 @@
 use std::cmp;
 
 use crate::{
-    protocol::message::{constants::MAX_MESSAGE_LEN, Message},
+    protocol::message::Message,
     setup::node::{Action, Node},
-    tests::resistance::{seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS},
-    tools::synthetic_node::SyntheticNode,
+    tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::{
+        fuzzing::{seeded_rng, zeroes},
+        synthetic_node::SyntheticNode,
+    },
 };
 
 use assert_matches::assert_matches;
-use rand::Rng;
-use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {
@@ -259,14 +260,4 @@ async fn post_handshake() {
     }
 
     node.stop().await.unwrap();
-}
-
-// Random length zeroes.
-pub fn zeroes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let random_len: usize = rng.gen_range(1..(MAX_MESSAGE_LEN * 2));
-            vec![0u8; random_len]
-        })
-        .collect()
 }

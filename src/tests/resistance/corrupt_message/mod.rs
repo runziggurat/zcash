@@ -3,19 +3,16 @@ pub mod bad_length;
 pub mod random_payload;
 
 use crate::{
-    protocol::payload::codec::Codec,
+    protocol::message::Message,
     setup::node::{Action, Node},
-    tests::resistance::{
-        default_fuzz_messages, seeded_rng, Message, DISCONNECT_TIMEOUT, ITERATIONS,
+    tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::{
+        fuzzing::{default_fuzz_messages, seeded_rng, slightly_corrupted_messages},
+        synthetic_node::SyntheticNode,
     },
-    tools::synthetic_node::SyntheticNode,
 };
 
 use assert_matches::assert_matches;
-use rand::prelude::{Rng, SliceRandom};
-use rand_chacha::ChaCha8Rng;
-
-const CORRUPTION_PROBABILITY: f64 = 0.5;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {
@@ -264,46 +261,4 @@ async fn post_handshake() {
     }
 
     node.stop().await.unwrap();
-}
-
-// Corrupt messages from the supplied set by replacing a random number of bytes with random bytes.
-pub fn slightly_corrupted_messages(
-    rng: &mut ChaCha8Rng,
-    n: usize,
-    messages: &[Message],
-) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let message = messages.choose(rng).unwrap();
-            corrupt_message(rng, message)
-        })
-        .collect()
-}
-
-fn corrupt_message(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
-    let mut message_buffer = vec![];
-    let header = message.encode(&mut message_buffer).unwrap();
-    let mut header_buffer = vec![];
-    header.encode(&mut header_buffer).unwrap();
-
-    let mut corrupted_header = corrupt_bytes(rng, &header_buffer);
-    let mut corrupted_message = corrupt_bytes(rng, &message_buffer);
-
-    corrupted_header.append(&mut corrupted_message);
-
-    // Contains header + message.
-    corrupted_header
-}
-
-fn corrupt_bytes(rng: &mut ChaCha8Rng, serialized: &[u8]) -> Vec<u8> {
-    serialized
-        .iter()
-        .map(|byte| {
-            if rng.gen_bool(CORRUPTION_PROBABILITY) {
-                rng.gen()
-            } else {
-                *byte
-            }
-        })
-        .collect()
 }

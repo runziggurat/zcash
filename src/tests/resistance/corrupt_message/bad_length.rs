@@ -1,18 +1,18 @@
 use crate::{
-    protocol::{
-        message::{constants::HEADER_LEN, Message},
-        payload::codec::Codec,
-    },
+    protocol::message::Message,
     setup::node::{Action, Node},
-    tests::resistance::{
-        default_fuzz_messages, random_non_valid_u32, seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS,
+    tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::{
+        fuzzing::{
+            default_fuzz_messages, encode_messages_and_corrupt_body_length_field,
+            encode_with_corrupt_body_length, seeded_rng,
+        },
+        synthetic_node::SyntheticNode,
     },
-    tools::synthetic_node::SyntheticNode,
 };
 
 use assert_matches::assert_matches;
 use rand::prelude::SliceRandom;
-use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {
@@ -270,31 +270,4 @@ async fn post_handshake() {
     }
 
     node.stop().await.unwrap();
-}
-
-fn encode_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
-    let mut body_buffer = Vec::new();
-    let mut header = message.encode(&mut body_buffer).unwrap();
-
-    let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
-    header.body_length = random_non_valid_u32(rng, header.body_length);
-    header.encode(&mut buffer).unwrap();
-    buffer.append(&mut body_buffer);
-
-    buffer
-}
-
-/// Picks `n` random messages from `message_pool`, encodes them and corrupts the body-length field
-pub fn encode_messages_and_corrupt_body_length_field(
-    rng: &mut ChaCha8Rng,
-    n: usize,
-    message_pool: &[Message],
-) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let message = message_pool.choose(rng).unwrap();
-
-            encode_with_corrupt_body_length(rng, message)
-        })
-        .collect()
 }
