@@ -4,15 +4,18 @@ use crate::{
         payload::codec::Codec,
     },
     setup::node::{Action, Node},
-    tests::resistance::{
-        default_fuzz_messages, random_non_valid_u32, seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS,
+    tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::{
+        fuzzing::{
+            default_fuzz_messages, encode_messages_and_corrupt_checksum, random_non_valid_u32,
+            seeded_rng,
+        },
+        synthetic_node::SyntheticNode,
     },
-    tools::synthetic_node::SyntheticNode,
 };
 
 use assert_matches::assert_matches;
 use rand::prelude::SliceRandom;
-use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {
@@ -290,27 +293,4 @@ async fn post_handshake() {
     }
 
     node.stop().await.unwrap();
-}
-
-/// Picks `n` random messages from `message_pool`, encodes them and corrupts the checksum bytes.
-pub fn encode_messages_and_corrupt_checksum(
-    rng: &mut ChaCha8Rng,
-    n: usize,
-    message_pool: &[Message],
-) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let message = message_pool.choose(rng).unwrap();
-
-            let mut body_buffer = Vec::new();
-            let mut header = message.encode(&mut body_buffer).unwrap();
-
-            let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
-            header.checksum = random_non_valid_u32(rng, header.checksum);
-            header.encode(&mut buffer).unwrap();
-            buffer.append(&mut body_buffer);
-
-            buffer
-        })
-        .collect()
 }

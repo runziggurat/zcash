@@ -13,19 +13,12 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tests::resistance::{
-        corrupt_message::{
-            bad_checksum::encode_messages_and_corrupt_checksum,
-            bad_length::encode_messages_and_corrupt_body_length_field,
-            random_payload::metadata_compliant_random_bytes, slightly_corrupted_messages,
-        },
-        default_fuzz_messages,
-        random_bytes::random_bytes,
-        seeded_rng,
-        zeroes::zeroes,
-        COMMANDS_WITH_PAYLOADS,
-    },
     tools::{
+        fuzzing::{
+            default_fuzz_messages, encode_messages_and_corrupt_body_length_field,
+            encode_messages_and_corrupt_checksum, metadata_compliant_random_bytes, random_bytes,
+            seeded_rng, slightly_corrupted_messages, zeroes, COMMANDS_WITH_PAYLOADS,
+        },
         metrics::{
             recorder,
             tables::{duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable},
