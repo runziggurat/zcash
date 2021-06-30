@@ -14,13 +14,16 @@ use crate::{
     },
     setup::node::{Action, Node},
     tests::resistance::{
+        corrupt_message::{
+            bad_checksum::encode_messages_and_corrupt_checksum,
+            bad_length::encode_messages_and_corrupt_body_length_field,
+            random_payload::metadata_compliant_random_bytes, slightly_corrupted_messages,
+        },
         default_fuzz_messages,
-        fuzzing_corrupted_messages::slightly_corrupted_messages,
-        fuzzing_incorrect_checksum::encode_messages_and_corrupt_checksum,
-        fuzzing_incorrect_length::encode_messages_and_corrupt_body_length_field,
-        fuzzing_random_bytes::{metadata_compliant_random_bytes, random_bytes},
-        fuzzing_zeroes::zeroes,
-        seeded_rng, COMMANDS_WITH_PAYLOADS,
+        random_bytes::random_bytes,
+        seeded_rng,
+        zeroes::zeroes,
+        COMMANDS_WITH_PAYLOADS,
     },
     tools::{
         metrics::{
