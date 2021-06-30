@@ -16,8 +16,9 @@ use crate::{
     tools::{
         fuzzing::{
             default_fuzz_messages, encode_messages_with_corrupt_body_length,
-            encode_messages_with_corrupt_checksum, metadata_compliant_random_bytes, random_bytes,
-            seeded_rng, encode_slightly_corrupted_messages, zeroes, COMMANDS_WITH_PAYLOADS,
+            encode_messages_with_corrupt_checksum, encode_slightly_corrupted_messages,
+            metadata_compliant_random_bytes, random_bytes, seeded_rng, zeroes,
+            COMMANDS_WITH_PAYLOADS,
         },
         metrics::{
             recorder,
@@ -419,7 +420,11 @@ fn generate_corrupt_messages(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     // generate a variety of corrupt messages and select n of them at random
     let mut possible_payloads = Vec::with_capacity(n * 6);
     possible_payloads.append(&mut zeroes(rng, n));
-    possible_payloads.append(&mut encode_slightly_corrupted_messages(rng, n, &message_pool));
+    possible_payloads.append(&mut encode_slightly_corrupted_messages(
+        rng,
+        n,
+        &message_pool,
+    ));
     possible_payloads.append(&mut encode_messages_with_corrupt_checksum(
         rng,
         n,

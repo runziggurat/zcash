@@ -4,8 +4,8 @@ use crate::{
     tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
     tools::{
         fuzzing::{
-            default_fuzz_messages, encode_messages_with_corrupt_body_length,
-            encode_message_with_corrupt_body_length, seeded_rng,
+            default_fuzz_messages, encode_message_with_corrupt_body_length,
+            encode_messages_with_corrupt_body_length, seeded_rng,
         },
         synthetic_node::SyntheticNode,
     },

@@ -7,7 +7,7 @@ use crate::{
     setup::node::{Action, Node},
     tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
     tools::{
-        fuzzing::{default_fuzz_messages, seeded_rng, encode_slightly_corrupted_messages},
+        fuzzing::{default_fuzz_messages, encode_slightly_corrupted_messages, seeded_rng},
         synthetic_node::SyntheticNode,
     },
 };
