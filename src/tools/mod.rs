@@ -1,5 +1,6 @@
 //! Utilities for network testing.
 
+pub mod fuzzing;
 pub mod message_filter;
 pub mod metrics;
 pub mod synthetic_node;

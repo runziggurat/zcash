@@ -13,19 +13,13 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tests::resistance::{
-        corrupt_message::{
-            bad_checksum::encode_messages_and_corrupt_checksum,
-            bad_length::encode_messages_and_corrupt_body_length_field,
-            random_payload::metadata_compliant_random_bytes, slightly_corrupted_messages,
-        },
-        default_fuzz_messages,
-        random_bytes::random_bytes,
-        seeded_rng,
-        zeroes::zeroes,
-        COMMANDS_WITH_PAYLOADS,
-    },
     tools::{
+        fuzzing::{
+            default_fuzz_messages, encode_messages_with_corrupt_body_length,
+            encode_messages_with_corrupt_checksum, encode_slightly_corrupted_messages,
+            metadata_compliant_random_bytes, random_bytes, seeded_rng, zeroes,
+            COMMANDS_WITH_PAYLOADS,
+        },
         metrics::{
             recorder,
             tables::{duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable},
@@ -426,13 +420,17 @@ fn generate_corrupt_messages(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
     // generate a variety of corrupt messages and select n of them at random
     let mut possible_payloads = Vec::with_capacity(n * 6);
     possible_payloads.append(&mut zeroes(rng, n));
-    possible_payloads.append(&mut slightly_corrupted_messages(rng, n, &message_pool));
-    possible_payloads.append(&mut encode_messages_and_corrupt_checksum(
+    possible_payloads.append(&mut encode_slightly_corrupted_messages(
         rng,
         n,
         &message_pool,
     ));
-    possible_payloads.append(&mut encode_messages_and_corrupt_body_length_field(
+    possible_payloads.append(&mut encode_messages_with_corrupt_checksum(
+        rng,
+        n,
+        &message_pool,
+    ));
+    possible_payloads.append(&mut encode_messages_with_corrupt_body_length(
         rng,
         n,
         &message_pool,
