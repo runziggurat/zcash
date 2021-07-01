@@ -1,18 +1,16 @@
 use std::cmp;
 
 use crate::{
-    protocol::{
-        message::{constants::HEADER_LEN, Message, MessageHeader},
-        payload::codec::Codec,
-    },
+    protocol::message::Message,
     setup::node::{Action, Node},
-    tests::resistance::{seeded_rng, COMMANDS_WITH_PAYLOADS, DISCONNECT_TIMEOUT, ITERATIONS},
-    tools::synthetic_node::SyntheticNode,
+    tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::{
+        fuzzing::{metadata_compliant_random_bytes, seeded_rng, COMMANDS_WITH_PAYLOADS},
+        synthetic_node::SyntheticNode,
+    },
 };
 
 use assert_matches::assert_matches;
-use rand::{distributions::Standard, prelude::SliceRandom, Rng};
-use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {
@@ -266,27 +264,4 @@ async fn post_handshake() {
     }
 
     node.stop().await.unwrap();
-}
-
-// Valid message header, random bytes as message.
-pub fn metadata_compliant_random_bytes(
-    rng: &mut ChaCha8Rng,
-    n: usize,
-    commands: &[[u8; 12]],
-) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let random_len: usize = rng.gen_range(1..(64 * 1024));
-            let mut random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
-
-            let command = commands.choose(rng).unwrap();
-            let header = MessageHeader::new(*command, &random_payload);
-
-            let mut buffer = Vec::with_capacity(HEADER_LEN + random_payload.len());
-            header.encode(&mut buffer).unwrap();
-            buffer.append(&mut random_payload);
-
-            buffer
-        })
-        .collect()
 }

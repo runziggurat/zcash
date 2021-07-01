@@ -3,13 +3,14 @@ use std::cmp;
 use crate::{
     protocol::message::Message,
     setup::node::{Action, Node},
-    tests::resistance::{seeded_rng, DISCONNECT_TIMEOUT, ITERATIONS},
-    tools::synthetic_node::SyntheticNode,
+    tests::resistance::{DISCONNECT_TIMEOUT, ITERATIONS},
+    tools::{
+        fuzzing::{random_bytes, seeded_rng},
+        synthetic_node::SyntheticNode,
+    },
 };
 
 use assert_matches::assert_matches;
-use rand::{distributions::Standard, Rng};
-use rand_chacha::ChaCha8Rng;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {
@@ -253,16 +254,4 @@ async fn post_handshake() {
     }
 
     node.stop().await.unwrap();
-}
-
-// Random length, random bytes.
-pub fn random_bytes(rng: &mut ChaCha8Rng, n: usize) -> Vec<Vec<u8>> {
-    (0..n)
-        .map(|_| {
-            let random_len: usize = rng.gen_range(1..(64 * 1024));
-            let random_payload: Vec<u8> = rng.sample_iter(Standard).take(random_len).collect();
-
-            random_payload
-        })
-        .collect()
 }
