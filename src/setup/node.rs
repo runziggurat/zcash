@@ -76,17 +76,12 @@ impl Node {
         // insert the config file cmd args
         match node.meta.kind {
             NodeKind::Zebra => {
-                // Bit more convoluted since we need to insert the args before `start`, which comes last.
-                let start_arg = node
-                    .meta
-                    .start_args
-                    .pop()
-                    .expect("Expected at least one arg for Zebra (`start`)");
-                node.meta.start_args.push("--config".into());
+                let n = node.meta.start_args.len();
+                assert!(n > 1, "Expected at least one arg for Zebra (`start`)");
+                node.meta.start_args.insert(n - 1, "--config".into());
                 node.meta
                     .start_args
-                    .push(node.config_filepath().into_os_string());
-                node.meta.start_args.push(start_arg);
+                    .insert(n, node.config_filepath().into_os_string());
             }
             NodeKind::Zcashd => {
                 node.meta
