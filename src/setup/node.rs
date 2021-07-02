@@ -303,8 +303,8 @@ impl Node {
 
     fn config_filepath(&self) -> std::path::PathBuf {
         match self.meta.kind {
-            NodeKind::Zebra => self.meta.path.join(ZEBRA_CONFIG),
-            NodeKind::Zcashd => self.meta.path.join(ZCASHD_CONFIG),
+            NodeKind::Zebra => std::env::current_dir().unwrap().join(ZEBRA_CONFIG),
+            NodeKind::Zcashd => std::env::current_dir().unwrap().join(ZCASHD_CONFIG),
         }
     }
 
