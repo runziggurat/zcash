@@ -67,11 +67,35 @@ impl Node {
         let config = NodeConfig::new();
         let meta = NodeMetaData::new()?;
 
-        Ok(Self {
+        let mut node = Self {
             config,
             meta,
             process: None,
-        })
+        };
+
+        // insert the config file cmd args
+        match node.meta.kind {
+            NodeKind::Zebra => {
+                // Bit more convoluted since we need to insert the args before `start`, which comes last.
+                let start_arg = node
+                    .meta
+                    .start_args
+                    .pop()
+                    .expect("Expected at least one arg for Zebra (`start`)");
+                node.meta.start_args.push("--config".into());
+                node.meta
+                    .start_args
+                    .push(node.config_filepath().into_os_string());
+                node.meta.start_args.push(start_arg);
+            }
+            NodeKind::Zcashd => {
+                node.meta
+                    .start_args
+                    .push(format!("-conf={}", node.config_filepath().to_str().unwrap()).into());
+            }
+        }
+
+        Ok(node)
     }
 
     /// Returns the (external) address of the node.

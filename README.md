@@ -23,11 +23,11 @@ Ziggurat is configured with a `config.toml` file in the root.
 ```toml
 kind = "zebra"
 path = "path/to/zebra/repo"
-start_command = "cargo +stable r -- --config zebra.toml --verbose start"
+start_command = "cargo +stable r -- --verbose start"
 
 # kind = "zcashd"
 # path = "path/to/zcash/repo"
-# start_command = "./src/zcashd -debug=1 -dnsseed=0 -printtoconsole -logips=1 -listenonion=0 -dns=0 -conf=/path/to/zcash/repo/zcash.conf"
+# start_command = "./src/zcashd -debug=1 -dnsseed=0 -printtoconsole -logips=1 -listenonion=0 -dns=0"
 ```
 
 Information about the node to be tested can be set under the `[node]` table:
