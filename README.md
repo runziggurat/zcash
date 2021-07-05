@@ -22,7 +22,7 @@ Ziggurat is written in stable Rust; you can install the Rust toolchain by follow
 
 You also need to install at least one node implementation to test.
 
-### ZCashd
+### Zcashd
 
 `zcashd` can be installed by using the [official instructions](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html) for your operating system. We recommend building from source for consistency and to ensure you're using the right versions. Alternatively, you can use ECC's Debian/Ubuntu package or the binary tarball.
 
@@ -40,7 +40,7 @@ $ ./zcutil/build.sh -j$(nproc)   # or number of cores
 
 After completing the above, you can skip the configuration steps, i.e. creating `~/.zcashd/zcash.conf` as Ziggurat will create new configuration files for each test run. Also, syncing the blockchain is not required.
 
-### `zebra`
+### Zebra
 
 `zebra` can be installed from its [source code](https://github.com/ZcashFoundation/zebra) on GitHub. Although a Dockerfile is provided, **Docker is not supported.** We suggest following the instructions below, or similar.
 
@@ -98,7 +98,7 @@ Logs are disabled by default, as they usually just add noise and slow down the t
 
 Ziggurat's `SyntheticNode` supports `tracing` - this can be enabled by inserting a call to `synthetic_node::enable_tracing()` inside the test case.
 
-The test node's `stdout` and `stderr` logs can be piped to `stdout` by inserting a call to `node.log_to_stdout(true)` before starting the node. Note that logs will need to be enabled for the node as detailed in [Configuration](##Configuration).
+The test node's `stdout` and `stderr` logs can be piped to `stdout` by inserting a call to `node.log_to_stdout(true)` before starting the node. Note that logs will need to be enabled for the node as detailed in [Configuration](#Configuration).
 
 ```Rust
 let mut node = Node::new().unwrap();
