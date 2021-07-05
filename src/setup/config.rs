@@ -110,10 +110,15 @@ impl NodeMetaData {
         match config_file.kind {
             NodeKind::Zebra => {
                 // Zebra's final arg must be `start`, so we insert the actual args before it.
-                let n = start_args.len();
-                assert!(n > 1, "Expected at least one arg for Zebra (`start`)");
-                start_args.insert(n - 1, "--config".into());
-                start_args.insert(n, config_path.into_os_string());
+                let n_args = start_args.len();
+                if n_args < 1 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Expected at least one start_command arg for Zebra (`start`)",
+                    ));
+                }
+                start_args.insert(n_args - 1, "--config".into());
+                start_args.insert(n_args, config_path.into_os_string());
             }
             NodeKind::Zcashd => {
                 start_args.push(format!("-conf={}", config_path.to_str().unwrap()).into());
