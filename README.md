@@ -16,6 +16,43 @@ and [zebra](https://github.com/ZcashFoundation/zebra) devs with this reliable fo
 
 *Note:* This project is a work in progress.
 
+## Prerequisites
+
+Ziggurat is written in stable Rust; you can install the Rust toolchain by following the official instructions [here](*https://www.rust-lang.org/learn/get-started).
+
+You also need to install at least one node implementation to test.
+
+### ZCashd
+
+`zcashd` can be installed by using the [official instructions](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html) for your operating system. We recommend building from source for consistency and to ensure you're using the right versions. Alternatively, you can use ECC's Debian/Ubuntu package or the binary tarball.
+
+However, **please note that** **Docker is not supported** as it can theoretically produce unreliable test results and increases network complexity.
+
+```bash
+# After installing dependencies
+$ git clone https://github.com/zcash/zcash
+$ cd zcash
+$ git checkout v4.4.1            # optional, or use master
+$ ./zcutil/fetch-params.sh
+$ ./zcutil/clean.sh
+$ ./zcutil/build.sh -j$(nproc)   # or number of cores
+```
+
+After completing the above, you can skip the configuration steps, i.e. creating `~/.zcashd/zcash.conf` as Ziggurat will create new configuration files for each test run. Also, syncing the blockchain is not required.
+
+### `zebra`
+
+`zebra` can be installed from its [source code](https://github.com/ZcashFoundation/zebra) on GitHub. Although a Dockerfile is provided, **Docker is not supported.** We suggest following the instructions below, or similar.
+
+```bash
+# After installing dependencies
+$ git clone https://github.com/ZcashFoundation/zebra
+$ cd zebra
+$ cargo +stable build
+```
+
+Similarly to `zcashd`, configuration is not necessary since Ziggurat generates new configurations for each test run.
+
 ## Configuration
 
 Ziggurat is configured with a `config.toml` file in the root.
