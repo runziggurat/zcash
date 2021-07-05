@@ -17,10 +17,6 @@ use tokio::process::{Child, Command};
 
 use std::{fs, io, net::SocketAddr, process::Stdio, time::Duration};
 
-// The names of the files the node configurations will be written to.
-const ZEBRA_CONFIG: &str = "zebra.toml";
-const ZCASHD_CONFIG: &str = "zcash.conf";
-
 /// Actions to prepare node state on start.
 pub enum Action {
     /// Performs no action
@@ -67,30 +63,11 @@ impl Node {
         let config = NodeConfig::new();
         let meta = NodeMetaData::new()?;
 
-        let mut node = Self {
+        Ok(Self {
             config,
             meta,
             process: None,
-        };
-
-        // insert the config file cmd args
-        match node.meta.kind {
-            NodeKind::Zebra => {
-                let n = node.meta.start_args.len();
-                assert!(n > 1, "Expected at least one arg for Zebra (`start`)");
-                node.meta.start_args.insert(n - 1, "--config".into());
-                node.meta
-                    .start_args
-                    .insert(n, node.config_filepath().into_os_string());
-            }
-            NodeKind::Zcashd => {
-                node.meta
-                    .start_args
-                    .push(format!("-conf={}", node.config_filepath().to_str().unwrap()).into());
-            }
-        }
-
-        Ok(node)
+        })
     }
 
     /// Returns the (external) address of the node.
@@ -291,7 +268,7 @@ impl Node {
     }
 
     fn generate_config_file(&self) -> io::Result<()> {
-        let path = self.config_filepath();
+        let path = self.meta.kind.config_filepath();
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
@@ -301,20 +278,13 @@ impl Node {
         fs::write(path, content)
     }
 
-    fn config_filepath(&self) -> std::path::PathBuf {
-        match self.meta.kind {
-            NodeKind::Zebra => std::env::current_dir().unwrap().join(ZEBRA_CONFIG),
-            NodeKind::Zcashd => std::env::current_dir().unwrap().join(ZCASHD_CONFIG),
-        }
-    }
-
     fn cleanup(&self) -> io::Result<()> {
         self.cleanup_config_file()?;
         self.cleanup_cache()
     }
 
     fn cleanup_config_file(&self) -> io::Result<()> {
-        let path = self.config_filepath();
+        let path = self.meta.kind.config_filepath();
         match fs::remove_file(path) {
             // File may not exist, so we surpress the error.
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
