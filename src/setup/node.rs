@@ -17,10 +17,6 @@ use tokio::process::{Child, Command};
 
 use std::{fs, io, net::SocketAddr, process::Stdio, time::Duration};
 
-// The names of the files the node configurations will be written to.
-const ZEBRA_CONFIG: &str = "zebra.toml";
-const ZCASHD_CONFIG: &str = "zcash.conf";
-
 /// Actions to prepare node state on start.
 pub enum Action {
     /// Performs no action
@@ -272,7 +268,7 @@ impl Node {
     }
 
     fn generate_config_file(&self) -> io::Result<()> {
-        let path = self.config_filepath();
+        let path = self.meta.kind.config_filepath();
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
@@ -282,20 +278,13 @@ impl Node {
         fs::write(path, content)
     }
 
-    fn config_filepath(&self) -> std::path::PathBuf {
-        match self.meta.kind {
-            NodeKind::Zebra => self.meta.path.join(ZEBRA_CONFIG),
-            NodeKind::Zcashd => self.meta.path.join(ZCASHD_CONFIG),
-        }
-    }
-
     fn cleanup(&self) -> io::Result<()> {
         self.cleanup_config_file()?;
         self.cleanup_cache()
     }
 
     fn cleanup_config_file(&self) -> io::Result<()> {
-        let path = self.config_filepath();
+        let path = self.meta.kind.config_filepath();
         match fs::remove_file(path) {
             // File may not exist, so we surpress the error.
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
