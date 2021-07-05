@@ -109,8 +109,6 @@ node.initial_action(Action::WaitForConnection)
     .unwrap();
 ```
 
-Tracing can also be enabled for Ziggurat's `SyntheticNode` by inserting a call to `synthetic_node::enable_tracing()`.
-
 ## Test Status
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
