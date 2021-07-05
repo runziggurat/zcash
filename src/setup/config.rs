@@ -11,6 +11,10 @@ use std::{
 
 use crate::setup::node::Action;
 
+// The names of the files the node configurations will be written to.
+const ZEBRA_CONFIG: &str = "zebra.toml";
+const ZCASHD_CONFIG: &str = "zcash.conf";
+
 const CONFIG: &str = "config.toml";
 const DEFAULT_PORT: u16 = 8080;
 
@@ -65,6 +69,16 @@ pub(super) enum NodeKind {
     Zcashd,
 }
 
+impl NodeKind {
+    /// Path to the configuration file for this [NodeKind]
+    pub(super) fn config_filepath(&self) -> std::path::PathBuf {
+        match self {
+            NodeKind::Zebra => std::env::current_dir().unwrap().join(ZEBRA_CONFIG),
+            NodeKind::Zcashd => std::env::current_dir().unwrap().join(ZCASHD_CONFIG),
+        }
+    }
+}
+
 /// Node configuration read from the `config.toml` file.
 #[derive(Clone)]
 pub(super) struct NodeMetaData {
@@ -90,6 +104,21 @@ impl NodeMetaData {
 
         let mut start_args = args_from(&config_file.start_command);
         let start_command = start_args.remove(0);
+
+        // insert the config file path into start args
+        let config_path = config_file.kind.config_filepath();
+        match config_file.kind {
+            NodeKind::Zebra => {
+                // Zebra's final arg must be `start`, so we insert the actual args before it.
+                let n = start_args.len();
+                assert!(n > 1, "Expected at least one arg for Zebra (`start`)");
+                start_args.insert(n - 1, "--config".into());
+                start_args.insert(n, config_path.into_os_string());
+            }
+            NodeKind::Zcashd => {
+                start_args.push(format!("-conf={}", config_path.to_str().unwrap()).into());
+            }
+        }
 
         Ok(Self {
             kind: config_file.kind,
