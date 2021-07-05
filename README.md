@@ -55,25 +55,34 @@ Similarly to `zcashd`, configuration is not necessary since Ziggurat generates n
 
 ## Configuration
 
-Ziggurat is configured with a `config.toml` file in the root.
+Ziggurat is configured via a `config.toml` file in the root directory. It must contain the following fields:
 
+- `kind`: one of `zebra` or `zcashd`.
+- `path`: absolute path in which to run the start command.
+- `start_command`: the command used to start the node
+
+We recommend using the following ZCashd config:
+```toml
+kind = "zcashd"
+path = "path/to/zcash/repo"
+start_command = "./src/zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0"
+# debug=1           enables debug logging
+# logips=1          adds connection IP spans to the logs
+# printtoconsole    logs to stdout
+# dnsseed=0         disables looking for hardcoded DNS seeding nodes (we want to isolate our node to just the test)
+# dns=0             disables DNS lookup
+# listenonion=0     disables the Tor network
+```
+and for Zebra:
 ```toml
 kind = "zebra"
 path = "path/to/zebra/repo"
 start_command = "cargo +stable r -- --verbose start"
-
-# kind = "zcashd"
-# path = "path/to/zcash/repo"
-# start_command = "./src/zcashd -debug=1 -dnsseed=0 -printtoconsole -logips=1 -listenonion=0 -dns=0"
+# cargo +stable r   run Zebra using stable Rust
+# --                all args after this will get passed to Zebra
+# verbose           enables verbose logging
+# start             starts the node
 ```
-
-Information about the node to be tested can be set under the `[node]` table:
-
-- `kind`: one of `zebra` or `zcashd`
-- `path`: absolute path in which to run the start and stop commands.
-- `start_command`: the command used to start the node (args inline).
-
-When starting the node, this information and the configuration provided in the tests will be written to a configuration file compatible with and read by the node under test.
 
 ## Building the docs
 
