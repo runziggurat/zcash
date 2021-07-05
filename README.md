@@ -92,6 +92,25 @@ Ziggurat's documentation can be built with `cargo doc --no-deps --open`.
 
 Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --test-threads=1` should suffice. We use the single threaded executor as spinning up multiple test nodes isn't currently supported.
 
+### Logging
+
+Logs are disabled by default, as they usually just add noise and slow down the test. They can be very useful for debugging and can be enabled on a test case level.
+
+Ziggurat's `SyntheticNode` supports `tracing` - this can be enabled by inserting a call to `synthetic_node::enable_tracing()` inside the test case.
+
+The test node's `stdout` and `stderr` logs can be piped to `stdout` by inserting a call to `node.log_to_stdout(true)` before starting the node. Note that logs will need to be enabled for the node as detailed in [Configuration](##Configuration).
+
+```Rust
+let mut node = Node::new().unwrap();
+node.initial_action(Action::WaitForConnection)
+    .log_to_stdout(true)    // pipe's the node's `stdout` and `stderr` to `stdout`
+    .start()
+    .await
+    .unwrap();
+```
+
+Tracing can also be enabled for Ziggurat's `SyntheticNode` by inserting a call to `synthetic_node::enable_tracing()`.
+
 ## Test Status
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
