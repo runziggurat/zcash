@@ -15,6 +15,30 @@ lazy_static! {
     /// Testnet block at height `2` (pre-overwinter).
     pub static ref BLOCK_TESTNET_2_BYTES: Vec<u8> =
         <Vec<u8>>::from_hex(include_str!("block-test-0-000-002.txt").trim()).unwrap();
+    /// Testnet block at height `3` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_3_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-003.txt").trim()).unwrap();
+    /// Testnet block at height `4` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_4_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-004.txt").trim()).unwrap();
+    /// Testnet block at height `5` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_5_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-005.txt").trim()).unwrap();
+    /// Testnet block at height `6` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_6_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-006.txt").trim()).unwrap();
+    /// Testnet block at height `7` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_7_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-007.txt").trim()).unwrap();
+    /// Testnet block at height `8` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_8_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-008.txt").trim()).unwrap();
+    /// Testnet block at height `9` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_9_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-009.txt").trim()).unwrap();
+    /// Testnet block at height `10` (pre-overwinter).
+    pub static ref BLOCK_TESTNET_10_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-0-000-010.txt").trim()).unwrap();
     /// Testnet block at height `207500` (first overwinter).
     pub static ref BLOCK_TESTNET_207500_BYTES: Vec<u8> =
         <Vec<u8>>::from_hex(include_str!("block-test-0-207-500.txt").trim()).unwrap();
