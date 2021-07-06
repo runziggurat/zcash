@@ -208,7 +208,7 @@ async fn basic_query_response_seeded() {
 
     // Spin up a node instance.
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(10))
         .start()
         .await
         .unwrap();
@@ -686,7 +686,7 @@ async fn get_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(10))
         .start()
         .await
         .unwrap();
@@ -707,7 +707,7 @@ async fn get_blocks() {
     // so we skip it.
     //
     // i.e. Test that GetBlocks(i) -> Inv(i+1..)
-    for (i, block) in blocks.iter().enumerate().take(2) {
+    for (i, block) in blocks.iter().enumerate().take(blocks.len() - 1) {
         synthetic_node
             .send_direct_message(
                 node.addr(),
@@ -826,7 +826,7 @@ async fn correctly_lists_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(10))
         .start()
         .await
         .unwrap();
@@ -950,7 +950,7 @@ async fn get_data_blocks() {
 
     // Create a node with knowledge of the initial three testnet blocks
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(10))
         .start()
         .await
         .unwrap();
