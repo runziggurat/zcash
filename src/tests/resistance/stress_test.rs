@@ -79,7 +79,7 @@ async fn throughput() {
     // We simulate active peers which send 100 requests (and validate the replies), and finally send a corrupt message
     // which ends the connection. We measure the latency of the replies and the type of response to the corrupt message.
     //
-    //  *NOTE* run with `cargo test --release tests::resistance::fuzzing_flood::throughput -- --nocapture`
+    //  *NOTE* run with `cargo test --release tests::resistance::stress_test::throughput -- --nocapture`
     //
     // Currently only works for zcashd as zebra does not support block seeding.
     //
@@ -221,7 +221,7 @@ async fn throughput() {
     // need for the test. Note that zcashd node appears to reserver 8
     // slots (hence the +10).
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(10))
+    node.initial_action(Action::SeedWithTestnetBlocks(3))
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
         .await
