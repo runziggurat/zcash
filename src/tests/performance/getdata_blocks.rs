@@ -90,7 +90,7 @@ async fn throughput() {
     // Start node seeded with initial testnet blocks,
     // with max peers set so that our peers should never be rejected.
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(11))
         .max_peers(synth_counts.iter().max().unwrap() * 2 + 10)
         .start()
         .await

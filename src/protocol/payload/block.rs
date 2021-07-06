@@ -80,30 +80,86 @@ impl Block {
         self.header.double_sha256()
     }
 
-    /// Creates the first block on the testnet chain.
+    /// Creates the testnet genesis block.
     pub fn testnet_genesis() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_GENESIS_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Creates the second block on the testnet chain.
+    /// Creates the testnet block at height 1.
     pub fn testnet_1() -> Self {
-        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_1_BYTES[..]);
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_001_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Creates the third block on the testnet chain.
+    /// Creates the testnet block at height 2.
     pub fn testnet_2() -> Self {
-        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_002_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Returns the initial 3 testnet blocks.
+    /// Creates the testnet block at height 3.
+    pub fn testnet_3() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_003_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 4.
+    pub fn testnet_4() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_004_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 5.
+    pub fn testnet_5() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_005_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 6.
+    pub fn testnet_6() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_006_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 7.
+    pub fn testnet_7() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_007_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 8.
+    pub fn testnet_8() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_008_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 9.
+    pub fn testnet_9() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_009_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 10.
+    pub fn testnet_10() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_0_000_010_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Returns the first 11 testnet blocks.
     pub fn initial_testnet_blocks() -> Vec<Self> {
         vec![
             Self::testnet_genesis(),
             Self::testnet_1(),
             Self::testnet_2(),
+            Self::testnet_3(),
+            Self::testnet_4(),
+            Self::testnet_5(),
+            Self::testnet_6(),
+            Self::testnet_7(),
+            Self::testnet_8(),
+            Self::testnet_9(),
+            Self::testnet_10(),
         ]
     }
 
@@ -297,7 +353,151 @@ mod tests {
     #[ignore]
     fn testnet_1_round_trip() {
         // Pre-overwinter.
-        let block_bytes = &BLOCK_TESTNET_1_BYTES[..];
+        let block_bytes = &BLOCK_TESTNET_0_000_001_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_2_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_002_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_3_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_003_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_4_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_004_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_5_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_005_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_6_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_006_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_7_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_007_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_8_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_008_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_9_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_009_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_10_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_010_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();
@@ -313,7 +513,7 @@ mod tests {
     #[ignore]
     fn testnet_207500_round_trip() {
         // Overwinter.
-        let block_bytes = &BLOCK_TESTNET_207500_BYTES[..];
+        let block_bytes = &BLOCK_TESTNET_0_207_500_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();
@@ -329,7 +529,7 @@ mod tests {
     #[ignore]
     fn testnet_280000_round_trip() {
         // Sapling.
-        let block_bytes = &BLOCK_TESTNET_280000_BYTES[..];
+        let block_bytes = &BLOCK_TESTNET_0_280_000_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();
@@ -345,7 +545,7 @@ mod tests {
     #[ignore]
     fn testnet_584000_round_trip() {
         // Blossom.
-        let block_bytes = &BLOCK_TESTNET_584000_BYTES[..];
+        let block_bytes = &BLOCK_TESTNET_0_584_000_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();
@@ -361,7 +561,7 @@ mod tests {
     #[ignore]
     fn testnet_903800_round_trip() {
         // Heartwood.
-        let block_bytes = &BLOCK_TESTNET_903800_BYTES[..];
+        let block_bytes = &BLOCK_TESTNET_0_903_800_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();
@@ -377,7 +577,7 @@ mod tests {
     #[ignore]
     fn testnet_1028500_round_trip() {
         // Canopy.
-        let block_bytes = &BLOCK_TESTNET_1028500_BYTES[..];
+        let block_bytes = &BLOCK_TESTNET_1_028_500_BYTES[..];
         let mut bytes = Cursor::new(block_bytes);
 
         let mut buffer = Vec::new();

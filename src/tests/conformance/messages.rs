@@ -198,7 +198,6 @@ async fn basic_query_response_seeded() {
     // zcashd: ignores the following messages
     //             - GetAddr
     //             - MemPool
-    //             - GetBlocks
     //
     //         GetData(tx) returns NotFound (which is correct),
     //         because we currently can't seed a mempool.
@@ -208,7 +207,7 @@ async fn basic_query_response_seeded() {
 
     // Spin up a node instance.
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(11))
         .start()
         .await
         .unwrap();
@@ -684,9 +683,9 @@ async fn get_blocks() {
     //
     // Note: zcashd ignores requests for the final block in the chain
 
-    // Create a node with knowledge of the initial three testnet blocks
+    // Create a node with knowledge of the initial testnet blocks
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(11))
         .start()
         .await
         .unwrap();
@@ -707,7 +706,7 @@ async fn get_blocks() {
     // so we skip it.
     //
     // i.e. Test that GetBlocks(i) -> Inv(i+1..)
-    for (i, block) in blocks.iter().enumerate().take(2) {
+    for (i, block) in blocks.iter().enumerate().take(blocks.len() - 1) {
         synthetic_node
             .send_direct_message(
                 node.addr(),
@@ -789,7 +788,8 @@ async fn get_blocks() {
     let inv = assert_matches!(inv, Message::Inv(inv) => inv);
 
     // Check the payload matches.
-    let expected = Inv::new(vec![blocks[2].inv_hash()]);
+    let inv_hashes = blocks[2..].iter().map(|block| block.inv_hash()).collect();
+    let expected = Inv::new(inv_hashes);
     assert_eq!(inv, expected);
 
     synthetic_node.shut_down();
@@ -834,6 +834,7 @@ async fn correctly_lists_blocks() {
     // block headers and hashes
     let expected = Block::initial_testnet_blocks()
         .iter()
+        .take(3)
         .map(|block| block.header.clone())
         .collect::<Vec<_>>();
     let hashes = expected
@@ -948,9 +949,9 @@ async fn get_data_blocks() {
     //
     //  zebra: does not support seeding as yet, and therefore cannot perform this test.
 
-    // Create a node with knowledge of the initial three testnet blocks
+    // Create a node with knowledge of the initial testnet blocks
     let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
+    node.initial_action(Action::SeedWithTestnetBlocks(11))
         .start()
         .await
         .unwrap();
