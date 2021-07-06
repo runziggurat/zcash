@@ -367,6 +367,150 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn testnet_2_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_002_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_3_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_003_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_4_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_004_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_5_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_005_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_6_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_006_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_7_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_007_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_8_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_008_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_9_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_009_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_10_round_trip() {
+        // Pre-overwinter.
+        let block_bytes = &BLOCK_TESTNET_0_000_010_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
     fn testnet_207500_round_trip() {
         // Overwinter.
         let block_bytes = &BLOCK_TESTNET_0_207_500_BYTES[..];
