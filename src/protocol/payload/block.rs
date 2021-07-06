@@ -80,30 +80,86 @@ impl Block {
         self.header.double_sha256()
     }
 
-    /// Creates the first block on the testnet chain.
+    /// Creates the testnet genesis block.
     pub fn testnet_genesis() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_GENESIS_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Creates the second block on the testnet chain.
+    /// Creates the testnet block at height 1.
     pub fn testnet_1() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_1_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Creates the third block on the testnet chain.
+    /// Creates the testnet block at height 2.
     pub fn testnet_2() -> Self {
         let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_2_BYTES[..]);
         Block::decode(&mut cursor).unwrap()
     }
 
-    /// Returns the initial 3 testnet blocks.
+    /// Creates the testnet block at height 3.
+    pub fn testnet_3() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_3_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 4.
+    pub fn testnet_4() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_4_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 5.
+    pub fn testnet_5() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_5_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 6.
+    pub fn testnet_6() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_6_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 7.
+    pub fn testnet_7() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_7_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 8.
+    pub fn testnet_8() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_8_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 9.
+    pub fn testnet_9() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_9_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Creates the testnet block at height 10.
+    pub fn testnet_10() -> Self {
+        let mut cursor = std::io::Cursor::new(&crate::vectors::BLOCK_TESTNET_10_BYTES[..]);
+        Block::decode(&mut cursor).unwrap()
+    }
+
+    /// Returns the first 11 testnet blocks.
     pub fn initial_testnet_blocks() -> Vec<Self> {
         vec![
             Self::testnet_genesis(),
             Self::testnet_1(),
             Self::testnet_2(),
+            Self::testnet_3(),
+            Self::testnet_4(),
+            Self::testnet_5(),
+            Self::testnet_6(),
+            Self::testnet_7(),
+            Self::testnet_8(),
+            Self::testnet_9(),
+            Self::testnet_10(),
         ]
     }
 
