@@ -1,14 +1,15 @@
-///! Contains test cases which cover ZG-CONFORMANCE-008.
-///!
-///! The node should reject the following messages post-handshake:
-///!
-///!  Version                 - Duplicate
-///!  Verack                  - Duplicate
-///!  Inv(mixed types)        - Invalid
-///!  Inv(multiple blocks)    - Invalid
-///!  Bloom filter add        - Obsolete
-///!  Bloom filter load       - Obsolete
-///!  Bloom filter clear      - Obsolete
+//! Contains test cases which cover ZG-CONFORMANCE-008.
+//!
+//! The node should reject the following messages post-handshake:
+//!
+//!  Version                 - Duplicate
+//!  Verack                  - Duplicate
+//!  Inv(mixed types)        - Invalid
+//!  Inv(multiple blocks)    - Invalid
+//!  Bloom filter add        - Obsolete
+//!  Bloom filter load       - Obsolete
+//!  Bloom filter clear      - Obsolete
+
 use std::{io, time::Duration};
 
 use crate::{
