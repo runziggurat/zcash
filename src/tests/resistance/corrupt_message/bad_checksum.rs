@@ -53,7 +53,7 @@ async fn instead_of_version_when_node_receives_connection() {
             .is_ok());
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -96,7 +96,7 @@ async fn instead_of_verack_when_node_receives_connection() {
             .is_ok());
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -158,7 +158,7 @@ async fn instead_of_version_when_node_initiates_connection() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -223,7 +223,7 @@ async fn instead_of_verack_when_node_initiates_connection() {
         handle.await.unwrap().unwrap();
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -266,5 +266,5 @@ async fn post_handshake() {
             .is_ok());
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
