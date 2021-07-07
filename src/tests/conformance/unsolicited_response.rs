@@ -14,7 +14,8 @@ use crate::{
             Addr, Inv, Nonce,
         },
     },
-    tests::conformance::simple_handshaken_node,
+    setup::node::{Action, Node},
+    tools::synthetic_node::SyntheticNode,
 };
 
 #[tokio::test]
@@ -72,7 +73,17 @@ async fn tx() {
 }
 
 async fn run_test_case(message: Message) -> io::Result<()> {
-    let (mut node, mut synthetic_node) = simple_handshaken_node().await?;
+    // Setup a fully handshaken connection between a node and synthetic node.
+    let mut node = Node::new()?;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await?;
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await?;
+    synthetic_node.connect(node.addr()).await?;
 
     synthetic_node
         .send_direct_message(node.addr(), message)
