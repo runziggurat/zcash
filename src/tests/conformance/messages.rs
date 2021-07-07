@@ -5,8 +5,7 @@ use crate::{
             addr::NetworkAddr,
             block::{Block, Headers, LocatorHashes},
             inv::{InvHash, ObjectKind},
-            reject::CCode,
-            Addr, FilterAdd, FilterLoad, Hash, Inv, Nonce, Version,
+            Addr, Hash, Inv, Nonce,
         },
     },
     setup::node::{Action, Node},
@@ -21,103 +20,6 @@ use crate::{
 use assert_matches::assert_matches;
 
 use std::net::SocketAddr;
-
-#[tokio::test]
-async fn reject_invalid_messages() {
-    // ZG-CONFORMANCE-008
-    //
-    // The node rejects handshake and bloom filter messages post-handshake.
-    //
-    // The following messages should be rejected post-handshake:
-    //
-    //     Version     (Duplicate)
-    //     Verack      (Duplicate)
-    //     Inv         (Invalid -- with mixed types)
-    //     FilterLoad  (Obsolete)
-    //     FilterAdd   (Obsolete)
-    //     FilterClear (Obsolete)
-    //
-    //     Inv (tbd)   (Invalid -- with multiple advertised blocks, for zebra this is not an error)
-    //
-    // Test procedure (for each message):
-    //
-    //      1. Connect and complete the handshake
-    //      2. Send the test message
-    //      3. Filter out all node queries
-    //      4. Receive `Reject(kind)`
-    //      5. Assert that `kind` is appropriate for the test message
-    //
-    // zebra: doesn't send reject and terminates the connection.
-    // zcashd:
-    //
-    //     Version:            passes
-    //     Verack:             ignored
-    //     Mixed Inv:          ignored
-    //     Multi-Block Inv:    ignored
-    //     FilterLoad:         Reject(Malformed) - needs investigation
-    //     FilterAdd:          Reject(Malformed) - needs investigation
-    //     FilterClear:        ignored
-    //     FilterClear:        ignored
-
-    // Spin up a node instance (so we have acces to its addr).
-    let mut node = Node::new().unwrap();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await
-        .unwrap();
-
-    // Generate a mixed Inventory hash set.
-    let genesis_block = Block::testnet_genesis();
-    let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
-    let multi_block_inv = vec![
-        genesis_block.inv_hash(),
-        genesis_block.inv_hash(),
-        genesis_block.inv_hash(),
-    ];
-
-    // List of test messages and their expected Reject kind.
-    let cases = vec![
-        (
-            Message::Version(Version::new(node.addr(), "0.0.0.0:0".parse().unwrap())),
-            CCode::Duplicate,
-        ),
-        (Message::Verack, CCode::Duplicate),
-        (Message::Inv(Inv::new(mixed_inv)), CCode::Invalid),
-        (Message::Inv(Inv::new(multi_block_inv)), CCode::Invalid),
-        (Message::FilterLoad(FilterLoad::default()), CCode::Obsolete),
-        (Message::FilterAdd(FilterAdd::default()), CCode::Obsolete),
-        (Message::FilterClear, CCode::Obsolete),
-    ];
-
-    // Configuration for all the synthetic nodes.
-    let node_builder = SyntheticNode::builder()
-        .with_full_handshake()
-        .with_all_auto_reply();
-
-    for (test_message, expected_ccode) in cases {
-        // Start a synthetic node.
-        let mut synthetic_node = node_builder.build().await.unwrap();
-
-        // Connect and initiate handshake.
-        synthetic_node.connect(node.addr()).await.unwrap();
-
-        // Send the test message.
-        synthetic_node
-            .send_direct_message(node.addr(), test_message.clone())
-            .await
-            .unwrap();
-
-        // Expect a Reject(Invalid) message.
-        let (_, message) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-        assert_matches!(message, Message::Reject(reject) if reject.ccode == expected_ccode);
-
-        // Gracefully shut down the synthetic node.
-        synthetic_node.shut_down();
-    }
-
-    // Gracefully shut down the node.
-    node.stop().unwrap();
-}
 
 #[tokio::test]
 async fn ignores_unsolicited_responses() {
