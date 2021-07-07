@@ -103,7 +103,7 @@ The test node's `stdout` and `stderr` logs can be piped to `stdout` by inserting
 ```Rust
 let mut node = Node::new().unwrap();
 node.initial_action(Action::WaitForConnection)
-    .log_to_stdout(true)    // pipe's the node's `stdout` and `stderr` to `stdout`
+    .log_to_stdout(true)    // pipes the node's `stdout` and `stderr` to `stdout`
     .start()
     .await
     .unwrap();
