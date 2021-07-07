@@ -42,7 +42,7 @@ async fn handshake_responder_side() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -69,7 +69,7 @@ async fn handshake_initiator_side() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -152,7 +152,7 @@ async fn ignore_non_version_before_handshake() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -241,7 +241,7 @@ async fn ignore_non_version_replies_to_version() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -345,7 +345,7 @@ async fn ignore_non_verack_replies_to_verack() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -384,7 +384,7 @@ async fn reject_version_reusing_nonce() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -437,5 +437,5 @@ async fn reject_obsolete_versions() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
