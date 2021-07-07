@@ -17,8 +17,7 @@ use crate::{
         message::Message,
         payload::{block::Block, reject::CCode, FilterAdd, FilterLoad, Inv, Nonce, Version},
     },
-    setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tests::conformance::simple_handshaken_node,
 };
 
 #[tokio::test]
@@ -99,16 +98,7 @@ async fn bloom_filter_clear() {
 async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()> {
     const RECV_TIMEOUT: Duration = Duration::from_secs(1);
     // Setup a fully handshaken connection between a node and synthetic node.
-    let mut node = Node::new()?;
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await?;
-    let mut synthetic_node = SyntheticNode::builder()
-        .with_full_handshake()
-        .with_all_auto_reply()
-        .build()
-        .await?;
-    synthetic_node.connect(node.addr()).await?;
+    let (mut node, mut synthetic_node) = simple_handshaken_node().await?;
 
     // Send the message to be rejected.
     synthetic_node
@@ -126,7 +116,7 @@ async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()>
         Err(_timeout) if !synthetic_node.is_connected(node.addr()) => {
             return Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
-                "Connection Terminated",
+                "Connection terminated",
             ))
         }
         Err(_timeout) => return Err(io::Error::new(io::ErrorKind::TimedOut, "Read timed out")),
