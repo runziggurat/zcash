@@ -176,7 +176,7 @@ async fn throughput() {
         ));
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 
     // Display various percentiles
     println!("{}", table);
