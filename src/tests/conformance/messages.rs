@@ -3,7 +3,7 @@ use crate::{
         message::Message,
         payload::{
             addr::NetworkAddr,
-            block::{Block, Headers, LocatorHashes},
+            block::{Block, LocatorHashes},
             inv::{InvHash, ObjectKind},
             Addr, Hash, Inv, Nonce,
         },
@@ -20,67 +20,6 @@ use crate::{
 use assert_matches::assert_matches;
 
 use std::net::SocketAddr;
-
-#[tokio::test]
-async fn ignores_unsolicited_responses() {
-    // ZG-CONFORMANCE-009
-    //
-    // The node ignore certain unsolicited messages but doesn’t disconnect.
-    //
-    // Messages to be tested: Reject, NotFound, Pong, Tx, Block, Header, Addr.
-    //
-    // Test procedure:
-    //      Complete handshake, and then for each test message:
-    //
-    //      1. Send the message
-    //      2. Send a ping request
-    //      3. Receive a pong response
-
-    // Spin up a node instance.
-    let mut node = Node::new().unwrap();
-    node.initial_action(Action::WaitForConnection)
-        .start()
-        .await
-        .unwrap();
-
-    // Create a synthetic node.
-    let mut synthetic_node = SyntheticNode::builder()
-        .with_full_handshake()
-        .with_all_auto_reply()
-        .build()
-        .await
-        .unwrap();
-
-    // Connect and initiate the handshake.
-    synthetic_node.connect(node.addr()).await.unwrap();
-
-    let test_messages = vec![
-        Message::Pong(Nonce::default()),
-        Message::Headers(Headers::empty()),
-        Message::Addr(Addr::empty()),
-        Message::Block(Box::new(Block::testnet_genesis())),
-        Message::NotFound(Inv::new(vec![Block::testnet_1().txs[0].inv_hash()])),
-        Message::Tx(Block::testnet_2().txs[0].clone()),
-    ];
-
-    for message in test_messages {
-        // Send the unsolicited message.
-        synthetic_node
-            .send_direct_message(node.addr(), message)
-            .await
-            .unwrap();
-
-        // A response to ping would indicate the previous message was ignored.
-        synthetic_node
-            .ping_pong_timeout(node.addr(), TIMEOUT)
-            .await
-            .unwrap();
-    }
-
-    // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
-    node.stop().unwrap();
-}
 
 #[tokio::test]
 async fn basic_query_response_seeded() {

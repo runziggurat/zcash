@@ -1,14 +1,15 @@
-///! Contains test cases which cover ZG-CONFORMANCE-008.
-///!
-///! The node should reject the following messages post-handshake:
-///!
-///!  Version                 - Duplicate
-///!  Verack                  - Duplicate
-///!  Inv(mixed types)        - Invalid
-///!  Inv(multiple blocks)    - Invalid
-///!  Bloom filter add        - Obsolete
-///!  Bloom filter load       - Obsolete
-///!  Bloom filter clear      - Obsolete
+//! Contains test cases which cover ZG-CONFORMANCE-008.
+//!
+//! The node should reject the following messages post-handshake:
+//!
+//!  Version                 - Duplicate
+//!  Verack                  - Duplicate
+//!  Inv(mixed types)        - Invalid
+//!  Inv(multiple blocks)    - Invalid
+//!  Bloom filter add        - Obsolete
+//!  Bloom filter load       - Obsolete
+//!  Bloom filter clear      - Obsolete
+
 use std::{io, time::Duration};
 
 use crate::{
@@ -125,7 +126,7 @@ async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()>
         Err(_timeout) if !synthetic_node.is_connected(node.addr()) => {
             return Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
-                "Connection Terminated",
+                "Connection terminated",
             ))
         }
         Err(_timeout) => return Err(io::Error::new(io::ErrorKind::TimedOut, "Read timed out")),
