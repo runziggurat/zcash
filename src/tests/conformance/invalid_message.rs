@@ -1,0 +1,162 @@
+///! Contains test cases which cover ZG-CONFORMANCE-008.
+///!
+///! The node should reject the following messages post-handshake:
+///!
+///!  Version                 - Duplicate
+///!  Verack                  - Duplicate
+///!  Inv(mixed types)        - Invalid
+///!  Inv(multiple blocks)    - Invalid
+///!  Bloom filter add        - Obsolete
+///!  Bloom filter load       - Obsolete
+///!  Bloom filter clear      - Obsolete
+use std::{io, time::Duration};
+
+use crate::{
+    protocol::{
+        message::Message,
+        payload::{block::Block, reject::CCode, FilterAdd, FilterLoad, Inv, Nonce, Version},
+    },
+    setup::node::{Action, Node},
+    tools::synthetic_node::SyntheticNode,
+};
+
+#[tokio::test]
+async fn version_post_handshake() {
+    // zcashd: pass
+    // zebra:  fail (connection terminated)
+    let version = Message::Version(Version::new(
+        "0.0.0.0:0".parse().unwrap(),
+        "0.0.0.0:0".parse().unwrap(),
+    ));
+
+    run_test_case(version, CCode::Duplicate).await.unwrap();
+}
+
+#[tokio::test]
+async fn verack_post_handshake() {
+    // zcashd: fail (ignored)
+    // zebra:  fail (connection terminated)
+    run_test_case(Message::Verack, CCode::Duplicate)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn mixed_inventory() {
+    // zcashd: fail (ignored)
+    // zebra:  fail (connection terminated)
+    let genesis_block = Block::testnet_genesis();
+    let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
+
+    run_test_case(Message::Inv(Inv::new(mixed_inv)), CCode::Invalid)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn multi_block_inventory() {
+    // zcashd: fail (ignored)
+    // zebra:  fail (connection terminated)
+    let multi_block_inv = vec![
+        Block::testnet_genesis().inv_hash(),
+        Block::testnet_1().inv_hash(),
+        Block::testnet_2().inv_hash(),
+    ];
+
+    run_test_case(Message::Inv(Inv::new(multi_block_inv)), CCode::Invalid)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn bloom_filter_add() {
+    // zcashd: fail (ccode: Malformed)
+    // zebra:  fail (connection terminated)
+    run_test_case(Message::FilterAdd(FilterAdd::default()), CCode::Obsolete)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn bloom_filter_load() {
+    // zcashd: fail (ccode: Malformed)
+    // zebra:  fail (connection terminated)
+    run_test_case(Message::FilterLoad(FilterLoad::default()), CCode::Obsolete)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn bloom_filter_clear() {
+    // zcashd: fail (ignored)
+    // zebra:  fail (connection terminated)
+    run_test_case(Message::FilterClear, CCode::Obsolete)
+        .await
+        .unwrap();
+}
+
+async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()> {
+    const RECV_TIMEOUT: Duration = Duration::from_secs(1);
+    // Setup a fully handshaken connection between a node and synthetic node.
+    let mut node = Node::new()?;
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await?;
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_all_auto_reply()
+        .build()
+        .await?;
+    synthetic_node.connect(node.addr()).await?;
+
+    // Send the message to be rejected.
+    synthetic_node
+        .send_direct_message(node.addr(), message)
+        .await?;
+
+    // Send a ping - if we receive a matching pong then we know the node ignored our message.
+    synthetic_node
+        .send_direct_message(node.addr(), Message::Ping(Nonce::default()))
+        .await?;
+
+    // Receive reply, check for connection termination
+    let reply = match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {
+        Ok((_, reply)) => reply,
+        Err(_timeout) if !synthetic_node.is_connected(node.addr()) => {
+            return Err(io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                "Connection Terminated",
+            ))
+        }
+        Err(_timeout) => return Err(io::Error::new(io::ErrorKind::TimedOut, "Read timed out")),
+    };
+
+    // Reply should be Reject with the expected CCode
+    match reply {
+        Message::Reject(reject) if reject.ccode == expected_code => {}
+        Message::Pong(_) => {
+            return Err(io::Error::new(io::ErrorKind::Other, "Message was ignored"))
+        }
+        Message::Reject(reject) => {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Incorrect rejection ccode: {:?} instead of {:?}",
+                    reject.ccode, expected_code
+                ),
+            ))
+        }
+        unexpected => {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Unexpected message received: {:?}", unexpected),
+            ))
+        }
+    }
+
+    // clean-up
+    synthetic_node.shut_down();
+    node.stop()?;
+
+    Ok(())
+}
