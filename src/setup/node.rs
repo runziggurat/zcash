@@ -206,7 +206,12 @@ impl Node {
                         source
                     }
 
-                    (_, msg) => panic!("Expected GetHeaders but got: {:?}", msg),
+                    (_, msg) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("Expected GetHeaders but got: {:?}", msg),
+                        ));
+                    }
                 };
 
                 // respond to GetData(inv) for the initial blocks
@@ -225,7 +230,12 @@ impl Node {
                         }
                     }
 
-                    (_, msg) => panic!("Expected GetData but got: {:?}", msg),
+                    (_, msg) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("Expected GetData but got: {:?}", msg),
+                        ))
+                    }
                 }
 
                 // Check that the node has received and processed all previous messages.
@@ -261,7 +271,10 @@ impl Node {
             self.cleanup()?;
 
             if let Some(crash_msg) = crashed {
-                panic!("Node exited early, {}", crash_msg);
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Node exited early, {}", crash_msg),
+                ));
             }
         }
 
