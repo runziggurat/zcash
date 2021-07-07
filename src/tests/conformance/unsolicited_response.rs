@@ -1,8 +1,9 @@
-///! Contains test cases which cover ZG-CONFORMANCE-009.
-///!
-///! The node should ignore the following unsolicited messages:
-///!
-///!  Reject, NotFound, Pong, Tx, Block, Header, Addr
+//! Contains test cases which cover ZG-CONFORMANCE-009.
+//!
+//! The node should ignore the following unsolicited messages:
+//!
+//!  Reject, NotFound, Pong, Tx, Block, Header, Addr
+
 use std::{io, time::Duration};
 
 use crate::{
@@ -75,16 +76,14 @@ async fn run_test_case(message: Message) -> io::Result<()> {
 
     synthetic_node
         .send_direct_message(node.addr(), message)
-        .await
-        .unwrap();
+        .await?;
 
     // A response to ping would indicate the previous message was ignored.
     let nonce = Nonce::default();
     let expected_pong = Message::Pong(nonce);
     synthetic_node
         .send_direct_message(node.addr(), Message::Ping(nonce))
-        .await
-        .unwrap();
+        .await?;
 
     match synthetic_node
         .recv_message_timeout(Duration::from_secs(1))
