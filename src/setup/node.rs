@@ -1,5 +1,7 @@
 //! High level APIs and types for node setup and teardown.
 
+use tracing::error;
+
 use crate::{
     protocol::payload::{
         block::{Block, Headers},
@@ -13,7 +15,7 @@ use crate::{
     wait_until,
 };
 
-use tokio::process::{Child, Command};
+use std::process::{Child, Command};
 
 use std::{fs, io, net::SocketAddr, process::Stdio, time::Duration};
 
@@ -149,7 +151,6 @@ impl Node {
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr)
-            .kill_on_drop(true)
             .spawn()
             .expect("node failed to start");
 
@@ -242,13 +243,13 @@ impl Node {
     ///
     /// The stop command will only be run if provided in the `config.toml` file as it may not be
     /// necessary to shutdown a node (killing the process is sometimes sufficient).
-    pub async fn stop(&mut self) -> io::Result<()> {
+    pub fn stop(&mut self) -> io::Result<()> {
         if let Some(mut child) = self.process.take() {
             // Stop node process, and check for crash
             // (needs to happen before cleanup)
             let crashed = match child.try_wait()? {
                 None => {
-                    child.kill().await?;
+                    child.kill()?;
                     None
                 }
                 Some(exit_code) if exit_code.success() => {
@@ -307,5 +308,14 @@ impl Node {
         }
 
         Ok(())
+    }
+}
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        // We should not panic in Drop
+        if let Err(err) = self.stop() {
+            error!("Failed to stop node: {}", err);
+        }
     }
 }

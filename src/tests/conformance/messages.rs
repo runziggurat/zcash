@@ -116,7 +116,7 @@ async fn reject_invalid_messages() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -177,7 +177,7 @@ async fn ignores_unsolicited_responses() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -322,7 +322,7 @@ async fn basic_query_response_seeded() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -386,7 +386,7 @@ async fn basic_query_response_unseeded() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -490,7 +490,7 @@ async fn disconnects_for_trivial_issues() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -573,7 +573,7 @@ async fn eagerly_crawls_network_for_peers() {
     }
 
     // Gracefully shut down the node.
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -648,7 +648,7 @@ async fn correctly_lists_peers() {
         synthetic_node.shut_down();
     }
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -793,7 +793,7 @@ async fn get_blocks() {
     assert_eq!(inv, expected);
 
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -919,7 +919,7 @@ async fn correctly_lists_blocks() {
     let headers = assert_matches!(headers, Message::Headers(headers) => headers);
     assert_eq!(headers.headers, expected[2..], "test for forked Headers");
 
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
 
 #[tokio::test]
@@ -1034,5 +1034,5 @@ async fn get_data_blocks() {
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
-    node.stop().await.unwrap();
+    node.stop().unwrap();
 }
