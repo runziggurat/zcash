@@ -26,6 +26,64 @@ use std::{
     time::Duration,
 };
 
+/// An [`Error`](std::error::Error) type for [`SyntheticNode::ping_pong_timeout()`]
+pub enum PingPongError {
+    /// The connection was aborted during the [Ping](Message::Ping)-[Pong](Message::Pong) exchange.
+    ConnectionAborted,
+    /// An [io::Error] occurred during the [Ping](Message::Ping)-[Pong](Message::Pong) exchange.
+    IoErr(io::Error),
+    /// Timeout was exceeded before a [Pong](Message::Pong) was received.
+    Timeout(Duration),
+    /// A message was received which was not [Pong](Message::Pong), or the [Pong's nonce](Nonce) did not match.
+    Unexpected(Box<Message>),
+}
+
+impl std::fmt::Debug for PingPongError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            PingPongError::ConnectionAborted => "Connection aborted".to_string(),
+            PingPongError::IoErr(err) => format!("{:?}", err),
+            PingPongError::Timeout(duration) => {
+                format!("Timeout after {0:.3}s", duration.as_secs_f32())
+            }
+            PingPongError::Unexpected(msg) => match &**msg {
+                Message::Pong(_) => "Pong nonce did not match".to_string(),
+                non_pong => format!("Expected a matching Pong, but got {:?}", non_pong),
+            },
+        };
+
+        f.write_str(&str)
+    }
+}
+
+impl std::fmt::Display for PingPongError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // FIXME: Consider specialising the longer debug strings, e.g.
+        //        IoErr and Unexpected.
+        f.write_str(&format!("{:?}", self))
+    }
+}
+
+impl std::error::Error for PingPongError {}
+
+impl From<PingPongError> for io::Error {
+    fn from(original: PingPongError) -> Self {
+        use PingPongError::*;
+        match original {
+            ConnectionAborted => Error::new(ErrorKind::ConnectionAborted, "Connection aborted"),
+            IoErr(err) => err,
+            Timeout(duration) => Error::new(
+                ErrorKind::TimedOut,
+                format!("Timeout after {0:.3}s", duration.as_secs_f64()),
+            ),
+            Unexpected(msg) => Error::new(
+                ErrorKind::Other,
+                format!("Expected Pong, received {:?}", msg),
+            ),
+        }
+    }
+}
+
 /// Enables tracing for all [`SyntheticNode`] instances (usually scoped by test).
 pub fn enable_tracing() {
     use tracing_subscriber::{fmt, EnvFilter};
@@ -241,10 +299,17 @@ impl SyntheticNode {
 
     /// Sends [`Ping`], and expects [`Pong`] with a matching [`Nonce`] in reply.
     ///
-    /// Uses polling to check that connection is still alive. Errors if:
+    /// Uses polling to check that connection is still alive. [Errors](PingPongError) if:
     /// - a non-[`Pong`] message is received
+    /// - a [`Pong`] with a non-matching [`Nonce`] is receives
     /// - the timeout expires
     /// - the connection breaks
+    /// - an [io::Error] occurs
+    ///
+    /// Is useful for checking a node's response to a prior query.
+    /// - if it was ignored, this call will succeed with `Ok(())`
+    /// - if there was a reply, it will be contained in [`Unexpected`](PingPongError::Unexpected)
+    /// - and [`ConnectionAborted`](PingPongError::ConnectionAborted) if the connection was terminated -
     ///
     /// [`Ping`]: enum@crate::protocol::message::Message::Ping
     /// [`Pong`]: enum@crate::protocol::message::Message::Pong
@@ -253,36 +318,40 @@ impl SyntheticNode {
         &mut self,
         target: SocketAddr,
         duration: Duration,
-    ) -> io::Result<()> {
+    ) -> Result<(), PingPongError> {
         const SLEEP: Duration = Duration::from_millis(10);
 
         let now = std::time::Instant::now();
         let ping_nonce = Nonce::default();
-        self.send_direct_message(target, Message::Ping(ping_nonce))
-            .await?;
+        if let Err(err) = self
+            .send_direct_message(target, Message::Ping(ping_nonce))
+            .await
+        {
+            if !self.is_connected(target) {
+                return Err(PingPongError::ConnectionAborted);
+            } else {
+                return Err(PingPongError::IoErr(err));
+            }
+        }
 
         while now.elapsed() < duration {
-            // check that connection is still alive
-            if !self.is_connected(target) {
-                return Err(ErrorKind::ConnectionAborted.into());
-            }
-
             match self.recv_message_timeout(SLEEP).await {
-                Err(_timeout) => continue,
-                Ok((_, Message::Pong(nonce))) if nonce == ping_nonce => return Ok(()),
+                Err(_timeout) => {
+                    // Check that connection is still alive, so that we can exit sooner
+                    if !self.is_connected(target) {
+                        return Err(PingPongError::ConnectionAborted);
+                    }
+                }
+                Ok((_, Message::Pong(nonce))) if nonce == ping_nonce => {
+                    return Ok(());
+                }
                 Ok((_, message)) => {
-                    return Err(Error::new(
-                        ErrorKind::InvalidData,
-                        format!("Expect Pong({:?}), but got {:?}", ping_nonce, message),
-                    ));
+                    return Err(PingPongError::Unexpected(message.into()));
                 }
             }
         }
 
-        Err(Error::new(
-            ErrorKind::TimedOut,
-            format!("No Pong received after {0:.3}s", duration.as_secs_f64()),
-        ))
+        Err(PingPongError::Timeout(duration))
     }
 
     /// Waits for the target to disconnect by sending a [`Ping`] request. Errors if
@@ -296,8 +365,8 @@ impl SyntheticNode {
     ) -> io::Result<()> {
         match self.ping_pong_timeout(target, duration).await {
             Ok(_) => Err(Error::new(ErrorKind::Other, "connection still active")),
-            Err(err) if err.kind() == ErrorKind::ConnectionAborted => Ok(()),
-            Err(err) => Err(err),
+            Err(PingPongError::ConnectionAborted) => Ok(()),
+            Err(err) => Err(err.into()),
         }
     }
 
