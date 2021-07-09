@@ -90,37 +90,14 @@ async fn run_test_case(message: Message) -> io::Result<()> {
         .await?;
 
     // A response to ping would indicate the previous message was ignored.
-    let nonce = Nonce::default();
-    let expected_pong = Message::Pong(nonce);
-    synthetic_node
-        .send_direct_message(node.addr(), Message::Ping(nonce))
-        .await?;
-
-    match synthetic_node
-        .recv_message_timeout(Duration::from_secs(1))
-        .await
-    {
-        Ok((_, reply)) if reply == expected_pong => {}
-        Ok((_, reply)) => {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Expected {:?}, but got {:?}", expected_pong, reply),
-            ));
-        }
-        Err(_timeout) if !synthetic_node.is_connected(node.addr()) => {
-            return Err(io::Error::new(
-                io::ErrorKind::ConnectionAborted,
-                "Connection terminated",
-            ));
-        }
-        Err(_timeout) => {
-            return Err(io::Error::new(io::ErrorKind::TimedOut, "Read timed out"));
-        }
-    }
+    let result = synthetic_node
+        .ping_pong_timeout(node.addr(), Duration::from_secs(1))
+        .await;
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down();
     node.stop()?;
 
+    result?;
     Ok(())
 }

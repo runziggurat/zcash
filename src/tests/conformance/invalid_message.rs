@@ -15,10 +15,10 @@ use std::{io, time::Duration};
 use crate::{
     protocol::{
         message::Message,
-        payload::{block::Block, reject::CCode, FilterAdd, FilterLoad, Inv, Nonce, Version},
+        payload::{block::Block, reject::CCode, FilterAdd, FilterLoad, Inv, Version},
     },
     setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tools::synthetic_node::{PingPongError, SyntheticNode},
 };
 
 #[tokio::test]
@@ -115,49 +115,36 @@ async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()>
         .send_direct_message(node.addr(), message)
         .await?;
 
-    // Send a ping - if we receive a matching pong then we know the node ignored our message.
-    synthetic_node
-        .send_direct_message(node.addr(), Message::Ping(Nonce::default()))
-        .await?;
-
-    // Receive reply, check for connection termination
-    let reply = match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {
-        Ok((_, reply)) => reply,
-        Err(_timeout) if !synthetic_node.is_connected(node.addr()) => {
-            return Err(io::Error::new(
-                io::ErrorKind::ConnectionAborted,
-                "Connection terminated",
-            ))
-        }
-        Err(_timeout) => return Err(io::Error::new(io::ErrorKind::TimedOut, "Read timed out")),
+    // Use Ping-Pong to check the node's response to our query. We expect a Reject message.
+    let result = match synthetic_node
+        .ping_pong_timeout(node.addr(), RECV_TIMEOUT)
+        .await
+    {
+        Ok(_) => Err(io::Error::new(io::ErrorKind::Other, "Message was ignored")),
+        Err(PingPongError::Unexpected(msg)) => match *msg {
+            Message::Reject(reject) if reject.ccode == expected_code => Ok(()),
+            Message::Reject(reject) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!(
+                        "Incorrect rejection ccode: {:?} instead of {:?}",
+                        reject.ccode, expected_code
+                    ),
+                ))
+            }
+            unexpected => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Unexpected message received: {:?}", unexpected),
+                ))
+            }
+        },
+        Err(err) => Err(err.into()),
     };
-
-    // Reply should be Reject with the expected CCode
-    match reply {
-        Message::Reject(reject) if reject.ccode == expected_code => {}
-        Message::Pong(_) => {
-            return Err(io::Error::new(io::ErrorKind::Other, "Message was ignored"))
-        }
-        Message::Reject(reject) => {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "Incorrect rejection ccode: {:?} instead of {:?}",
-                    reject.ccode, expected_code
-                ),
-            ))
-        }
-        unexpected => {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Unexpected message received: {:?}", unexpected),
-            ))
-        }
-    }
 
     // clean-up
     synthetic_node.shut_down();
     node.stop()?;
 
-    Ok(())
+    result
 }
