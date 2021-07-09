@@ -13,12 +13,19 @@
 //! [inv_hash]: crate::protocol::payload::inv::InvHash
 //! [net_addr]: crate::protocol::payload::addr::NetworkAddr
 
-use std::{io, time::Duration};
+use std::{
+    io,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
 
 use crate::{
     protocol::{
-        message::Message,
-        payload::{block::Block, Inv, Nonce},
+        message::{
+            constants::{ADDR_COMMAND, HEADER_LEN},
+            Message, MessageHeader,
+        },
+        payload::{addr::NetworkAddr, block::Block, codec::Codec, Inv, Nonce},
     },
     setup::node::{Action, Node},
     tools::{
@@ -91,7 +98,7 @@ async fn get_data_with_mixed_types() {
     let genesis_block = Block::testnet_genesis();
     let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
     let message = Message::GetData(Inv::new(mixed_inv));
-    run_test_case(message).await.unwrap();
+    run_test_case_message(message).await.unwrap();
 }
 
 #[tokio::test]
@@ -104,10 +111,77 @@ async fn inv_with_mixed_types() {
     let block_1 = Block::testnet_1();
     let mixed_inv = vec![block_1.inv_hash(), block_1.txs[0].inv_hash()];
     let message = Message::Inv(Inv::new(mixed_inv));
-    run_test_case(message).await.unwrap();
+    run_test_case_message(message).await.unwrap();
 }
 
-async fn run_test_case(message: Message) -> io::Result<()> {
+#[tokio::test]
+async fn addr_without_timestamp() {
+    // zcashd: pass
+    // zebra:  fail (replies with Reject(Malformed))
+
+    // Encode a custom type which mimics Message::Addr but without the timestamp.
+    let bytes = AddrWithoutTimestamp::new().encode().unwrap();
+
+    run_test_case_bytes(bytes).await.unwrap();
+}
+
+/// Mimics the encoding of [`NetworkAddr`] but excludes the timestamp field.
+struct NetAddrWithoutTimestamp(NetworkAddr);
+impl NetAddrWithoutTimestamp {
+    fn new() -> Self {
+        Self(NetworkAddr::new(SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            0,
+        )))
+    }
+}
+impl Codec for NetAddrWithoutTimestamp {
+    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.0.encode_without_timestamp(buffer)
+    }
+
+    fn decode(_bytes: &mut io::Cursor<&[u8]>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        unimplemented!("This is unused");
+    }
+}
+
+/// Mimics the encoding of a broken [`Message::Addr`].
+/// Contains a single [`NetAddrWithoutTimestamp`].
+///
+/// This is used by the [`addr_without_timestamp()`] test. [`Message::Addr`]
+/// cannot be used for this, as it does not support encoding without a timestamp (as
+/// this is obsolete behaviour).
+struct AddrWithoutTimestamp(Vec<NetAddrWithoutTimestamp>);
+impl AddrWithoutTimestamp {
+    fn new() -> Self {
+        Self(vec![NetAddrWithoutTimestamp::new()])
+    }
+
+    fn encode(&self) -> io::Result<Vec<u8>> {
+        let mut payload = Vec::new();
+        self.0.encode(&mut payload)?;
+
+        let header = MessageHeader::new(ADDR_COMMAND, &payload);
+
+        // Encode the header and append the message to it.
+        let mut buffer = Vec::with_capacity(HEADER_LEN + header.body_length as usize);
+        header.encode(&mut buffer)?;
+        buffer.append(&mut payload);
+
+        Ok(buffer)
+    }
+}
+
+async fn run_test_case_message(message: Message) -> io::Result<()> {
+    let mut buffer = Vec::new();
+    message.encode(&mut buffer)?;
+    run_test_case_bytes(buffer).await
+}
+
+async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
     // Setup a fully handshaken connection between a node and synthetic node.
     let mut node = Node::new()?;
     node.initial_action(Action::WaitForConnection)
@@ -120,9 +194,7 @@ async fn run_test_case(message: Message) -> io::Result<()> {
         .await?;
     synthetic_node.connect(node.addr()).await?;
 
-    synthetic_node
-        .send_direct_message(node.addr(), message)
-        .await?;
+    synthetic_node.send_direct_bytes(node.addr(), bytes).await?;
 
     // Use Ping-Pong to check node's response.
     // We expect a disconnect.
