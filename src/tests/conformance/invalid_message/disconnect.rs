@@ -37,6 +37,83 @@ use crate::{
 const DC_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[tokio::test]
+#[ignore = "ZCashd ping timeout is 20min"]
+async fn ping_timeout() {
+    // Node timeout is 20 minutes (we add a little bit of padding)
+    const NODE_PING_TIMEOUT: Duration = Duration::from_secs(21 * 60);
+    const PING_WAIT: Duration = Duration::from_secs(1);
+
+    let mut node = Node::new().unwrap();
+    node.initial_action(Action::WaitForConnection)
+        .start()
+        .await
+        .unwrap();
+    // Create SyntheticNode which lets through Ping's
+    let mut synthetic_node = SyntheticNode::builder()
+        .with_full_handshake()
+        .with_message_filter(
+            MessageFilter::with_all_auto_reply().with_ping_filter(Filter::Disabled),
+        )
+        .build()
+        .await
+        .unwrap();
+
+    synthetic_node.connect(node.addr()).await.unwrap();
+
+    // Wait for, and ignore first Ping request.
+    match synthetic_node.recv_message_timeout(PING_WAIT).await {
+        Ok((_, Message::Ping(_))) => {}
+        Ok((_, message)) => {
+            panic!(
+                "Unexpected message while waiting for Ping: {}",
+                message.short_string()
+            );
+        }
+        Err(err) => {
+            panic!("Error waiting for Ping: {:?}", err);
+        }
+    }
+
+    // Auto-responsd to any messages (including new Pings), while we wait for the
+    // node to disconnect.
+    let now = std::time::Instant::now();
+    while now.elapsed() < NODE_PING_TIMEOUT {
+        const SLEEP: Duration = Duration::from_millis(100);
+        match synthetic_node.recv_message_timeout(SLEEP).await {
+            Ok((_, Message::Ping(nonce))) => {
+                // Reply to Ping, check for broken connection if this fails
+                // (this would be a valid reason to fail since we are expecting this).
+                if let Err(err) = synthetic_node
+                    .send_direct_message(node.addr(), Message::Pong(nonce))
+                    .await
+                {
+                    if synthetic_node.is_connected(node.addr()) {
+                        panic!("Error while waiting for disconnect: {}", err);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            Ok((_, message)) => panic!(
+                "Unexpected message while waiting for disconnect: {}",
+                message.short_string()
+            ),
+            Err(_timeout) => {
+                // check connection status
+                if !synthetic_node.is_connected(node.addr()) {
+                    break;
+                }
+            }
+        }
+    }
+
+    assert!(!synthetic_node.is_connected(node.addr()));
+
+    synthetic_node.shut_down();
+    node.stop().unwrap();
+}
+
+#[tokio::test]
 async fn pong_with_wrong_nonce() {
     // zcashd: fail (message ignored)
     // zebra:  fail (message ignored)
