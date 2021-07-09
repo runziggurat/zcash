@@ -192,6 +192,32 @@ impl Message {
 
         Ok(message)
     }
+
+    /// Returns a short string describing at least the message type.
+    /// Should be suitable for display purposes.
+    pub fn short_string(&self) -> String {
+        match self {
+            Message::Version(_) => "Version".into(),
+            Message::Verack => "Verack".into(),
+            Message::Ping(nonce) => format!("Ping({:?})", nonce),
+            Message::Pong(nonce) => format!("Pong({:?})", nonce),
+            Message::GetAddr => "GetAddr".into(),
+            Message::Addr(_) => "Addr".into(),
+            Message::GetHeaders(_) => "GetHeaders".into(),
+            Message::Headers(_) => "Headers".into(),
+            Message::GetBlocks(_) => "GetBlocks".into(),
+            Message::Block(_) => "Block".into(),
+            Message::GetData(_) => "GetData".into(),
+            Message::Inv(_) => "Inv".into(),
+            Message::NotFound(_) => "NotFound".into(),
+            Message::MemPool => "MemPool".into(),
+            Message::Tx(_) => "Tx".into(),
+            Message::Reject(reject) => format!("Reject({:?})", reject.ccode),
+            Message::FilterLoad(_) => "FilterLoad".into(),
+            Message::FilterAdd(_) => "FilterAdd".into(),
+            Message::FilterClear => "FilterClear".into(),
+        }
+    }
 }
 
 fn checksum(bytes: &[u8]) -> u32 {
