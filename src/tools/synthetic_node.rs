@@ -26,15 +26,15 @@ use std::{
     time::Duration,
 };
 
-/// An [`Error`](std::error::Error) type for [`SyntheticNode::ping_pong_timeout()`]
+/// An [`Error`](std::error::Error) type for [`SyntheticNode::ping_pong_timeout`]
 pub enum PingPongError {
-    /// The connection was aborted during the [Ping](Message::Ping)-[Pong](Message::Pong) exchange.
+    /// The connection was aborted during the [`Ping`](Message::Ping)-[`Pong`](Message::Pong) exchange.
     ConnectionAborted,
-    /// An [io::Error] occurred during the [Ping](Message::Ping)-[Pong](Message::Pong) exchange.
+    /// An [io::Error] occurred during the [`Ping`](Message::Ping)-[`Pong`](Message::Pong) exchange.
     IoErr(io::Error),
-    /// Timeout was exceeded before a [Pong](Message::Pong) was received.
+    /// Timeout was exceeded before a [`Pong`](Message::Pong) was received.
     Timeout(Duration),
-    /// A message was received which was not [Pong](Message::Pong), or the [Pong's nonce](Nonce) did not match.
+    /// A message was received which was not [`Pong`](Message::Pong), or the [Pong's nonce](Nonce) did not match.
     Unexpected(Box<Message>),
 }
 
@@ -299,12 +299,12 @@ impl SyntheticNode {
 
     /// Sends [`Ping`], and expects [`Pong`] with a matching [`Nonce`] in reply.
     ///
-    /// Uses polling to check that connection is still alive. [Errors](PingPongError) if:
+    /// Uses polling to check that connection is still alive. Returns a [`PingPongError`] if:
     /// - a non-[`Pong`] message is received
     /// - a [`Pong`] with a non-matching [`Nonce`] is receives
     /// - the timeout expires
     /// - the connection breaks
-    /// - an [io::Error] occurs
+    /// - an [`io::Error`] occurs
     ///
     /// Is useful for checking a node's response to a prior query.
     /// - if it was ignored, this call will succeed with `Ok(())`
