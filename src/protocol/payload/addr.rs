@@ -67,7 +67,7 @@ impl NetworkAddr {
         }
     }
 
-    pub(super) fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    pub fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
         buffer.write_all(&self.services.to_le_bytes())?;
 
         let (ip, port) = match self.addr {

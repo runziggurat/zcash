@@ -194,6 +194,32 @@ impl Message {
     }
 }
 
+impl std::fmt::Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::Version(_) => f.write_str("Version"),
+            Message::Verack => f.write_str("Verack"),
+            Message::Ping(nonce) => f.write_fmt(format_args!("Ping({:?})", nonce)),
+            Message::Pong(nonce) => f.write_fmt(format_args!("Pong({:?})", nonce)),
+            Message::GetAddr => f.write_str("GetAddr"),
+            Message::Addr(_) => f.write_str("Addr"),
+            Message::GetHeaders(_) => f.write_str("GetHeaders"),
+            Message::Headers(_) => f.write_str("Headers"),
+            Message::GetBlocks(_) => f.write_str("GetBlocks"),
+            Message::Block(_) => f.write_str("Block"),
+            Message::GetData(_) => f.write_str("GetData"),
+            Message::Inv(_) => f.write_str("Inv"),
+            Message::NotFound(_) => f.write_str("NotFound"),
+            Message::MemPool => f.write_str("MemPool"),
+            Message::Tx(_) => f.write_str("Tx"),
+            Message::Reject(reject) => f.write_fmt(format_args!("Reject({:?})", reject.ccode)),
+            Message::FilterLoad(_) => f.write_str("FilterLoad"),
+            Message::FilterAdd(_) => f.write_str("FilterAdd"),
+            Message::FilterClear => f.write_str("FilterClear"),
+        }
+    }
+}
+
 fn checksum(bytes: &[u8]) -> u32 {
     let sha2 = Sha256::digest(bytes);
     let sha2d = Sha256::digest(&sha2);
