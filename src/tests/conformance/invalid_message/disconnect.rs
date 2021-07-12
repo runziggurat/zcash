@@ -27,7 +27,7 @@ use crate::{
             constants::{ADDR_COMMAND, HEADER_LEN},
             Message, MessageHeader,
         },
-        payload::{addr::NetworkAddr, block::Block, codec::Codec, Addr, Inv, Nonce},
+        payload::{addr::NetworkAddr, block::Block, codec::Codec, Addr, Inv, Nonce, VarInt},
     },
     setup::node::{Action, Node},
     tools::{
@@ -118,19 +118,31 @@ async fn addr_without_timestamp() {
     // zcashd: fail (replies with Reject(Malformed))
     // zebra:  pass
 
-    // Create a Addr message and encode it. This encoding includes the timestamp.
-    let message = Message::Addr(Addr::new(vec![NetworkAddr::new(SocketAddr::new(
+    // The NetworkAddrs we wish to send.
+    let net_addrs = vec![NetworkAddr::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)),
         10,
-    ))]));
+    ))];
+
+    // Timestamp byte offset in the encoded payload.
+    //
+    // The timestamp is the second encoded field. It follows
+    // a VarInt field which indicates the number of NetWorkAddrs in
+    // the message.
+    let timestamp_offset = {
+        let varint = VarInt::new(net_addrs.len());
+        let mut varint_buffer = Vec::new();
+        varint.encode(&mut varint_buffer).unwrap();
+        varint_buffer.len()
+    };
+
+    // Create a Addr message and encode it. This encoding includes the timestamp.
+    let message = Message::Addr(Addr::new(net_addrs));
     let mut payload = Vec::new();
     message.encode(&mut payload).unwrap();
 
-    // Remove the timestamp bytes.
-    //
-    // First byte is a VarInt=1 containing the length of our NetworkAddr vector (1).
-    // The next four bytes are the timestamp encoded as a u32.
-    payload.drain(1..5);
+    // Remove the timestamp bytes. The length of the timestamp field is four 4 bytes (u32).p
+    payload.drain(timestamp_offset..timestamp_offset + 4);
 
     // Encode the full message (header + payload).
     //
