@@ -84,6 +84,12 @@ impl Codec for ProtocolVersion {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct VarInt(usize);
 
+impl VarInt {
+    pub fn new(value: usize) -> Self {
+        Self(value)
+    }
+}
+
 impl std::ops::Deref for VarInt {
     type Target = usize;
 
