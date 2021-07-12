@@ -143,10 +143,7 @@ async fn pong_with_wrong_nonce() {
             .await
             .unwrap(),
         Ok((_, message)) => {
-            panic!(
-                "Unexpected message while waiting for Ping: {}",
-                message.short_string()
-            );
+            panic!("Unexpected message while waiting for Ping: {}", message);
         }
         Err(err) => {
             panic!("Error waiting for Ping: {:?}", err);
@@ -284,7 +281,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
         Ok(_) => Err(io::Error::new(io::ErrorKind::Other, "Message was ignored")),
         Err(Unexpected(msg)) => Err(io::Error::new(
             io::ErrorKind::Other,
-            format!("Message was replied to with {}.", msg.short_string()),
+            format!("Message was replied to with {}.", msg),
         )),
         Err(Timeout(_)) => Err(io::Error::new(
             io::ErrorKind::TimedOut,
