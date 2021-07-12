@@ -27,7 +27,7 @@ use crate::{
             constants::{ADDR_COMMAND, HEADER_LEN},
             Message, MessageHeader,
         },
-        payload::{addr::NetworkAddr, block::Block, codec::Codec, Inv, Nonce},
+        payload::{addr::NetworkAddr, block::Block, codec::Codec, Addr, Inv, Nonce},
     },
     setup::node::{Action, Node},
     tools::{
@@ -115,63 +115,34 @@ async fn inv_with_mixed_types() {
 
 #[tokio::test]
 async fn addr_without_timestamp() {
-    // zcashd: pass
-    // zebra:  fail (replies with Reject(Malformed))
+    // zcashd: fail (replies with Reject(Malformed))
+    // zebra:  pass
 
-    // Encode a custom type which mimics Message::Addr but without the timestamp.
-    let bytes = AddrWithoutTimestamp::new().encode().unwrap();
+    // Create a Addr message and encode it. This encoding includes the timestamp.
+    let message = Message::Addr(Addr::new(vec![NetworkAddr::new(SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)),
+        10,
+    ))]));
+    let mut payload = Vec::new();
+    message.encode(&mut payload).unwrap();
 
-    run_test_case_bytes(bytes).await.unwrap();
-}
+    // Remove the timestamp bytes.
+    //
+    // First byte is a VarInt=1 containing the length of our NetworkAddr vector (1).
+    // The next four bytes are the timestamp encoded as a u32.
+    payload.drain(1..5);
 
-/// Mimics the encoding of [`NetworkAddr`] but excludes the timestamp field.
-struct NetAddrWithoutTimestamp(NetworkAddr);
-impl NetAddrWithoutTimestamp {
-    fn new() -> Self {
-        Self(NetworkAddr::new(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            0,
-        )))
-    }
-}
-impl Codec for NetAddrWithoutTimestamp {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        self.0.encode_without_timestamp(buffer)
-    }
+    // Encode the full message (header + payload).
+    //
+    // Note that we cannot use the header from `message.encode()` as it would be generated
+    // from the incorrect payload (pre-timestamp removal). Specifically the check-sum would
+    // be incorrect.
+    let header = MessageHeader::new(ADDR_COMMAND, &payload);
+    let mut buffer = Vec::with_capacity(HEADER_LEN + payload.len());
+    header.encode(&mut buffer).unwrap();
+    buffer.append(&mut payload);
 
-    fn decode(_bytes: &mut io::Cursor<&[u8]>) -> io::Result<Self>
-    where
-        Self: Sized,
-    {
-        unimplemented!("This is unused");
-    }
-}
-
-/// Mimics the encoding of a broken [`Message::Addr`].
-/// Contains a single [`NetAddrWithoutTimestamp`].
-///
-/// This is used by the [`addr_without_timestamp()`] test. [`Message::Addr`]
-/// cannot be used for this, as it does not support encoding without a timestamp (as
-/// this is obsolete behaviour).
-struct AddrWithoutTimestamp(Vec<NetAddrWithoutTimestamp>);
-impl AddrWithoutTimestamp {
-    fn new() -> Self {
-        Self(vec![NetAddrWithoutTimestamp::new()])
-    }
-
-    fn encode(&self) -> io::Result<Vec<u8>> {
-        let mut payload = Vec::new();
-        self.0.encode(&mut payload)?;
-
-        let header = MessageHeader::new(ADDR_COMMAND, &payload);
-
-        // Encode the header and append the message to it.
-        let mut buffer = Vec::with_capacity(HEADER_LEN + header.body_length as usize);
-        header.encode(&mut buffer)?;
-        buffer.append(&mut payload);
-
-        Ok(buffer)
-    }
+    run_test_case_bytes(buffer).await.unwrap();
 }
 
 async fn run_test_case_message(message: Message) -> io::Result<()> {
