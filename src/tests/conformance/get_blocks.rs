@@ -30,8 +30,6 @@ use crate::{
     tools::synthetic_node::{PingPongError, SyntheticNode},
 };
 
-use assert_matches::assert_matches;
-
 lazy_static::lazy_static!(
     /// The blocks that the node is seeded with for this test module.
     static ref SEED_BLOCKS: Vec<Block> = {
@@ -44,6 +42,60 @@ lazy_static::lazy_static!(
     };
 );
 
+/// Contains a [`Message::GetBlocks`] query.
+struct GetBlocks(Message);
+
+impl GetBlocks {
+    /// Creates a [`GetBlocks`] query with a single block locator hash.
+    /// The hashes used will be the [`SEED_BLOCKS`] at the given indices.
+    ///
+    /// If `stop_hash` is [None] then the stop hash will be zeroed out.
+    fn from_indices(locator_index: usize, stop_hash: Option<usize>) -> Self {
+        let stop_hash =
+            stop_hash.map_or_else(Hash::zeroed, |i| SEED_BLOCKS[i].double_sha256().unwrap());
+
+        let block_locator_hashes = vec![SEED_BLOCKS[locator_index].double_sha256().unwrap()];
+
+        Self(Message::GetBlocks(LocatorHashes::new(
+            block_locator_hashes,
+            stop_hash,
+        )))
+    }
+
+    fn from_hashes(block_locator_hashes: Vec<Hash>, stop_hash: Hash) -> Self {
+        Self(Message::GetBlocks(LocatorHashes::new(
+            block_locator_hashes,
+            stop_hash,
+        )))
+    }
+}
+
+/// The response of a node to a query.
+#[derive(Debug, PartialEq)]
+enum Response {
+    /// Replied to the query with this [`Message`].
+    Reply(Box<Message>),
+    /// Ignored the query.
+    Ignored,
+}
+
+impl Response {
+    /// Creates a [`Response::Reply`] containing [`Message::Inv`] whose inventory
+    /// hashes comprises of all [`SEED_BLOCKS`] in the given range.
+    ///
+    /// A missing end index is interpreted as `SEED_BLOCKS.len()`.
+    fn inv_with_range(start: usize, end: Option<usize>) -> Self {
+        let end = end.unwrap_or_else(|| SEED_BLOCKS.len());
+
+        let inv_hashes = SEED_BLOCKS[start..end]
+            .iter()
+            .map(|block| block.inv_hash())
+            .collect();
+
+        Self::Reply(Message::Inv(Inv::new(inv_hashes)).into())
+    }
+}
+
 mod stop_hash_is_zero {
     //! No range limit tests (stop_hash = [0]).
     use super::*;
@@ -51,57 +103,45 @@ mod stop_hash_is_zero {
     #[tokio::test]
     async fn from_block_0_onwards() {
         // zcashd: pass
-        const BLOCK_INDEX: usize = 0;
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_INDEX].double_sha256().unwrap()],
-            Hash::zeroed(),
-        ));
-
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[BLOCK_INDEX + 1..].to_owned()));
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let index = 0;
+        let response = run_test_query(GetBlocks::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_block_1_onwards() {
         // zcashd: pass
-        const BLOCK_INDEX: usize = 1;
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_INDEX].double_sha256().unwrap()],
-            Hash::zeroed(),
-        ));
-
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[BLOCK_INDEX + 1..].to_owned()));
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let index = 1;
+        let response = run_test_query(GetBlocks::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_block_5_onwards() {
         // zcashd: pass
-        const BLOCK_INDEX: usize = 5;
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_INDEX].double_sha256().unwrap()],
-            Hash::zeroed(),
-        ));
-
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[BLOCK_INDEX + 1..].to_owned()));
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let index = 5;
+        let response = run_test_query(GetBlocks::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_penultimate_block_onwards() {
         // zcashd: pass
-        let block_index: usize = SEED_BLOCKS.len() - 2;
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[block_index].double_sha256().unwrap()],
-            Hash::zeroed(),
-        ));
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[block_index + 1..].to_owned()));
-
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let index = SEED_BLOCKS.len() - 2;
+        let response = run_test_query(GetBlocks::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
@@ -111,14 +151,12 @@ mod stop_hash_is_zero {
         // might be sending an empty inventory instead).
         //
         // zcashd: pass
-        let block_index: usize = SEED_BLOCKS.len() - 1;
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[block_index].double_sha256().unwrap()],
-            Hash::zeroed(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Ignored);
+        let index = SEED_BLOCKS.len() - 1;
+        let response = run_test_query(GetBlocks::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::Ignored;
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
@@ -129,19 +167,18 @@ mod stop_hash_is_zero {
         // second hash.
         //
         // zcashd: pass
-        let block_index: usize = 7;
-        let query = Message::GetBlocks(LocatorHashes::new(
+        let index = 7;
+        let query = GetBlocks::from_hashes(
             vec![
-                SEED_BLOCKS[block_index].double_sha256().unwrap(),
-                SEED_BLOCKS[block_index + 1].double_sha256().unwrap(),
+                SEED_BLOCKS[index].double_sha256().unwrap(),
+                SEED_BLOCKS[index + 1].double_sha256().unwrap(),
             ],
             Hash::zeroed(),
-        ));
+        );
 
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[block_index + 1..].to_owned()));
-
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let response = run_test_query(query).await.unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
@@ -151,21 +188,19 @@ mod stop_hash_is_zero {
         // all known children of that block.
         //
         // zcashd: pass
-        const BLOCK_INDEX: usize = 1;
-
-        let query = Message::GetBlocks(LocatorHashes::new(
+        let index = 1;
+        let query = GetBlocks::from_hashes(
             vec![
                 Hash::new([19; 32]),
                 Hash::new([22; 32]),
-                SEED_BLOCKS[BLOCK_INDEX].double_sha256().unwrap(),
+                SEED_BLOCKS[index].double_sha256().unwrap(),
             ],
             Hash::zeroed(),
-        ));
+        );
 
-        let result = run_test_case(query).await.unwrap();
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[BLOCK_INDEX + 1..].to_owned()));
-
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let response = run_test_query(query).await.unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 }
 
@@ -175,43 +210,34 @@ mod stop_hash_is_start_hash {
     #[tokio::test]
     async fn from_block_0_to_0() {
         // zcashd: fail (sends all blocks[1+] - same behaviour as if query was not range limited)
-        const BLOCK_RANGE: (usize, usize) = (0, 0);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_RANGE.0].double_sha256().unwrap()],
-            SEED_BLOCKS[BLOCK_RANGE.1].double_sha256().unwrap(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-
-        assert_matches!(result, QueryResult::Ignored);
+        let index = 0;
+        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+            .await
+            .unwrap();
+        let expected = Response::Ignored;
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_block_4_to_4() {
         // zcashd: fail (sends all blocks[5+] - same behaviour as if query was not range limited)
-        const BLOCK_RANGE: (usize, usize) = (4, 4);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_RANGE.0].double_sha256().unwrap()],
-            SEED_BLOCKS[BLOCK_RANGE.1].double_sha256().unwrap(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-
-        assert_matches!(result, QueryResult::Ignored);
+        let index = 4;
+        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+            .await
+            .unwrap();
+        let expected = Response::Ignored;
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_final_block_to_final_block() {
         // zcashd: pass
-        let block_range: (usize, usize) = (SEED_BLOCKS.len() - 1, SEED_BLOCKS.len() - 1);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[block_range.0].double_sha256().unwrap()],
-            SEED_BLOCKS[block_range.1].double_sha256().unwrap(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-
-        assert_matches!(result, QueryResult::Ignored);
+        let index = SEED_BLOCKS.len() - 1;
+        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+            .await
+            .unwrap();
+        let expected = Response::Ignored;
+        assert_eq!(response, expected);
     }
 }
 
@@ -221,75 +247,55 @@ mod ranged {
     #[tokio::test]
     async fn from_block_0_to_1() {
         // zcashd: pass
-        const BLOCK_RANGE: (usize, usize) = (0, 1);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_RANGE.0].double_sha256().unwrap()],
-            SEED_BLOCKS[BLOCK_RANGE.1].double_sha256().unwrap(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Ignored);
+        let response = run_test_query(GetBlocks::from_indices(0, Some(1)))
+            .await
+            .unwrap();
+        let expected = Response::Ignored;
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_block_0_to_5() {
         // zcashd: pass
-        const BLOCK_RANGE: (usize, usize) = (0, 5);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_RANGE.0].double_sha256().unwrap()],
-            SEED_BLOCKS[BLOCK_RANGE.1].double_sha256().unwrap(),
-        ));
-
-        let expected = Message::Inv(Inv::new(
-            SEED_BLOCK_HASHES[BLOCK_RANGE.0 + 1..BLOCK_RANGE.1].to_owned(),
-        ));
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let range = (0, 5);
+        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_block_0_to_final_block() {
         // zcashd: pass
-        let block_range: (usize, usize) = (0, SEED_BLOCKS.len() - 1);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[block_range.0].double_sha256().unwrap()],
-            SEED_BLOCKS[block_range.1].double_sha256().unwrap(),
-        ));
-
-        let expected = Message::Inv(Inv::new(
-            SEED_BLOCK_HASHES[block_range.0 + 1..block_range.1].to_owned(),
-        ));
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let range = (0, SEED_BLOCKS.len() - 1);
+        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_block_3_to_9() {
         // zcashd: pass
-        const BLOCK_RANGE: (usize, usize) = (3, 9);
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_RANGE.0].double_sha256().unwrap()],
-            SEED_BLOCKS[BLOCK_RANGE.1].double_sha256().unwrap(),
-        ));
-
-        let expected = Message::Inv(Inv::new(
-            SEED_BLOCK_HASHES[BLOCK_RANGE.0 + 1..BLOCK_RANGE.1].to_owned(),
-        ));
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let range = (3, 9);
+        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
     async fn from_penultimate_block_to_final_block() {
         // zcashd: pass
-        let block_index: usize = SEED_BLOCKS.len() - 2;
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[block_index].double_sha256().unwrap()],
-            SEED_BLOCKS.last().unwrap().double_sha256().unwrap(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-        assert_matches!(result, QueryResult::Ignored);
+        let range = (SEED_BLOCKS.len() - 2, SEED_BLOCKS.len() - 1);
+        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::Ignored;
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
@@ -299,59 +305,45 @@ mod ranged {
         // all known children of that block.
         //
         // zcashd: pass
-        const BLOCK_RANGE: (usize, usize) = (3, 9);
-
-        let query = Message::GetBlocks(LocatorHashes::new(
+        let range = (3, 9);
+        let query = GetBlocks::from_hashes(
             vec![
                 Hash::new([19; 32]),
                 Hash::new([22; 32]),
-                SEED_BLOCKS[BLOCK_RANGE.0].double_sha256().unwrap(),
+                SEED_BLOCKS[range.0].double_sha256().unwrap(),
             ],
-            SEED_BLOCKS[BLOCK_RANGE.1].double_sha256().unwrap(),
-        ));
-
-        let result = run_test_case(query).await.unwrap();
-        let expected = Message::Inv(Inv::new(
-            SEED_BLOCK_HASHES[BLOCK_RANGE.0 + 1..BLOCK_RANGE.1].to_owned(),
-        ));
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+            SEED_BLOCKS[range.1].double_sha256().unwrap(),
+        );
+        let response = run_test_query(query).await.unwrap();
+        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        assert_eq!(response, expected);
     }
 
     #[tokio::test]
-    async fn from_block_3_with_stop_hash_off_chain() {
+    async fn stop_hash_off_chain() {
         // Sends a query for all blocks starting from [3], but with
         // a stop_hash that does not match any block on the chain.
         // We expect the node to send all blocks from [3] onwards since the
         // stop_hash doesn't match any block.
         //
         // zcashd: pass
-        const BLOCK_INDEX: usize = 3;
+        let index = 3;
 
-        let query = Message::GetBlocks(LocatorHashes::new(
-            vec![SEED_BLOCKS[BLOCK_INDEX].double_sha256().unwrap()],
+        let query = GetBlocks::from_hashes(
+            vec![SEED_BLOCKS[index].double_sha256().unwrap()],
             Hash::new([22; 32]),
-        ));
+        );
 
-        let result = run_test_case(query).await.unwrap();
-        let expected = Message::Inv(Inv::new(SEED_BLOCK_HASHES[BLOCK_INDEX + 1..].to_owned()));
-        assert_matches!(result, QueryResult::Reply(msg) if *msg == expected);
+        let response = run_test_query(query).await.unwrap();
+        let expected = Response::inv_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
-}
-
-/// Represents the Ok(result) of [`run_test_case()`] query.
-#[derive(Debug)]
-
-enum QueryResult {
-    /// Replied to the query with this [`Message`].
-    Reply(Box<Message>),
-    /// Ignored the query.
-    Ignored,
 }
 
 /// Starts a node seeded with the initial testnet chain, connects a single
 /// SyntheticNode and sends a query. The node's response to this query is
 /// then returned.
-async fn run_test_case(query: Message) -> io::Result<QueryResult> {
+async fn run_test_query(query: GetBlocks) -> io::Result<Response> {
     // Spin up a node instance with knowledge of the initial testnet-chain.
     let mut node = Node::new().unwrap();
     node.initial_action(Action::SeedWithTestnetBlocks(SEED_BLOCKS.len()))
@@ -370,7 +362,7 @@ async fn run_test_case(query: Message) -> io::Result<QueryResult> {
 
     // Send the query.
     synthetic_node
-        .send_direct_message(node.addr(), query)
+        .send_direct_message(node.addr(), query.0)
         .await?;
 
     // Use Ping-Pong to check node's response.
@@ -379,8 +371,8 @@ async fn run_test_case(query: Message) -> io::Result<QueryResult> {
         .ping_pong_timeout(node.addr(), RECV_TIMEOUT)
         .await
     {
-        Ok(_) => Ok(QueryResult::Ignored),
-        Err(PingPongError::Unexpected(msg)) => Ok(QueryResult::Reply(msg)),
+        Ok(_) => Ok(Response::Ignored),
+        Err(PingPongError::Unexpected(msg)) => Ok(Response::Reply(msg)),
         Err(err) => Err(err.into()),
     };
 
