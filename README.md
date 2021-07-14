@@ -139,7 +139,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 | [012](SPEC.md#ZG-CONFORMANCE-012) |   ✖    |   ✖   | ⚠ zcashd peering issues, zebra passes under certain conditions              |
 | [013](SPEC.md#ZG-CONFORMANCE-013) |   ✖    |   ✖   | ⚠ zcashd peering issues                                                     |
 | [014](SPEC.md#ZG-CONFORMANCE-014) |   -    |   -   | ⚠ Not yet implemented (blocked by mempool seeding)                          |
-| [015](SPEC.md#ZG-CONFORMANCE-015) |   ✓    |   -   | ⚠ todo: zebra block seeding                                                 |
+| [015](SPEC.md#ZG-CONFORMANCE-015) |   ✖    |   -   | ⚠ todo: zebra block seeding                                                 |
 | [016](SPEC.md#ZG-CONFORMANCE-016) |   ✖    |   -   | ⚠ todo: zebra block seeding                                                 |
 | [017](SPEC.md#ZG-CONFORMANCE-017) |   ✖    |   ✖   | ⚠ partially implemented (requires mempool seeding, and zebra block seeding) |
 
