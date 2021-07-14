@@ -118,9 +118,9 @@ async fn get_data_blocks() {
         .await
         .unwrap();
 
-    for expect in expected {
+    for expected_message in expected {
         let (_, message) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-        assert_eq!(message, expect);
+        assert_eq!(message, expected_message);
     }
 
     // Gracefully shut down the nodes.
