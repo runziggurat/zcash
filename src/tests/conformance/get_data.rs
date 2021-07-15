@@ -171,9 +171,7 @@ mod multiple_blocks {
             .iter()
             .map(|block| block.inv_hash())
             .zip(non_existant_inv)
-            .map(|(a, b)| [a, b])
-            .into_iter()
-            .flatten()
+            .flat_map(|(a, b)| [a, b])
             .collect();
 
         let query = Message::GetData(Inv::new(mixed_inv));
