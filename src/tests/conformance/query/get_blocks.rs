@@ -329,12 +329,10 @@ mod ranged {
 async fn run_test_case(query: GetBlocks) -> io::Result<Response> {
     let mut reply = run_test_query(query.0).await?;
 
-    let response = if reply.is_empty() {
-        Response::Ignored
-    } else if reply.len() == 1 {
-        Response::Reply(reply.pop().unwrap().into())
-    } else {
-        Response::Replies(reply)
+    let response = match reply.len() {
+        0 => Response::Ignored,
+        1 => Response::Reply(reply.pop().unwrap().into()),
+        _ => Response::Replies(reply),
     };
 
     Ok(response)
