@@ -1,6 +1,6 @@
-//! Contains test cases which cover ZG-CONFORMANCE-015
+//! Contains test cases which cover ZG-CONFORMANCE-016
 //!
-//! The node responds to `GetBlocks` requests with a list of blocks based on the provided range.
+//! The node responds to `GetHeaders` request with a list of block headers based on the provided range.
 //!
 //! Three broad categories are tested.
 //!  1. no-range limit (stop_hash = [0]).
@@ -8,45 +8,25 @@
 //!  3. ranged queries (stop_hash is valid).
 //!
 //! Note: Zebra does not support seeding with chain data and as such cannot run any of these tests successfully.
-//!
-//! Note: ZCashd does not fully follow the bitcoin spec. The spec states that the stop_hash should be included in
-//!       the range returned by the node. ZCashd excludes it. We are taking ZCashd's behaviour as correct.
-//!
-//! Note: ZCashd ignores queries for which it would have replied with an empty range. We are taking this behaviour
-//!       as correct. A more well-formed response would be an empty list.
 
-use std::{io, time::Duration};
+use std::io;
 
 use crate::{
     protocol::{
         message::Message,
         payload::{
-            block::{Block, LocatorHashes},
-            inv::InvHash,
-            Hash, Inv,
+            block::{Headers, LocatorHashes},
+            Hash,
         },
     },
-    setup::node::{Action, Node},
-    tools::synthetic_node::{PingPongError, SyntheticNode},
+    tests::conformance::query::{run_test_query, SEED_BLOCKS},
 };
 
-lazy_static::lazy_static!(
-    /// The blocks that the node is seeded with for this test module.
-    static ref SEED_BLOCKS: Vec<Block> = {
-        Block::initial_testnet_blocks()
-    };
+/// Contains a [`Message::GetHeaders`] query.
+struct GetHeaders(Message);
 
-    /// InvHashes of the blocks that the node is seeded with.
-    static ref SEED_BLOCK_HASHES: Vec<InvHash> = {
-        SEED_BLOCKS.iter().map(|block| block.inv_hash()).collect()
-    };
-);
-
-/// Contains a [`Message::GetBlocks`] query.
-struct GetBlocks(Message);
-
-impl GetBlocks {
-    /// Creates a [`GetBlocks`] query with a single block locator hash.
+impl GetHeaders {
+    /// Creates a [`GetHeaders`] query with a single block locator hash.
     /// The hashes used will be the [`SEED_BLOCKS`] at the given indices.
     ///
     /// If `stop_hash` is [None] then the stop hash will be zeroed out.
@@ -56,14 +36,14 @@ impl GetBlocks {
 
         let block_locator_hashes = vec![SEED_BLOCKS[locator_index].double_sha256().unwrap()];
 
-        Self(Message::GetBlocks(LocatorHashes::new(
+        Self(Message::GetHeaders(LocatorHashes::new(
             block_locator_hashes,
             stop_hash,
         )))
     }
 
     fn from_hashes(block_locator_hashes: Vec<Hash>, stop_hash: Hash) -> Self {
-        Self(Message::GetBlocks(LocatorHashes::new(
+        Self(Message::GetHeaders(LocatorHashes::new(
             block_locator_hashes,
             stop_hash,
         )))
@@ -73,26 +53,30 @@ impl GetBlocks {
 /// The response of a node to a query.
 #[derive(Debug, PartialEq)]
 enum Response {
+    /// Replied with [`Message::Headers(Headers::empty())`]
+    EmptyHeaders,
     /// Replied to the query with this [`Message`].
     Reply(Box<Message>),
+    /// Received multiple replies.
+    Replies(Vec<Message>),
     /// Ignored the query.
     Ignored,
 }
 
 impl Response {
-    /// Creates a [`Response::Reply`] containing [`Message::Inv`] whose inventory
-    /// hashes comprises of all [`SEED_BLOCKS`] in the given range.
+    /// Creates a [`Response::Reply`] containing [`Message::Headers`] comprised of
+    /// all the [`SEED_BLOCKS`] headers in the given range.
     ///
     /// A missing end index is interpreted as `SEED_BLOCKS.len()`.
-    fn inv_with_range(start: usize, end: Option<usize>) -> Self {
+    fn headers_with_range(start: usize, end: Option<usize>) -> Self {
         let end = end.unwrap_or_else(|| SEED_BLOCKS.len());
 
-        let inv_hashes = SEED_BLOCKS[start..end]
+        let headers = SEED_BLOCKS[start..end]
             .iter()
-            .map(|block| block.inv_hash())
+            .map(|block| block.header.clone())
             .collect();
 
-        Self::Reply(Message::Inv(Inv::new(inv_hashes)).into())
+        Self::Reply(Message::Headers(Headers::new(headers)).into())
     }
 }
 
@@ -104,10 +88,10 @@ mod stop_hash_is_zero {
     async fn from_block_0_onwards() {
         // zcashd: pass
         let index = 0;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetHeaders::from_indices(index, None))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 
@@ -115,10 +99,10 @@ mod stop_hash_is_zero {
     async fn from_block_1_onwards() {
         // zcashd: pass
         let index = 1;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetHeaders::from_indices(index, None))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 
@@ -126,10 +110,10 @@ mod stop_hash_is_zero {
     async fn from_block_5_onwards() {
         // zcashd: pass
         let index = 5;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetHeaders::from_indices(index, None))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 
@@ -137,25 +121,23 @@ mod stop_hash_is_zero {
     async fn from_penultimate_block_onwards() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 2;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetHeaders::from_indices(index, None))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 
     #[tokio::test]
-    async fn final_block_is_ignored() {
-        // Test that we get no response for the final block in the known-chain
-        // (this is the behaviour exhibited by zcashd - a more well-formed response
-        // might be sending an empty inventory instead).
+    async fn final_block() {
+        // We expect an empty Headers list.
         //
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 1;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetHeaders::from_indices(index, None))
             .await
             .unwrap();
-        let expected = Response::Ignored;
+        let expected = Response::EmptyHeaders;
         assert_eq!(response, expected);
     }
 
@@ -168,7 +150,7 @@ mod stop_hash_is_zero {
         //
         // zcashd: pass
         let index = 7;
-        let query = GetBlocks::from_hashes(
+        let query = GetHeaders::from_hashes(
             vec![
                 SEED_BLOCKS[index].double_sha256().unwrap(),
                 SEED_BLOCKS[index + 1].double_sha256().unwrap(),
@@ -176,8 +158,8 @@ mod stop_hash_is_zero {
             Hash::zeroed(),
         );
 
-        let response = run_test_query(query).await.unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 
@@ -189,7 +171,7 @@ mod stop_hash_is_zero {
         //
         // zcashd: pass
         let index = 1;
-        let query = GetBlocks::from_hashes(
+        let query = GetHeaders::from_hashes(
             vec![
                 Hash::new([19; 32]),
                 Hash::new([22; 32]),
@@ -198,8 +180,8 @@ mod stop_hash_is_zero {
             Hash::zeroed(),
         );
 
-        let response = run_test_query(query).await.unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 }
@@ -211,10 +193,10 @@ mod stop_hash_is_start_hash {
     async fn from_block_0_to_0() {
         // zcashd: fail (sends all blocks[1+] - same behaviour as if query was not range limited)
         let index = 0;
-        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+        let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
             .await
             .unwrap();
-        let expected = Response::Ignored;
+        let expected = Response::EmptyHeaders;
         assert_eq!(response, expected);
     }
 
@@ -222,10 +204,10 @@ mod stop_hash_is_start_hash {
     async fn from_block_4_to_4() {
         // zcashd: fail (sends all blocks[5+] - same behaviour as if query was not range limited)
         let index = 4;
-        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+        let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
             .await
             .unwrap();
-        let expected = Response::Ignored;
+        let expected = Response::EmptyHeaders;
         assert_eq!(response, expected);
     }
 
@@ -233,10 +215,10 @@ mod stop_hash_is_start_hash {
     async fn from_final_block_to_final_block() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 1;
-        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+        let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
             .await
             .unwrap();
-        let expected = Response::Ignored;
+        let expected = Response::EmptyHeaders;
         assert_eq!(response, expected);
     }
 }
@@ -247,10 +229,11 @@ mod ranged {
     #[tokio::test]
     async fn from_block_0_to_1() {
         // zcashd: pass
-        let response = run_test_query(GetBlocks::from_indices(0, Some(1)))
+        let range = (0, 1);
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
-        let expected = Response::Ignored;
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
         assert_eq!(response, expected);
     }
 
@@ -258,10 +241,10 @@ mod ranged {
     async fn from_block_0_to_5() {
         // zcashd: pass
         let range = (0, 5);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
         assert_eq!(response, expected);
     }
 
@@ -269,10 +252,10 @@ mod ranged {
     async fn from_block_0_to_final_block() {
         // zcashd: pass
         let range = (0, SEED_BLOCKS.len() - 1);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
         assert_eq!(response, expected);
     }
 
@@ -280,10 +263,10 @@ mod ranged {
     async fn from_block_3_to_9() {
         // zcashd: pass
         let range = (3, 9);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
-        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
         assert_eq!(response, expected);
     }
 
@@ -291,10 +274,10 @@ mod ranged {
     async fn from_penultimate_block_to_final_block() {
         // zcashd: pass
         let range = (SEED_BLOCKS.len() - 2, SEED_BLOCKS.len() - 1);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
-        let expected = Response::Ignored;
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
         assert_eq!(response, expected);
     }
 
@@ -306,7 +289,7 @@ mod ranged {
         //
         // zcashd: pass
         let range = (3, 9);
-        let query = GetBlocks::from_hashes(
+        let query = GetHeaders::from_hashes(
             vec![
                 Hash::new([19; 32]),
                 Hash::new([22; 32]),
@@ -314,8 +297,8 @@ mod ranged {
             ],
             SEED_BLOCKS[range.1].double_sha256().unwrap(),
         );
-        let response = run_test_query(query).await.unwrap();
-        let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
         assert_eq!(response, expected);
     }
 
@@ -329,56 +312,27 @@ mod ranged {
         // zcashd: pass
         let index = 3;
 
-        let query = GetBlocks::from_hashes(
+        let query = GetHeaders::from_hashes(
             vec![SEED_BLOCKS[index].double_sha256().unwrap()],
             Hash::new([22; 32]),
         );
 
-        let response = run_test_query(query).await.unwrap();
-        let expected = Response::inv_with_range(index + 1, None);
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 }
 
-/// Starts a node seeded with the initial testnet chain, connects a single
-/// SyntheticNode and sends a query. The node's response to this query is
-/// then returned.
-async fn run_test_query(query: GetBlocks) -> io::Result<Response> {
-    // Spin up a node instance with knowledge of the initial testnet-chain.
-    let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(SEED_BLOCKS.len()))
-        .start()
-        .await?;
+/// A wrapper around [`run_test_query`] which maps its output to [`Response`].
+async fn run_test_case(query: GetHeaders) -> io::Result<Response> {
+    let mut reply = run_test_query(query.0).await?;
 
-    // Create a synthetic node.
-    let mut synthetic_node = SyntheticNode::builder()
-        .with_full_handshake()
-        .with_all_auto_reply()
-        .build()
-        .await?;
-
-    // Connect to the node and initiate handshake.
-    synthetic_node.connect(node.addr()).await?;
-
-    // Send the query.
-    synthetic_node
-        .send_direct_message(node.addr(), query.0)
-        .await?;
-
-    // Use Ping-Pong to check node's response.
-    const RECV_TIMEOUT: Duration = Duration::from_millis(100);
-    let result = match synthetic_node
-        .ping_pong_timeout(node.addr(), RECV_TIMEOUT)
-        .await
-    {
-        Ok(_) => Ok(Response::Ignored),
-        Err(PingPongError::Unexpected(msg)) => Ok(Response::Reply(msg)),
-        Err(err) => Err(err.into()),
+    let response = match reply.len() {
+        0 => Response::Ignored,
+        1 if reply[0] == Message::Headers(Headers::empty()) => Response::EmptyHeaders,
+        1 => Response::Reply(reply.pop().unwrap().into()),
+        _ => Response::Replies(reply),
     };
 
-    // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
-    node.stop()?;
-
-    result
+    Ok(response)
 }
