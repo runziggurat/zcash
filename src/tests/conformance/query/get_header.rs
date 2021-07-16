@@ -327,17 +327,11 @@ mod ranged {
 async fn run_test_case(query: GetHeaders) -> io::Result<Response> {
     let mut reply = run_test_query(query.0).await?;
 
-    let response = if reply.is_empty() {
-        Response::Ignored
-    } else if reply.len() == 1 {
-        let message = reply.pop().unwrap();
-        if message == Message::Headers(Headers::empty()) {
-            Response::EmptyHeaders
-        } else {
-            Response::Reply(message.into())
-        }
-    } else {
-        Response::Replies(reply)
+    let response = match reply.len() {
+        0 => Response::Ignored,
+        1 if reply[0] == Message::Headers(Headers::empty()) => Response::EmptyHeaders,
+        1 => Response::Reply(reply.pop().unwrap().into()),
+        _ => Response::Replies(reply),
     };
 
     Ok(response)
