@@ -12,7 +12,7 @@ use crate::{
 mod basic_query;
 mod get_blocks;
 mod get_data;
-mod get_header;
+mod get_headers;
 
 lazy_static::lazy_static!(
     /// The blocks that the node is seeded with for this test module.
