@@ -15,32 +15,15 @@
 //! Note: ZCashd ignores queries for which it would have replied with an empty range. We are taking this behaviour
 //!       as correct. A more well-formed response would be an empty list.
 
-use std::{io, time::Duration};
+use std::io;
 
 use crate::{
     protocol::{
         message::Message,
-        payload::{
-            block::{Block, LocatorHashes},
-            inv::InvHash,
-            Hash, Inv,
-        },
+        payload::{block::LocatorHashes, Hash, Inv},
     },
-    setup::node::{Action, Node},
-    tools::synthetic_node::{PingPongError, SyntheticNode},
+    tests::conformance::query::{run_test_query, SEED_BLOCKS},
 };
-
-lazy_static::lazy_static!(
-    /// The blocks that the node is seeded with for this test module.
-    static ref SEED_BLOCKS: Vec<Block> = {
-        Block::initial_testnet_blocks()
-    };
-
-    /// InvHashes of the blocks that the node is seeded with.
-    static ref SEED_BLOCK_HASHES: Vec<InvHash> = {
-        SEED_BLOCKS.iter().map(|block| block.inv_hash()).collect()
-    };
-);
 
 /// Contains a [`Message::GetBlocks`] query.
 struct GetBlocks(Message);
@@ -75,6 +58,8 @@ impl GetBlocks {
 enum Response {
     /// Replied to the query with this [`Message`].
     Reply(Box<Message>),
+    /// Received multiple replies.
+    Replies(Vec<Message>),
     /// Ignored the query.
     Ignored,
 }
@@ -104,7 +89,7 @@ mod stop_hash_is_zero {
     async fn from_block_0_onwards() {
         // zcashd: pass
         let index = 0;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetBlocks::from_indices(index, None))
             .await
             .unwrap();
         let expected = Response::inv_with_range(index + 1, None);
@@ -115,7 +100,7 @@ mod stop_hash_is_zero {
     async fn from_block_1_onwards() {
         // zcashd: pass
         let index = 1;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetBlocks::from_indices(index, None))
             .await
             .unwrap();
         let expected = Response::inv_with_range(index + 1, None);
@@ -126,7 +111,7 @@ mod stop_hash_is_zero {
     async fn from_block_5_onwards() {
         // zcashd: pass
         let index = 5;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetBlocks::from_indices(index, None))
             .await
             .unwrap();
         let expected = Response::inv_with_range(index + 1, None);
@@ -137,7 +122,7 @@ mod stop_hash_is_zero {
     async fn from_penultimate_block_onwards() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 2;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetBlocks::from_indices(index, None))
             .await
             .unwrap();
         let expected = Response::inv_with_range(index + 1, None);
@@ -152,7 +137,7 @@ mod stop_hash_is_zero {
         //
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 1;
-        let response = run_test_query(GetBlocks::from_indices(index, None))
+        let response = run_test_case(GetBlocks::from_indices(index, None))
             .await
             .unwrap();
         let expected = Response::Ignored;
@@ -176,7 +161,7 @@ mod stop_hash_is_zero {
             Hash::zeroed(),
         );
 
-        let response = run_test_query(query).await.unwrap();
+        let response = run_test_case(query).await.unwrap();
         let expected = Response::inv_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
@@ -198,7 +183,7 @@ mod stop_hash_is_zero {
             Hash::zeroed(),
         );
 
-        let response = run_test_query(query).await.unwrap();
+        let response = run_test_case(query).await.unwrap();
         let expected = Response::inv_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
@@ -211,7 +196,7 @@ mod stop_hash_is_start_hash {
     async fn from_block_0_to_0() {
         // zcashd: fail (sends all blocks[1+] - same behaviour as if query was not range limited)
         let index = 0;
-        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+        let response = run_test_case(GetBlocks::from_indices(index, Some(index)))
             .await
             .unwrap();
         let expected = Response::Ignored;
@@ -222,7 +207,7 @@ mod stop_hash_is_start_hash {
     async fn from_block_4_to_4() {
         // zcashd: fail (sends all blocks[5+] - same behaviour as if query was not range limited)
         let index = 4;
-        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+        let response = run_test_case(GetBlocks::from_indices(index, Some(index)))
             .await
             .unwrap();
         let expected = Response::Ignored;
@@ -233,7 +218,7 @@ mod stop_hash_is_start_hash {
     async fn from_final_block_to_final_block() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 1;
-        let response = run_test_query(GetBlocks::from_indices(index, Some(index)))
+        let response = run_test_case(GetBlocks::from_indices(index, Some(index)))
             .await
             .unwrap();
         let expected = Response::Ignored;
@@ -247,7 +232,7 @@ mod ranged {
     #[tokio::test]
     async fn from_block_0_to_1() {
         // zcashd: pass
-        let response = run_test_query(GetBlocks::from_indices(0, Some(1)))
+        let response = run_test_case(GetBlocks::from_indices(0, Some(1)))
             .await
             .unwrap();
         let expected = Response::Ignored;
@@ -258,7 +243,7 @@ mod ranged {
     async fn from_block_0_to_5() {
         // zcashd: pass
         let range = (0, 5);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
         let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
@@ -269,7 +254,7 @@ mod ranged {
     async fn from_block_0_to_final_block() {
         // zcashd: pass
         let range = (0, SEED_BLOCKS.len() - 1);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
         let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
@@ -280,7 +265,7 @@ mod ranged {
     async fn from_block_3_to_9() {
         // zcashd: pass
         let range = (3, 9);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
         let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
@@ -291,7 +276,7 @@ mod ranged {
     async fn from_penultimate_block_to_final_block() {
         // zcashd: pass
         let range = (SEED_BLOCKS.len() - 2, SEED_BLOCKS.len() - 1);
-        let response = run_test_query(GetBlocks::from_indices(range.0, Some(range.1)))
+        let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
             .await
             .unwrap();
         let expected = Response::Ignored;
@@ -314,7 +299,7 @@ mod ranged {
             ],
             SEED_BLOCKS[range.1].double_sha256().unwrap(),
         );
-        let response = run_test_query(query).await.unwrap();
+        let response = run_test_case(query).await.unwrap();
         let expected = Response::inv_with_range(range.0 + 1, Some(range.1));
         assert_eq!(response, expected);
     }
@@ -334,51 +319,23 @@ mod ranged {
             Hash::new([22; 32]),
         );
 
-        let response = run_test_query(query).await.unwrap();
+        let response = run_test_case(query).await.unwrap();
         let expected = Response::inv_with_range(index + 1, None);
         assert_eq!(response, expected);
     }
 }
 
-/// Starts a node seeded with the initial testnet chain, connects a single
-/// SyntheticNode and sends a query. The node's response to this query is
-/// then returned.
-async fn run_test_query(query: GetBlocks) -> io::Result<Response> {
-    // Spin up a node instance with knowledge of the initial testnet-chain.
-    let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(SEED_BLOCKS.len()))
-        .start()
-        .await?;
+/// A wrapper around [`run_test_query`] which maps its output to [`Response`].
+async fn run_test_case(query: GetBlocks) -> io::Result<Response> {
+    let mut reply = run_test_query(query.0).await?;
 
-    // Create a synthetic node.
-    let mut synthetic_node = SyntheticNode::builder()
-        .with_full_handshake()
-        .with_all_auto_reply()
-        .build()
-        .await?;
-
-    // Connect to the node and initiate handshake.
-    synthetic_node.connect(node.addr()).await?;
-
-    // Send the query.
-    synthetic_node
-        .send_direct_message(node.addr(), query.0)
-        .await?;
-
-    // Use Ping-Pong to check node's response.
-    const RECV_TIMEOUT: Duration = Duration::from_millis(100);
-    let result = match synthetic_node
-        .ping_pong_timeout(node.addr(), RECV_TIMEOUT)
-        .await
-    {
-        Ok(_) => Ok(Response::Ignored),
-        Err(PingPongError::Unexpected(msg)) => Ok(Response::Reply(msg)),
-        Err(err) => Err(err.into()),
+    let response = if reply.is_empty() {
+        Response::Ignored
+    } else if reply.len() == 1 {
+        Response::Reply(reply.pop().unwrap().into())
+    } else {
+        Response::Replies(reply)
     };
 
-    // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
-    node.stop()?;
-
-    result
+    Ok(response)
 }
