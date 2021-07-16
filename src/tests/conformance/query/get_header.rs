@@ -1,139 +1,344 @@
+//! Contains test cases which cover ZG-CONFORMANCE-016
+//!
+//! The node responds to `GetHeaders` request with a list of block headers based on the provided range.
+//!
+//! Three broad categories are tested.
+//!  1. no-range limit (stop_hash = [0]).
+//!  2. stop_hash == start_hash (i.e. the range should be zero).
+//!  3. ranged queries (stop_hash is valid).
+//!
+//! Note: Zebra does not support seeding with chain data and as such cannot run any of these tests successfully.
+
+use std::io;
+
 use crate::{
     protocol::{
         message::Message,
         payload::{
-            block::{Block, LocatorHashes},
+            block::{Headers, LocatorHashes},
             Hash,
         },
     },
-    setup::node::{Action, Node},
-    tools::{synthetic_node::SyntheticNode, TIMEOUT},
+    tests::conformance::query::{run_test_query, SEED_BLOCKS},
 };
 
-use assert_matches::assert_matches;
+/// Contains a [`Message::GetHeaders`] query.
+struct GetHeaders(Message);
 
-#[tokio::test]
-async fn correctly_lists_blocks() {
-    // ZG-CONFORMANCE-016
-    //
-    // The node responds to `GetHeaders` request with a list of block headers based on the provided range.
-    //
-    // We test the following conditions:
-    //  1. unlimited queries i.e. stop_hash = 0
-    //  2. range queries i.e. stop_hash = i
-    //  3. a forked chain (we submit a header which doesn't match the chain)
-    //
-    // Test procedure:
-    //  1. Create a node and seed it with the testnet chain
-    //  2. Establish a peer node
-    //  3. For each test case:
-    //      a) send GetHeaders
-    //      b) receive Headers
-    //      c) assert headers received match expectations
-    //
-    // The test currently fails for both Zebra and zcashd.
-    //
-    // Current behaviour:
-    //
-    //  zcashd: Fails for range queries where the head of the chain equals the stop hash. We expect to receive an empty set,
-    //          but instead we get header [i+1] (which exceeds stop_hash).
-    //
-    //  zebra: does not support seeding as yet, and therefore cannot perform this test.
+impl GetHeaders {
+    /// Creates a [`GetHeaders`] query with a single block locator hash.
+    /// The hashes used will be the [`SEED_BLOCKS`] at the given indices.
+    ///
+    /// If `stop_hash` is [None] then the stop hash will be zeroed out.
+    fn from_indices(locator_index: usize, stop_hash: Option<usize>) -> Self {
+        let stop_hash =
+            stop_hash.map_or_else(Hash::zeroed, |i| SEED_BLOCKS[i].double_sha256().unwrap());
 
-    // Create a node with knowledge of the initial three testnet blocks
-    let mut node = Node::new().unwrap();
-    node.initial_action(Action::SeedWithTestnetBlocks(3))
-        .start()
-        .await
-        .unwrap();
+        let block_locator_hashes = vec![SEED_BLOCKS[locator_index].double_sha256().unwrap()];
 
-    // block headers and hashes
-    let expected = Block::initial_testnet_blocks()
-        .iter()
-        .take(3)
-        .map(|block| block.header.clone())
-        .collect::<Vec<_>>();
-    let hashes = expected
-        .iter()
-        .map(|header| header.double_sha256().unwrap())
-        .collect::<Vec<_>>();
-
-    // locator hashes are stored in reverse order
-    let locator = vec![
-        vec![hashes[0]],
-        vec![hashes[1], hashes[0]],
-        vec![hashes[2], hashes[1], hashes[0]],
-    ];
-
-    // Establish a peer node.
-    let mut synthetic_node = SyntheticNode::builder()
-        .with_full_handshake()
-        .with_all_auto_reply()
-        .build()
-        .await
-        .unwrap();
-
-    synthetic_node.connect(node.addr()).await.unwrap();
-
-    // Query for all blocks from i onwards (stop_hash = [0])
-    for i in 0..expected.len() {
-        synthetic_node
-            .send_direct_message(
-                node.addr(),
-                Message::GetHeaders(LocatorHashes::new(locator[i].clone(), Hash::zeroed())),
-            )
-            .await
-            .unwrap();
-
-        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-        let headers = assert_matches!(headers, Message::Headers(headers) => headers);
-        assert_eq!(
-            headers.headers,
-            expected[(i + 1)..],
-            "test for Headers([{}..])",
-            i
-        );
+        Self(Message::GetHeaders(LocatorHashes::new(
+            block_locator_hashes,
+            stop_hash,
+        )))
     }
 
-    // Query for all possible valid ranges
-    let ranges: Vec<(usize, usize)> = vec![(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)];
-    for (start, stop) in ranges {
-        synthetic_node
-            .send_direct_message(
-                node.addr(),
-                Message::GetHeaders(LocatorHashes::new(locator[start].clone(), hashes[stop])),
-            )
+    fn from_hashes(block_locator_hashes: Vec<Hash>, stop_hash: Hash) -> Self {
+        Self(Message::GetHeaders(LocatorHashes::new(
+            block_locator_hashes,
+            stop_hash,
+        )))
+    }
+}
+
+/// The response of a node to a query.
+#[derive(Debug, PartialEq)]
+enum Response {
+    /// Replied with [`Message::Headers(Headers::empty())`]
+    EmptyHeaders,
+    /// Replied to the query with this [`Message`].
+    Reply(Box<Message>),
+    /// Received multiple replies.
+    Replies(Vec<Message>),
+    /// Ignored the query.
+    Ignored,
+}
+
+impl Response {
+    /// Creates a [`Response::Reply`] containing [`Message::Headers`] comprised of
+    /// all the [`SEED_BLOCKS`] headers in the given range.
+    ///
+    /// A missing end index is interpreted as `SEED_BLOCKS.len()`.
+    fn headers_with_range(start: usize, end: Option<usize>) -> Self {
+        let end = end.unwrap_or_else(|| SEED_BLOCKS.len());
+
+        let headers = SEED_BLOCKS[start..end]
+            .iter()
+            .map(|block| block.header.clone())
+            .collect();
+
+        Self::Reply(Message::Headers(Headers::new(headers)).into())
+    }
+}
+
+mod stop_hash_is_zero {
+    //! No range limit tests (stop_hash = [0]).
+    use super::*;
+
+    #[tokio::test]
+    async fn from_block_0_onwards() {
+        // zcashd: pass
+        let index = 0;
+        let response = run_test_case(GetHeaders::from_indices(index, None))
             .await
             .unwrap();
-
-        // We use start+1 because Headers should list the blocks starting *after* the
-        // final location in GetHeaders, and up to (and including) the stop-hash.
-        let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-        let headers = assert_matches!(headers, Message::Headers(headers) => headers);
-        assert_eq!(
-            headers.headers,
-            expected[start + 1..=stop],
-            "test for Headers([{}..={}])",
-            start + 1,
-            stop
-        );
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
     }
 
-    // Query as if from a fork. We replace [2], and expect to be corrected
-    let mut fork_locator = locator[1].clone();
-    fork_locator.insert(0, Hash::new([17; 32]));
+    #[tokio::test]
+    async fn from_block_1_onwards() {
+        // zcashd: pass
+        let index = 1;
+        let response = run_test_case(GetHeaders::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
+    }
 
-    synthetic_node
-        .send_direct_message(
-            node.addr(),
-            Message::GetHeaders(LocatorHashes::new(fork_locator, Hash::zeroed())),
-        )
-        .await
-        .unwrap();
+    #[tokio::test]
+    async fn from_block_5_onwards() {
+        // zcashd: pass
+        let index = 5;
+        let response = run_test_case(GetHeaders::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
+    }
 
-    let (_, headers) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-    let headers = assert_matches!(headers, Message::Headers(headers) => headers);
-    assert_eq!(headers.headers, expected[2..], "test for forked Headers");
+    #[tokio::test]
+    async fn from_penultimate_block_onwards() {
+        // zcashd: pass
+        let index = SEED_BLOCKS.len() - 2;
+        let response = run_test_case(GetHeaders::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
+    }
 
-    node.stop().unwrap();
+    #[tokio::test]
+    async fn final_block() {
+        // We expect an empty Headers list.
+        //
+        // zcashd: pass
+        let index = SEED_BLOCKS.len() - 1;
+        let response = run_test_case(GetHeaders::from_indices(index, None))
+            .await
+            .unwrap();
+        let expected = Response::EmptyHeaders;
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn out_of_order() {
+        // Node expects the block hashes in reverse order, i.e. newest first.
+        // It should latch onto the first known hash and ignore the rest.
+        // In this test we swop the hash order and expect it to ignore the
+        // second hash.
+        //
+        // zcashd: pass
+        let index = 7;
+        let query = GetHeaders::from_hashes(
+            vec![
+                SEED_BLOCKS[index].double_sha256().unwrap(),
+                SEED_BLOCKS[index + 1].double_sha256().unwrap(),
+            ],
+            Hash::zeroed(),
+        );
+
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn off_chain_correction() {
+        // Test that we get corrected if we are "off chain".
+        // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
+        // all known children of that block.
+        //
+        // zcashd: pass
+        let index = 1;
+        let query = GetHeaders::from_hashes(
+            vec![
+                Hash::new([19; 32]),
+                Hash::new([22; 32]),
+                SEED_BLOCKS[index].double_sha256().unwrap(),
+            ],
+            Hash::zeroed(),
+        );
+
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
+    }
+}
+
+mod stop_hash_is_start_hash {
+    use super::*;
+
+    #[tokio::test]
+    async fn from_block_0_to_0() {
+        // zcashd: fail (sends all blocks[1+] - same behaviour as if query was not range limited)
+        let index = 0;
+        let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
+            .await
+            .unwrap();
+        let expected = Response::EmptyHeaders;
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn from_block_4_to_4() {
+        // zcashd: fail (sends all blocks[5+] - same behaviour as if query was not range limited)
+        let index = 4;
+        let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
+            .await
+            .unwrap();
+        let expected = Response::EmptyHeaders;
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn from_final_block_to_final_block() {
+        // zcashd: pass
+        let index = SEED_BLOCKS.len() - 1;
+        let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
+            .await
+            .unwrap();
+        let expected = Response::EmptyHeaders;
+        assert_eq!(response, expected);
+    }
+}
+
+mod ranged {
+    use super::*;
+
+    #[tokio::test]
+    async fn from_block_0_to_1() {
+        // zcashd: pass
+        let range = (0, 1);
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn from_block_0_to_5() {
+        // zcashd: pass
+        let range = (0, 5);
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn from_block_0_to_final_block() {
+        // zcashd: pass
+        let range = (0, SEED_BLOCKS.len() - 1);
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn from_block_3_to_9() {
+        // zcashd: pass
+        let range = (3, 9);
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn from_penultimate_block_to_final_block() {
+        // zcashd: pass
+        let range = (SEED_BLOCKS.len() - 2, SEED_BLOCKS.len() - 1);
+        let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
+            .await
+            .unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn off_chain_correction() {
+        // Test that we get corrected if we are "off chain".
+        // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
+        // all known children of that block.
+        //
+        // zcashd: pass
+        let range = (3, 9);
+        let query = GetHeaders::from_hashes(
+            vec![
+                Hash::new([19; 32]),
+                Hash::new([22; 32]),
+                SEED_BLOCKS[range.0].double_sha256().unwrap(),
+            ],
+            SEED_BLOCKS[range.1].double_sha256().unwrap(),
+        );
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(range.0 + 1, Some(range.1 + 1));
+        assert_eq!(response, expected);
+    }
+
+    #[tokio::test]
+    async fn stop_hash_off_chain() {
+        // Sends a query for all blocks starting from [3], but with
+        // a stop_hash that does not match any block on the chain.
+        // We expect the node to send all blocks from [3] onwards since the
+        // stop_hash doesn't match any block.
+        //
+        // zcashd: pass
+        let index = 3;
+
+        let query = GetHeaders::from_hashes(
+            vec![SEED_BLOCKS[index].double_sha256().unwrap()],
+            Hash::new([22; 32]),
+        );
+
+        let response = run_test_case(query).await.unwrap();
+        let expected = Response::headers_with_range(index + 1, None);
+        assert_eq!(response, expected);
+    }
+}
+
+/// A wrapper around [`run_test_query`] which maps its output to [`Response`].
+async fn run_test_case(query: GetHeaders) -> io::Result<Response> {
+    let mut reply = run_test_query(query.0).await?;
+
+    let response = if reply.is_empty() {
+        Response::Ignored
+    } else if reply.len() == 1 {
+        let message = reply.pop().unwrap();
+        if message == Message::Headers(Headers::empty()) {
+            Response::EmptyHeaders
+        } else {
+            Response::Reply(message.into())
+        }
+    } else {
+        Response::Replies(reply)
+    };
+
+    Ok(response)
 }
