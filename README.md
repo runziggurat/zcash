@@ -129,7 +129,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 | [002](SPEC.md#ZG-CONFORMANCE-002) |   ✓    |   ✓   |                                                                             |
 | [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✖   |                                                                             |
 | [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✖   |                                                                             |
-| [005](SPEC.md#ZG-CONFORMANCE-005) |   ✖    |   ✖   |                                                                             |
+| [005](SPEC.md#ZG-CONFORMANCE-005) |   ✓    |   ✖   |                                                                             |
 | [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✓   |                                                                             |
 | [007](SPEC.md#ZG-CONFORMANCE-007) |   ✓    |   ✖   |                                                                             |
 | [008](SPEC.md#ZG-CONFORMANCE-008) |   ✖    |   ✖   | ⚠ filter's may need work (malformed), ⚠ require zcashd feedback             |
