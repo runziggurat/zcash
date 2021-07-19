@@ -242,8 +242,8 @@ impl SyntheticNode {
     pub async fn wait_for_connection(&self) -> SocketAddr {
         const SLEEP: Duration = Duration::from_millis(10);
         loop {
-            if let Some(addr) = self.known_peers().read().keys().next() {
-                return *addr;
+            if let Some(addr) = self.inner_node.connected_peers().pop() {
+                return addr;
             }
 
             tokio::time::sleep(SLEEP).await;
@@ -429,6 +429,10 @@ impl InnerNode {
 
     async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
         self.node.send_direct_message(target, data.into()).await
+    }
+
+    fn connected_peers(&self) -> Vec<SocketAddr> {
+        self.node.connected_addrs()
     }
 }
 
