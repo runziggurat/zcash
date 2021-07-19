@@ -130,18 +130,19 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 | [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✖   |                                                                             |
 | [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✖   |                                                                             |
 | [005](SPEC.md#ZG-CONFORMANCE-005) |   ✓    |   ✖   |                                                                             |
-| [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✓   |                                                                             |
-| [007](SPEC.md#ZG-CONFORMANCE-007) |   ✓    |   ✖   |                                                                             |
-| [008](SPEC.md#ZG-CONFORMANCE-008) |   ✖    |   ✖   | ⚠ filter's may need work (malformed), ⚠ require zcashd feedback             |
-| [009](SPEC.md#ZG-CONFORMANCE-009) |   ✓    |   ✓   |                                                                             |
-| [010](SPEC.md#ZG-CONFORMANCE-010) |   ✖    |   ✖   | ⚠ todo: mempool seeding                                                     |
-| [011](SPEC.md#ZG-CONFORMANCE-011) |   ✖    |   ✖   |                                                                             |
-| [012](SPEC.md#ZG-CONFORMANCE-012) |   ✖    |   ✖   | ⚠ zcashd peering issues, zebra passes under certain conditions              |
-| [013](SPEC.md#ZG-CONFORMANCE-013) |   ✖    |   ✖   | ⚠ zcashd peering issues                                                     |
-| [014](SPEC.md#ZG-CONFORMANCE-014) |   -    |   -   | ⚠ Not yet implemented (blocked by mempool seeding)                          |
-| [015](SPEC.md#ZG-CONFORMANCE-015) |   ✖    |   -   | ⚠ todo: zebra block seeding                                                 |
+| [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✖   |                                                                             |
+| [007](SPEC.md#ZG-CONFORMANCE-007) |   ✓    |   ✓   |                                                                             |
+| [008](SPEC.md#ZG-CONFORMANCE-008) |   ✓    |   ✖   |                                                                             |
+| [009](SPEC.md#ZG-CONFORMANCE-009) |   ✖    |   ✖   | ⚠ filter's may need work (malformed), ⚠ require zcashd feedback             |
+| [010](SPEC.md#ZG-CONFORMANCE-010) |   ✓    |   ✓   |                                                                             |
+| [011](SPEC.md#ZG-CONFORMANCE-011) |   ✖    |   ✖   | ⚠ todo: mempool seeding                                                     |
+| [012](SPEC.md#ZG-CONFORMANCE-012) |   ✖    |   ✖   |                                                                             |
+| [013](SPEC.md#ZG-CONFORMANCE-013) |   ✖    |   ✖   | ⚠ zcashd peering issues, zebra passes under certain conditions              |
+| [014](SPEC.md#ZG-CONFORMANCE-014) |   ✖    |   ✖   | ⚠ zcashd peering issues                                                     |
+| [015](SPEC.md#ZG-CONFORMANCE-015) |   -    |   -   | ⚠ Not yet implemented (blocked by mempool seeding)                          |
 | [016](SPEC.md#ZG-CONFORMANCE-016) |   ✖    |   -   | ⚠ todo: zebra block seeding                                                 |
-| [017](SPEC.md#ZG-CONFORMANCE-017) |   ✖    |   ✖   | ⚠ partially implemented (requires mempool seeding, and zebra block seeding) |
+| [017](SPEC.md#ZG-CONFORMANCE-017) |   ✖    |   -   | ⚠ todo: zebra block seeding                                                 |
+| [018](SPEC.md#ZG-CONFORMANCE-018) |   ✖    |   ✖   | ⚠ partially implemented (requires mempool seeding, and zebra block seeding) |
 
 ### Performance
 

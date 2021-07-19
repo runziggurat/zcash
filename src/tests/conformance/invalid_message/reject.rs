@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-008.
+//! Contains test cases which cover ZG-CONFORMANCE-009.
 //!
 //! The node should reject the following messages post-handshake:
 //!
