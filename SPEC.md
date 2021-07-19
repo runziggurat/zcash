@@ -89,7 +89,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node correctly performs a handshake from the initiator side.
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Receive the initial `Version` and complete handshake.
     3. Assert the node’s peer count has increased to 1 and/or the synthetic node is an established peer.
 
@@ -105,7 +105,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node ignores non-`Version` messages in response to the initial `Version` it sent.
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Respond to `Version` with non-`Version` messages.
     3. Assert the node ignored the message by completing the handshake.
 
@@ -113,7 +113,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node ignores non-`Verack` message as a response to initial `Verack` it sent.
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Respond to `Version`, expect `Verack`.
     3. Respond to `Verack` with non-`Verack` messages.
     4. Assert the node ignored the message by completing the handshake.
@@ -122,7 +122,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node rejects connections reusing its `nonce` (usually indicative of self-connection).
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Respond to received `Version` with the node’s nonce.
     3. Assert the node closed the connection.
 
