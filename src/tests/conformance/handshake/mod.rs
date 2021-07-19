@@ -17,7 +17,7 @@ use crate::{
 use assert_matches::assert_matches;
 
 #[tokio::test]
-async fn handshake_responder_side() {
+async fn when_node_receives_connection() {
     // ZG-CONFORMANCE-001
 
     // Spin up a node instance.
@@ -46,7 +46,7 @@ async fn handshake_responder_side() {
 }
 
 #[tokio::test]
-async fn handshake_initiator_side() {
+async fn when_node_initiates_connection() {
     // ZG-CONFORMANCE-002
 
     // Create a synthetic node and enable handshaking.
