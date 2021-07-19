@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-011.
+//! Contains test cases which cover ZG-CONFORMANCE-012.
 //!
 //! The node disconnects for trivial (non-fuzz, non-malicious) cases.
 //!

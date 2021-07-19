@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-017
+//! Contains test cases which cover ZG-CONFORMANCE-018
 //!
 //! The node responds to `GetData` requests with the appropriate transaction or block as requested by the peer.
 //!

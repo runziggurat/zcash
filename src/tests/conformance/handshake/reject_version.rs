@@ -12,7 +12,7 @@ use assert_matches::assert_matches;
 
 #[tokio::test]
 async fn reusing_nonce() {
-    // ZG-CONFORMANCE-006
+    // ZG-CONFORMANCE-007
     //
     // The node rejects connections reusing its nonce (usually indicative of self-connection).
     //
@@ -51,7 +51,7 @@ async fn reusing_nonce() {
 
 #[tokio::test]
 async fn with_obsolete_version_numbers() {
-    // ZG-CONFORMANCE-007
+    // ZG-CONFORMANCE-008
     //
     // The node rejects connections with obsolete node versions.
     //

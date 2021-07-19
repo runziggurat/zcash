@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-016
+//! Contains test cases which cover ZG-CONFORMANCE-017
 //!
 //! The node responds to `GetHeaders` request with a list of block headers based on the provided range.
 //!
