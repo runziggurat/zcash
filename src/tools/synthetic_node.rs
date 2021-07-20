@@ -242,6 +242,7 @@ impl SyntheticNode {
     pub async fn wait_for_connection(&self) -> SocketAddr {
         const SLEEP: Duration = Duration::from_millis(10);
         loop {
+            // Mutating the collection is alright since this is a copy of the connections and not the actualy list.
             if let Some(addr) = self.inner_node.connected_peers().pop() {
                 return addr;
             }
@@ -431,6 +432,7 @@ impl InnerNode {
         self.node.send_direct_message(target, data.into()).await
     }
 
+    /// Returns the list of active connections for this node. Should be prefered over [`known_peers`] when querying active connections.
     fn connected_peers(&self) -> Vec<SocketAddr> {
         self.node.connected_addrs()
     }
