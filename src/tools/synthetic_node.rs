@@ -436,8 +436,6 @@ impl InnerNode {
     async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
         self.node.send_direct_message(target, data.into()).await
     }
-
-
 }
 
 impl Pea2Pea for InnerNode {
