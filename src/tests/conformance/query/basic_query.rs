@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-010
+//! Contains test cases which cover ZG-CONFORMANCE-011
 //!
 //! The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
 //!

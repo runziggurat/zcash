@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-009.
+//! Contains test cases which cover ZG-CONFORMANCE-010.
 //!
 //! The node should ignore the following unsolicited messages:
 //!

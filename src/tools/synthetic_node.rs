@@ -237,13 +237,19 @@ impl SyntheticNode {
         self.inner_node.node().known_peers()
     }
 
+    /// Returns the list of active connections for this node. Should be prefered over [`known_peers`] when querying active connections.
+    pub fn connected_peers(&self) -> Vec<SocketAddr> {
+        self.inner_node.node.connected_addrs()
+    }
+
     /// Waits until the node has at least one connection, and
     /// returns its SocketAddr
     pub async fn wait_for_connection(&self) -> SocketAddr {
         const SLEEP: Duration = Duration::from_millis(10);
         loop {
-            if let Some(addr) = self.known_peers().read().keys().next() {
-                return *addr;
+            // Mutating the collection is alright since this is a copy of the connections and not the actualy list.
+            if let Some(addr) = self.connected_peers().pop() {
+                return addr;
             }
 
             tokio::time::sleep(SLEEP).await;
