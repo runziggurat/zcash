@@ -1,4 +1,4 @@
-//! Contains test cases which cover ZG-CONFORMANCE-015
+//! Contains test cases which cover ZG-CONFORMANCE-016
 //!
 //! The node responds to `GetBlocks` requests with a list of blocks based on the provided range.
 //!

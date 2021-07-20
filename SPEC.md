@@ -89,7 +89,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node correctly performs a handshake from the initiator side.
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Receive the initial `Version` and complete handshake.
     3. Assert the node’s peer count has increased to 1 and/or the synthetic node is an established peer.
 
@@ -105,7 +105,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node ignores non-`Version` messages in response to the initial `Version` it sent.
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Respond to `Version` with non-`Version` messages.
     3. Assert the node ignored the message by completing the handshake.
 
@@ -113,20 +113,29 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node ignores non-`Verack` message as a response to initial `Verack` it sent.
 
-    1. The node under test initiates a connection (rpc: `addnode`).
-    2. Respond to `Version`, expect `Verack`.
-    3. Respond to `Verack` with non-`Verack` messages.
+    1. Connect to the node under test.
+    2. Send `Version`, expect `Version`.
+    3. Send non-`Verack` message.
     4. Assert the node ignored the message by completing the handshake.
 
 ### ZG-CONFORMANCE-006
 
+    The node ignores non-`Verack` message as a response to initial `Verack` it sent.
+
+    1. The node under test initiates a connection.
+    2. Respond to `Version`, expect `Verack`.
+    3. Respond to `Verack` with non-`Verack` messages.
+    4. Assert the node ignored the message by completing the handshake.
+
+### ZG-CONFORMANCE-007
+
     The node rejects connections reusing its `nonce` (usually indicative of self-connection).
 
-    1. The node under test initiates a connection (rpc: `addnode`).
+    1. The node under test initiates a connection.
     2. Respond to received `Version` with the node’s nonce.
     3. Assert the node closed the connection.
 
-### ZG-CONFORMANCE-007
+### ZG-CONFORMANCE-008
 
     The node rejects connections with obsolete node versions.
 
@@ -134,7 +143,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     2. Peer sends `Version` with an obsolete version.
     3. Assert the node rejected the connection.
 
-### ZG-CONFORMANCE-008
+### ZG-CONFORMANCE-009
 
     The node rejects handshake and bloom filter messages post-handshake.
     Zcash nodes used to support this by default, without advertising this
@@ -146,7 +155,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     Messages to be tested: `Version`, `Verack`, `FilterLoad`, `FilterAdd`, `FilterClear`, `Inv` with multiple advertised blocks (multiple transactions or single block payloads don’t get rejected).
 
-### ZG-CONFORMANCE-009
+### ZG-CONFORMANCE-010
 
     The node ignore certain unsolicited messages but doesn’t disconnect.
 
@@ -156,7 +165,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     Messages to be tested: `Reject`, `NotFound`, `Pong`, `Tx`, `Block`, `Header`, `Addr`.
 
-### ZG-CONFORMANCE-010
+### ZG-CONFORMANCE-011
 
     The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
 
@@ -174,7 +183,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     - `GetData` expects `Blocks`.
     - `GetHeaders` expects `Headers`.
 
-### ZG-CONFORMANCE-011
+### ZG-CONFORMANCE-012
 
     The node disconnects for trivial (non-fuzz, non-malicious) cases.
 
@@ -184,14 +193,14 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     - `Inv` with mixed types in inventory list.
     - `Addr` with `NetworkAddr` with no timestamp.
 
-### ZG-CONFORMANCE-012
+### ZG-CONFORMANCE-013
     The node crawls the network for new peers and eagerly connects.
 
     1. Node sends a `GetAddr`.
     2. Peer responds with `Addr` containing a list of peers to connect to.
     3. Assert peers get a connection request from the node.
 
-### ZG-CONFORMANCE-013
+### ZG-CONFORMANCE-014
     The node responds to a `GetAddr` with a list of peers it’s connected to.
 
     1. Establish handshaken node with multiple peers.
@@ -199,7 +208,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     3. Node responds with `Addr`.
     4. Assert the node's connected peers were included.
 
-### ZG-CONFORMANCE-014
+### ZG-CONFORMANCE-015
 
     The node responds to `Mempool` requests with a list of transactions in its memory pool.
 
@@ -207,7 +216,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     2. Peer sends `Mempool` request.
     3. Expect an `Inv` response containing all the transaction hashes in the node's memory pool.
 
-### ZG-CONFORMANCE-015
+### ZG-CONFORMANCE-016
 
     The node responds to `GetBlocks` requests with a list of blocks based on the provided range.
 
@@ -215,7 +224,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     2. Peer sends `GetBlocks` request (different ranges could be tested).
     3. Expect an `Inv` response containing the adequate data based on the requested range.
 
-### ZG-CONFORMANCE-016
+### ZG-CONFORMANCE-017
 
     The node responds to `GetHeaders` request with a list of block headers based on the provided range.
 
@@ -223,7 +232,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     2. Peer sends `GetHeaders` request (different ranges could be tested).
     3. Expect a `Headers` response containing the adequate data based on the requested range.
 
-### ZG-CONFORMANCE-017
+### ZG-CONFORMANCE-018
 
     The node responds to `GetData` requests with the appropriate transaction or block as requested by the peer.
 
