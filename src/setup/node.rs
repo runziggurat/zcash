@@ -62,8 +62,8 @@ impl Node {
     /// [`log_to_stdout`]: method@Node::log_to_stdout
     pub fn new() -> io::Result<Self> {
         // Config (to be written to node configuration file).
-        let config = NodeConfig::new();
-        let meta = NodeMetaData::new()?;
+        let config = NodeConfig::new()?;
+        let meta = NodeMetaData::new(config.path.clone())?;
 
         Ok(Self {
             config,
@@ -282,12 +282,7 @@ impl Node {
     }
 
     fn generate_config_file(&self) -> io::Result<()> {
-        // Create data dir, write config file to it.
-
-        let cache_path = std::env::current_dir().unwrap().join("cache");
-        fs::create_dir(&cache_path)?;
-
-        let config_file_path = self.meta.kind.config_filepath(&cache_path);
+        let config_file_path = self.meta.kind.config_filepath(&self.config.path);
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
@@ -298,13 +293,12 @@ impl Node {
     }
 
     fn cleanup(&self) -> io::Result<()> {
-        // self.cleanup_config_file()?;
+        self.cleanup_config_file()?;
         self.cleanup_cache()
     }
 
     fn cleanup_config_file(&self) -> io::Result<()> {
-        let cache_path = std::env::current_dir().unwrap().join("cache");
-        let path = self.meta.kind.config_filepath(&cache_path);
+        let path = self.meta.kind.config_filepath(&self.config.path);
         match fs::remove_file(path) {
             // File may not exist, so we surpress the error.
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
@@ -313,16 +307,15 @@ impl Node {
     }
 
     fn cleanup_cache(&self) -> io::Result<()> {
-        // No cache for zebra as it is configured in ephemeral mode
-        // Default cache location is ~/.zcash
-        // let path = path.join(".zcash");
+        // Zebra doesn't currently use a cache as it's configured in ephemeral mode.
+        if let NodeKind::Zcashd = self.meta.kind {
+            let path = self.config.path.join("testnet3");
 
-        let cache_path = std::env::current_dir().unwrap().join("cache");
-
-        if let Err(e) = fs::remove_dir_all(cache_path) {
-            // Directory may not exist, so we let that error through
-            if e.kind() != std::io::ErrorKind::NotFound {
-                return Err(e);
+            if let Err(e) = fs::remove_dir_all(path) {
+                // Directory may not exist, so we let that error through
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    return Err(e);
+                }
             }
         }
 
@@ -337,8 +330,4 @@ impl Drop for Node {
             error!("Failed to stop node: {}", err);
         }
     }
-}
-
-fn datadir_path() -> std::path::PathBuf {
-    std::env::current_dir().unwrap().join("cache")
 }
