@@ -55,7 +55,7 @@ Similarly to `zcashd`, configuration is not necessary since Ziggurat generates n
 
 ## Configuration
 
-Ziggurat is configured via a `config.toml` file in the root directory. It must contain the following fields:
+Ziggurat is configured via a `config.toml` file in the `~/.ziggurat` directory (you'll need to create this yourself). It must contain the following fields:
 
 - `kind`: one of `zebra` or `zcashd`.
 - `path`: absolute path in which to run the start command.
