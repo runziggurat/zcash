@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use std::{
     collections::HashSet,
-    env,
     ffi::OsString,
     fs, io,
+    io::{Error, ErrorKind},
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use crate::setup::node::Action;
@@ -14,8 +14,12 @@ use crate::setup::node::Action;
 // The names of the files the node configurations will be written to.
 const ZEBRA_CONFIG: &str = "zebra.toml";
 const ZCASHD_CONFIG: &str = "zcash.conf";
+const ZCASHD_CACHE: &str = "testnet3";
 
-const CONFIG: &str = "config.toml";
+// Ziggurat's configuration directory and file. Caches are written to this directory.
+const CONFIG: &str = ".ziggurat";
+const CONFIG_FILE: &str = "config.toml";
+
 const DEFAULT_PORT: u16 = 8080;
 
 /// Convenience struct for reading Ziggurat's configuration file.
@@ -33,6 +37,8 @@ struct ConfigFile {
 ///
 /// [`Node`]: struct@crate::setup::node::Node
 pub(super) struct NodeConfig {
+    /// The path of the cache directory of the node; this is `~/.ziggurat`.
+    pub(super) path: PathBuf,
     /// The socket address of the node.
     pub(super) local_addr: SocketAddr,
     /// The initial peerset to connect to on node start.
@@ -46,18 +52,21 @@ pub(super) struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub(super) fn new() -> Self {
+    pub(super) fn new() -> io::Result<Self> {
         // Set the port explicitly.
         let mut local_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
         local_addr.set_port(DEFAULT_PORT);
 
-        Self {
+        Ok(Self {
+            path: home::home_dir()
+                .ok_or_else(|| Error::new(ErrorKind::NotFound, "couldn't find home directory"))?
+                .join(CONFIG),
             local_addr,
             initial_peers: HashSet::new(),
             max_peers: 50,
             log_to_stdout: false,
             initial_action: Action::None,
-        }
+        })
     }
 }
 
@@ -71,10 +80,17 @@ pub(super) enum NodeKind {
 
 impl NodeKind {
     /// Path to the configuration file for this [NodeKind]
-    pub(super) fn config_filepath(&self) -> std::path::PathBuf {
+    pub(super) fn config_filepath(&self, wrapping_dir: &Path) -> PathBuf {
         match self {
-            NodeKind::Zebra => std::env::current_dir().unwrap().join(ZEBRA_CONFIG),
-            NodeKind::Zcashd => std::env::current_dir().unwrap().join(ZCASHD_CONFIG),
+            NodeKind::Zebra => wrapping_dir.join(ZEBRA_CONFIG),
+            NodeKind::Zcashd => wrapping_dir.join(ZCASHD_CONFIG),
+        }
+    }
+
+    pub(super) fn cache_path(&self, wrapping_dir: &Path) -> Option<PathBuf> {
+        match self {
+            NodeKind::Zebra => None,
+            NodeKind::Zcashd => Some(wrapping_dir.join(ZCASHD_CACHE)),
         }
     }
 }
@@ -93,8 +109,9 @@ pub(super) struct NodeMetaData {
 }
 
 impl NodeMetaData {
-    pub(super) fn new() -> io::Result<Self> {
-        let path = &env::current_dir()?.join(CONFIG);
+    pub(super) fn new(config_path: PathBuf) -> io::Result<Self> {
+        // Read Ziggurat's configuration file.
+        let path = config_path.join(CONFIG_FILE);
         let config_string = fs::read_to_string(path)?;
         let config_file: ConfigFile = toml::from_str(&config_string)?;
 
@@ -105,8 +122,8 @@ impl NodeMetaData {
         let mut start_args = args_from(&config_file.start_command);
         let start_command = start_args.remove(0);
 
-        // insert the config file path into start args
-        let config_path = config_file.kind.config_filepath();
+        // Insert the node's config file path into start args.
+        let config_file_path = config_file.kind.config_filepath(&config_path);
         match config_file.kind {
             NodeKind::Zebra => {
                 // Zebra's final arg must be `start`, so we insert the actual args before it.
@@ -118,10 +135,10 @@ impl NodeMetaData {
                     ));
                 }
                 start_args.insert(n_args - 1, "--config".into());
-                start_args.insert(n_args, config_path.into_os_string());
+                start_args.insert(n_args, config_file_path.into_os_string());
             }
             NodeKind::Zcashd => {
-                start_args.push(format!("-conf={}", config_path.to_str().unwrap()).into());
+                start_args.push(format!("-datadir={}", config_path.to_str().unwrap()).into());
             }
         }
 
