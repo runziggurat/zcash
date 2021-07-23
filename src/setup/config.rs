@@ -112,7 +112,7 @@ impl NodeMetaData {
         let start_command = start_args.remove(0);
 
         // Insert the node's config file path into start args.
-        let config_path = config_file.kind.config_filepath(&config_path);
+        let config_file_path = config_file.kind.config_filepath(&config_path);
         match config_file.kind {
             NodeKind::Zebra => {
                 // Zebra's final arg must be `start`, so we insert the actual args before it.
@@ -124,7 +124,7 @@ impl NodeMetaData {
                     ));
                 }
                 start_args.insert(n_args - 1, "--config".into());
-                start_args.insert(n_args, config_path.into_os_string());
+                start_args.insert(n_args, config_file_path.into_os_string());
             }
             NodeKind::Zcashd => {
                 start_args.push(format!("-datadir={}", config_path.to_str().unwrap()).into());
