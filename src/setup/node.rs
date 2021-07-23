@@ -309,8 +309,9 @@ impl Node {
     fn cleanup_cache(&self) -> io::Result<()> {
         // No cache for zebra as it is configured in ephemeral mode
         if let (NodeKind::Zcashd, Some(path)) = (self.meta.kind, home::home_dir()) {
-            // Default cache location is ~/.zcash
-            let path = path.join(".zcash");
+            // Default cache location is ~/.zcash, testnet3 is the relevant directory for our
+            // tests, unfortunately a custom dir can't be specified at this time.
+            let path = path.join(".zcash/testnet3");
 
             if let Err(e) = fs::remove_dir_all(path) {
                 // Directory may not exist, so we let that error through
