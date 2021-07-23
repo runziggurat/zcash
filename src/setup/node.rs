@@ -62,8 +62,8 @@ impl Node {
     /// [`log_to_stdout`]: method@Node::log_to_stdout
     pub fn new() -> io::Result<Self> {
         // Config (to be written to node configuration file).
-        let config = NodeConfig::new();
-        let meta = NodeMetaData::new()?;
+        let config = NodeConfig::new()?;
+        let meta = NodeMetaData::new(config.path.clone())?;
 
         Ok(Self {
             config,
@@ -282,14 +282,14 @@ impl Node {
     }
 
     fn generate_config_file(&self) -> io::Result<()> {
-        let path = self.meta.kind.config_filepath();
+        let config_file_path = self.meta.kind.config_filepath(&self.config.path);
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
             NodeKind::Zcashd => ZcashdConfigFile::generate(&self.config),
         };
 
-        fs::write(path, content)
+        fs::write(config_file_path, content)
     }
 
     fn cleanup(&self) -> io::Result<()> {
@@ -298,7 +298,7 @@ impl Node {
     }
 
     fn cleanup_config_file(&self) -> io::Result<()> {
-        let path = self.meta.kind.config_filepath();
+        let path = self.meta.kind.config_filepath(&self.config.path);
         match fs::remove_file(path) {
             // File may not exist, so we surpress the error.
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
@@ -307,11 +307,8 @@ impl Node {
     }
 
     fn cleanup_cache(&self) -> io::Result<()> {
-        // No cache for zebra as it is configured in ephemeral mode
-        if let (NodeKind::Zcashd, Some(path)) = (self.meta.kind, home::home_dir()) {
-            // Default cache location is ~/.zcash
-            let path = path.join(".zcash");
-
+        // Zebra doesn't currently use a cache as it's configured in ephemeral mode.
+        if let Some(path) = self.meta.kind.cache_path(&self.config.path) {
             if let Err(e) = fs::remove_dir_all(path) {
                 // Directory may not exist, so we let that error through
                 if e.kind() != std::io::ErrorKind::NotFound {
