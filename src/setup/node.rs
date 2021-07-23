@@ -308,9 +308,7 @@ impl Node {
 
     fn cleanup_cache(&self) -> io::Result<()> {
         // Zebra doesn't currently use a cache as it's configured in ephemeral mode.
-        if let NodeKind::Zcashd = self.meta.kind {
-            let path = self.config.path.join("testnet3");
-
+        if let Some(path) = self.meta.kind.cache_path(&self.config.path) {
             if let Err(e) = fs::remove_dir_all(path) {
                 // Directory may not exist, so we let that error through
                 if e.kind() != std::io::ErrorKind::NotFound {
