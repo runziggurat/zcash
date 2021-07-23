@@ -14,6 +14,7 @@ use crate::setup::node::Action;
 // The names of the files the node configurations will be written to.
 const ZEBRA_CONFIG: &str = "zebra.toml";
 const ZCASHD_CONFIG: &str = "zcash.conf";
+const ZCASHD_CACHE: &str = "testnet3";
 
 const CONFIG: &str = "config.toml";
 const DEFAULT_PORT: u16 = 8080;
@@ -80,6 +81,13 @@ impl NodeKind {
         match self {
             NodeKind::Zebra => wrapping_dir.join(ZEBRA_CONFIG),
             NodeKind::Zcashd => wrapping_dir.join(ZCASHD_CONFIG),
+        }
+    }
+
+    pub(super) fn cache_path(&self, wrapping_dir: &Path) -> Option<PathBuf> {
+        match self {
+            NodeKind::Zebra => None,
+            NodeKind::Zcashd => Some(wrapping_dir.join(ZCASHD_CACHE)),
         }
     }
 }
