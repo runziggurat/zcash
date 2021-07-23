@@ -16,7 +16,10 @@ const ZEBRA_CONFIG: &str = "zebra.toml";
 const ZCASHD_CONFIG: &str = "zcash.conf";
 const ZCASHD_CACHE: &str = "testnet3";
 
-const CONFIG: &str = "config.toml";
+// Ziggurat's configuration directory and file. Caches are written to this directory.
+const CONFIG: &str = ".ziggurat";
+const CONFIG_FILE: &str = "config.toml";
+
 const DEFAULT_PORT: u16 = 8080;
 
 /// Convenience struct for reading Ziggurat's configuration file.
@@ -57,7 +60,7 @@ impl NodeConfig {
         Ok(Self {
             path: home::home_dir()
                 .ok_or_else(|| Error::new(ErrorKind::NotFound, "couldn't find home directory"))?
-                .join(".ziggurat"),
+                .join(CONFIG),
             local_addr,
             initial_peers: HashSet::new(),
             max_peers: 50,
@@ -108,7 +111,7 @@ pub(super) struct NodeMetaData {
 impl NodeMetaData {
     pub(super) fn new(config_path: PathBuf) -> io::Result<Self> {
         // Read Ziggurat's configuration file.
-        let path = config_path.join(CONFIG);
+        let path = config_path.join(CONFIG_FILE);
         let config_string = fs::read_to_string(path)?;
         let config_file: ConfigFile = toml::from_str(&config_string)?;
 
