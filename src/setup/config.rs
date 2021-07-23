@@ -6,7 +6,7 @@ use std::{
     ffi::OsString,
     fs, io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use crate::setup::node::Action;
@@ -71,10 +71,10 @@ pub(super) enum NodeKind {
 
 impl NodeKind {
     /// Path to the configuration file for this [NodeKind]
-    pub(super) fn config_filepath(&self) -> std::path::PathBuf {
+    pub(super) fn config_filepath(&self, wrapping_dir: &Path) -> PathBuf {
         match self {
-            NodeKind::Zebra => std::env::current_dir().unwrap().join(ZEBRA_CONFIG),
-            NodeKind::Zcashd => std::env::current_dir().unwrap().join(ZCASHD_CONFIG),
+            NodeKind::Zebra => wrapping_dir.join(ZEBRA_CONFIG),
+            NodeKind::Zcashd => wrapping_dir.join(ZCASHD_CONFIG),
         }
     }
 }
@@ -106,7 +106,10 @@ impl NodeMetaData {
         let start_command = start_args.remove(0);
 
         // insert the config file path into start args
-        let config_path = config_file.kind.config_filepath();
+
+        let cache_path = std::env::current_dir().unwrap().join("cache");
+        let config_path = config_file.kind.config_filepath(&cache_path);
+
         match config_file.kind {
             NodeKind::Zebra => {
                 // Zebra's final arg must be `start`, so we insert the actual args before it.
@@ -121,7 +124,7 @@ impl NodeMetaData {
                 start_args.insert(n_args, config_path.into_os_string());
             }
             NodeKind::Zcashd => {
-                start_args.push(format!("-conf={}", config_path.to_str().unwrap()).into());
+                start_args.push(format!("-datadir={}", cache_path.to_str().unwrap()).into());
             }
         }
 
