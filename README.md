@@ -84,6 +84,10 @@ start_command = "cargo +stable r -- --verbose start"
 # start             starts the node
 ```
 
+| :warning: ZCashd: `-datadir` |
+| :------------------------------|
+| Ziggurat uses the `-datadir` configuration argument internally for ZCashd nodes, to prevent corrupting the user's ZCashd cache. This option gets appended to the start command, and will override any user specified `-datadir` values.|
+
 ## Building the docs
 
 Ziggurat's documentation can be built with `cargo doc --no-deps --open`.
