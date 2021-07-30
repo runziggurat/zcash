@@ -257,18 +257,14 @@ impl SyntheticNode {
     }
 
     /// Sends a direct message to the target address.
-    pub async fn send_direct_message(
-        &self,
-        target: SocketAddr,
-        message: Message,
-    ) -> io::Result<()> {
+    pub fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
         self.inner_node.send_direct_message(target, message)?;
 
         Ok(())
     }
 
     /// Sends bytes directly to the target address.
-    pub async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
+    pub fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
         self.inner_node.send_direct_bytes(target, data)?;
 
         Ok(())
@@ -329,10 +325,7 @@ impl SyntheticNode {
 
         let now = std::time::Instant::now();
         let ping_nonce = Nonce::default();
-        if let Err(err) = self
-            .send_direct_message(target, Message::Ping(ping_nonce))
-            .await
-        {
+        if let Err(err) = self.send_direct_message(target, Message::Ping(ping_nonce)) {
             if !self.is_connected(target) {
                 return Err(PingPongError::ConnectionAborted);
             } else {

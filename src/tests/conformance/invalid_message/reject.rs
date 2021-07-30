@@ -111,9 +111,7 @@ async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()>
     synthetic_node.connect(node.addr()).await?;
 
     // Send the message to be rejected.
-    synthetic_node
-        .send_direct_message(node.addr(), message)
-        .await?;
+    synthetic_node.send_direct_message(node.addr(), message)?;
 
     // Use Ping-Pong to check the node's response to our query. We expect a Reject message.
     let result = match synthetic_node

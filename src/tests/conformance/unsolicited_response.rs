@@ -85,9 +85,7 @@ async fn run_test_case(message: Message) -> io::Result<()> {
         .await?;
     synthetic_node.connect(node.addr()).await?;
 
-    synthetic_node
-        .send_direct_message(node.addr(), message)
-        .await?;
+    synthetic_node.send_direct_message(node.addr(), message)?;
 
     // A response to ping would indicate the previous message was ignored.
     let result = synthetic_node
