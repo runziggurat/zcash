@@ -39,10 +39,7 @@ async fn instead_of_version_when_node_receives_connection() {
             .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
 
-        synth_node
-            .send_direct_bytes(node.addr(), payload)
-            .await
-            .unwrap();
+        synth_node.send_direct_bytes(node.addr(), payload).unwrap();
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
@@ -80,10 +77,7 @@ async fn instead_of_verack_when_node_receives_connection() {
             .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
 
-        synth_node
-            .send_direct_bytes(node.addr(), payload)
-            .await
-            .unwrap();
+        synth_node.send_direct_bytes(node.addr(), payload).unwrap();
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
@@ -130,10 +124,7 @@ async fn instead_of_version_when_node_initiates_connection() {
                 assert_matches!(version, Message::Version(..));
 
                 // send bad version
-                synth_node
-                    .send_direct_bytes(node_addr, payload)
-                    .await
-                    .unwrap();
+                synth_node.send_direct_bytes(node_addr, payload).unwrap();
                 assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
@@ -198,10 +189,7 @@ async fn instead_of_verack_when_node_initiates_connection() {
                 assert_matches!(verack, Message::Verack);
 
                 // send bad version
-                synth_node
-                    .send_direct_bytes(node_addr, payload)
-                    .await
-                    .unwrap();
+                synth_node.send_direct_bytes(node_addr, payload).unwrap();
                 assert!(synth_node
                     .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
                     .await
@@ -253,10 +241,7 @@ async fn post_handshake() {
             .unwrap();
         synth_node.connect(node.addr()).await.unwrap();
 
-        synth_node
-            .send_direct_bytes(node.addr(), payload)
-            .await
-            .unwrap();
+        synth_node.send_direct_bytes(node.addr(), payload).unwrap();
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await

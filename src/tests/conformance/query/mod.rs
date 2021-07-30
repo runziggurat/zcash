@@ -42,15 +42,11 @@ async fn run_test_query(query: Message) -> io::Result<Vec<Message>> {
     synthetic_node.connect(node.addr()).await?;
 
     // Send the query.
-    synthetic_node
-        .send_direct_message(node.addr(), query)
-        .await?;
+    synthetic_node.send_direct_message(node.addr(), query)?;
 
     // Send a Ping - once we receive the matching Pong we know our query has been fully processed.
     let nonce = Nonce::default();
-    synthetic_node
-        .send_direct_message(node.addr(), Message::Ping(nonce))
-        .await?;
+    synthetic_node.send_direct_message(node.addr(), Message::Ping(nonce))?;
 
     // Receive messages until we receive the matching Pong, or we timeout.
     const RECV_TIMEOUT: Duration = Duration::from_millis(100);
