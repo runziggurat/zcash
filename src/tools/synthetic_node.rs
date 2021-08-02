@@ -257,19 +257,15 @@ impl SyntheticNode {
     }
 
     /// Sends a direct message to the target address.
-    pub async fn send_direct_message(
-        &self,
-        target: SocketAddr,
-        message: Message,
-    ) -> io::Result<()> {
-        self.inner_node.send_direct_message(target, message).await?;
+    pub fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
+        self.inner_node.send_direct_message(target, message)?;
 
         Ok(())
     }
 
     /// Sends bytes directly to the target address.
-    pub async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
-        self.inner_node.send_direct_bytes(target, data).await?;
+    pub fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
+        self.inner_node.send_direct_bytes(target, data)?;
 
         Ok(())
     }
@@ -329,10 +325,7 @@ impl SyntheticNode {
 
         let now = std::time::Instant::now();
         let ping_nonce = Nonce::default();
-        if let Err(err) = self
-            .send_direct_message(target, Message::Ping(ping_nonce))
-            .await
-        {
+        if let Err(err) = self.send_direct_message(target, Message::Ping(ping_nonce)) {
             if !self.is_connected(target) {
                 return Err(PingPongError::ConnectionAborted);
             } else {
@@ -417,7 +410,7 @@ impl InnerNode {
         node
     }
 
-    async fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
+    fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
         let mut payload = vec![];
         let header = message.encode(&mut payload)?;
 
@@ -426,15 +419,13 @@ impl InnerNode {
         header.encode(&mut buffer)?;
         buffer.append(&mut payload);
 
-        self.node()
-            .send_direct_message(target, buffer.into())
-            .await?;
+        self.node().send_direct_message(target, buffer.into())?;
 
         Ok(())
     }
 
-    async fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
-        self.node.send_direct_message(target, data.into()).await
+    fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
+        self.node.send_direct_message(target, data.into())
     }
 }
 
@@ -485,7 +476,7 @@ impl Reading for InnerNode {
                 let response = self.message_filter.reply_message(&message);
 
                 debug!(parent: span, "auto replying with {:?}", response);
-                self.send_direct_message(source, response).await?;
+                self.send_direct_message(source, response)?;
             }
 
             Filter::Disabled => {

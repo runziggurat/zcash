@@ -65,7 +65,6 @@ async fn pong_with_wrong_nonce() {
     match synthetic_node.recv_message_timeout(PING_TIMEOUT).await {
         Ok((_, Message::Ping(_))) => synthetic_node
             .send_direct_message(node.addr(), Message::Pong(Nonce::default()))
-            .await
             .unwrap(),
         Ok((_, message)) => {
             panic!("Unexpected message while waiting for Ping: {}", message);
@@ -176,7 +175,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
         .await?;
     synthetic_node.connect(node.addr()).await?;
 
-    synthetic_node.send_direct_bytes(node.addr(), bytes).await?;
+    synthetic_node.send_direct_bytes(node.addr(), bytes)?;
 
     // Use Ping-Pong to check node's response.
     // We expect a disconnect.
