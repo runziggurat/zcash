@@ -192,7 +192,6 @@ async fn simulate_peer(node_addr: SocketAddr) {
         // send Ping(nonce)
         synth_node
             .send_direct_message(node_addr, Message::Ping(nonce))
-            .await
             .unwrap();
 
         let now = tokio::time::Instant::now();

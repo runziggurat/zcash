@@ -38,7 +38,6 @@ async fn reusing_nonce() {
     bad_version.nonce = nonce;
     synthetic_node
         .send_direct_message(source, Message::Version(bad_version))
-        .await
         .unwrap();
 
     // Assert on disconnect.
@@ -84,7 +83,6 @@ async fn with_obsolete_version_numbers() {
                         .with_version(obsolete_version_number),
                 ),
             )
-            .await
             .unwrap();
 
         // Expect a reject message.

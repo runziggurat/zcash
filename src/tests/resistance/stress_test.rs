@@ -488,11 +488,7 @@ async fn simulate_peer(
 
     // send the valid query messages and validate the responses
     for (query, expected) in message_pairs {
-        if synth_node
-            .send_direct_message(node_addr, query)
-            .await
-            .is_err()
-        {
+        if synth_node.send_direct_message(node_addr, query).is_err() {
             metrics::counter!(CONNECTION_TERMINATED, 1);
             return;
         }
@@ -506,7 +502,6 @@ async fn simulate_peer(
     // send the corrupt message
     if synth_node
         .send_direct_bytes(node_addr, corrupt_message)
-        .await
         .is_err()
     {
         metrics::counter!(CONNECTION_TERMINATED, 1);
@@ -517,7 +512,6 @@ async fn simulate_peer(
     let nonce = Nonce::default();
     if synth_node
         .send_direct_message(node_addr, Message::Ping(nonce))
-        .await
         .is_err()
     {
         metrics::counter!(CORRUPT_TERMINATED, 1);
