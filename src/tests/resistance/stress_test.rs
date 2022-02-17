@@ -83,7 +83,7 @@ async fn throughput() {
     //
     // Currently only works for zcashd as zebra does not support block seeding.
     //
-    // ZCashd: Terminates most of the time, but also rejects and ignores some of the messages. In some instances the connection hangs,
+    // Zcashd: Terminates most of the time, but also rejects and ignores some of the messages. In some instances the connection hangs,
     //         all instances investigated were as a result of a corrupt payload length leading to the node waiting for more data.
     //         This is likely the desired and correct behaviour.
     //
@@ -518,7 +518,7 @@ async fn simulate_peer(
         return;
     }
 
-    // loop so we can check if connection has been terminated inbetween waiting on reads
+    // loop so we can check if connection has been terminated in-between waiting on reads
     let read_result = loop {
         let result = synth_node.recv_message_timeout(READ_TIMEOUT).await;
         // We break out if we either

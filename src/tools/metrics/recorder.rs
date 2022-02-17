@@ -1,4 +1,4 @@
-//! Metrics recording types and utilites.
+//! Metrics recording types and utilities.
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -124,7 +124,7 @@ pub fn enable_simple_recorder() -> Result<(), SetRecorderError> {
     //        from every test which requires metrics. This will cause an
     //        error when called multiple times.
     //
-    //        The correct implementation will pass on the result of metric::set_recoder
+    //        The correct implementation will pass on the result of metric::set_recorder
     //        instead of masking it.
     let _ = metrics::set_recorder(&*SIMPLE_RECORDER);
     Ok(())
