@@ -22,7 +22,7 @@ macro_rules! wait_until {
                 break;
             }
 
-            // Default timout.
+            // Default timeout.
             let sleep_duration = std::time::Duration::from_millis(10);
             // Set if present in args.
             $(let sleep_duration = $sleep_duration;)?

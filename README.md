@@ -59,7 +59,7 @@ Ziggurat is configured via a `config.toml` file in the `~/.ziggurat` directory (
 - `path`: absolute path in which to run the start command.
 - `start_command`: the command used to start the node
 
-We recommend using the following ZCashd config:
+We recommend using the following Zcashd config:
 ```toml
 kind = "zcashd"
 path = "path/to/zcash/repo"
@@ -82,9 +82,9 @@ start_command = "cargo +stable r -- --verbose start"
 # start             starts the node
 ```
 
-| :warning: ZCashd: `-datadir` |
+| :warning: Zcashd: `-datadir` |
 | :------------------------------|
-| Ziggurat uses the `-datadir` configuration argument internally for ZCashd nodes, to prevent corrupting the user's ZCashd cache. This option gets appended to the start command, and will override any user specified `-datadir` values.|
+| Ziggurat uses the `-datadir` configuration argument internally for Zcashd nodes, to prevent corrupting the user's Zcashd cache. This option gets appended to the start command, and will override any user specified `-datadir` values.|
 
 ## Building the docs
 
@@ -115,7 +115,7 @@ node.initial_action(Action::WaitForConnection)
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
 
-These results were obtained by running the test suite against [ZCashd v4.4.1](https://github.com/zcash/zcash/releases/tag/v4.4.1) (0dade79ce) and [Zebra 1.0.0-alpha.11](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-alpha.11) (6396ac2).
+These results were obtained by running the test suite against [Zcashd v4.4.1](https://github.com/zcash/zcash/releases/tag/v4.4.1) (0dade79ce) and [Zebra 1.0.0-alpha.11](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-alpha.11) (6396ac2).
 
 | Legend |               |
 | :----: | ------------- |
@@ -125,7 +125,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Conformance
 
-|             Test Case             | ZCashd | Zebra | Additional Information                                                      |
+|             Test Case             | Zcashd | Zebra | Additional Information                                                      |
 | :-------------------------------: | :----: | :---: | :-------------------------------------------------------------------------- |
 | [001](SPEC.md#ZG-CONFORMANCE-001) |   ✓    |   ✓   |                                                                             |
 | [002](SPEC.md#ZG-CONFORMANCE-002) |   ✓    |   ✓   |                                                                             |
@@ -148,14 +148,14 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Performance
 
-|             Test Case             | ZCashd | Zebra | Additional Information |
+|             Test Case             | Zcashd | Zebra | Additional Information |
 | :-------------------------------: | :----: | :---: | :--------------------- |
 | [001](SPEC.md#ZG-PERFORMANCE-001) |   ✓    |   ✖   |                        |
 | [002](SPEC.md#ZG-PERFORMANCE-002) |   ✓    |   ✖   |                        |
 
 ### Resistance: fuzzing zeros
 
-|            Test Case             | ZCashd | Zebra | Additional Information   |
+|            Test Case             | Zcashd | Zebra | Additional Information   |
 | :------------------------------: | :----: | :---: | :----------------------- |
 | [001](SPEC.md#ZG-RESISTANCE-001) |   ✓    |   ✓   |                          |
 | [002](SPEC.md#ZG-RESISTANCE-002) |   ✓    |   ✓   |                          |
@@ -166,7 +166,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Resistance: fuzzing random bytes
 
-|            Test Case             | ZCashd | Zebra | Additional Information   |
+|            Test Case             | Zcashd | Zebra | Additional Information   |
 | :------------------------------: | :----: | :---: | :----------------------- |
 | [001](SPEC.md#ZG-RESISTANCE-001) |   ✓    |   ✓   |                          |
 | [002](SPEC.md#ZG-RESISTANCE-002) |   ✓    |   ✓   |                          |
@@ -177,7 +177,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Resistance: fuzzing random payloads
 
-|            Test Case             | ZCashd | Zebra | Additional Information   |
+|            Test Case             | Zcashd | Zebra | Additional Information   |
 | :------------------------------: | :----: | :---: | :----------------------- |
 | [001](SPEC.md#ZG-RESISTANCE-001) |   ✖    |   ✖   |                          |
 | [002](SPEC.md#ZG-RESISTANCE-002) |   ✖    |   ✖   |                          |
@@ -188,7 +188,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Resistance: fuzzing corrupt messages
 
-|            Test Case             | ZCashd | Zebra | Additional Information |
+|            Test Case             | Zcashd | Zebra | Additional Information |
 | :------------------------------: | :----: | :---: | :--------------------- |
 | [001](SPEC.md#ZG-RESISTANCE-001) |   ✖    |   ✓   |                        |
 | [002](SPEC.md#ZG-RESISTANCE-002) |   ✖    |   ✓   |                        |
@@ -199,7 +199,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Resistance: fuzzing corrupt checksum
 
-|            Test Case             | ZCashd | Zebra | Additional Information |
+|            Test Case             | Zcashd | Zebra | Additional Information |
 | :------------------------------: | :----: | :---: | :--------------------- |
 | [001](SPEC.md#ZG-RESISTANCE-001) |   ✖    |   ✓   |                        |
 | [002](SPEC.md#ZG-RESISTANCE-002) |   ✖    |   ✓   |                        |
@@ -210,7 +210,7 @@ These results were obtained by running the test suite against [ZCashd v4.4.1](ht
 
 ### Resistance: fuzzing corrupt length
 
-|            Test Case             | ZCashd | Zebra | Additional Information   |
+|            Test Case             | Zcashd | Zebra | Additional Information   |
 | :------------------------------: | :----: | :---: | :----------------------- |
 | [001](SPEC.md#ZG-RESISTANCE-001) |   ✓    |   ✓   |                          |
 | [002](SPEC.md#ZG-RESISTANCE-002) |   ✓    |   ✓   |                          |
