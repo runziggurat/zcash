@@ -37,12 +37,12 @@ pub const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [
 
 const CORRUPTION_PROBABILITY: f64 = 0.5;
 
-/// Returns a randomly seeded `ChaCha8Rng` instance, useful for making tests reproducable.
+/// Returns a randomly seeded `ChaCha8Rng` instance, useful for making tests reproducible.
 pub fn seeded_rng() -> ChaCha8Rng {
     let mut seed: <ChaCha8Rng as SeedableRng>::Seed = Default::default();
     thread_rng().fill(&mut seed);
 
-    // We print the seed for reproducability.
+    // We print the seed for reproducibility.
     println!("Seed for RNG: {:?}", seed);
 
     // Isn't cryptographically secure but adequate enough as a general source of seeded randomness.

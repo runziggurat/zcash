@@ -298,7 +298,7 @@ impl Node {
     fn cleanup_config_file(&self) -> io::Result<()> {
         let path = self.meta.kind.config_filepath(&self.config.path);
         match fs::remove_file(path) {
-            // File may not exist, so we surpress the error.
+            // File may not exist, so we suppress the error.
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
             _ => Ok(()),
         }

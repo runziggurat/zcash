@@ -92,7 +92,7 @@ async fn with_obsolete_version_numbers() {
         // Expect the connection to be dropped.
         wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
 
-        // Gracefull shut down the synthetic node.
+        // Gracefully shut down the synthetic node.
         synthetic_node.shut_down();
     }
 

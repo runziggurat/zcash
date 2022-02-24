@@ -47,7 +47,7 @@ pub(super) struct NodeConfig {
     pub(super) max_peers: usize,
     /// Setting this option to true will enable node logging to stdout.
     pub(super) log_to_stdout: bool,
-    /// Defines the intial action to take once the node has started.
+    /// Defines the initial action to take once the node has started.
     pub(super) initial_action: Action,
 }
 

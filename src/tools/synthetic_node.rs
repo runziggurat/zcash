@@ -196,7 +196,7 @@ impl SyntheticNodeBuilder {
     }
 }
 
-/// Conventient abstraction over a `pea2pea` node.
+/// Convenient abstraction over a `pea2pea` node.
 pub struct SyntheticNode {
     inner_node: InnerNode,
     inbound_rx: Receiver<(SocketAddr, Message)>,
@@ -222,7 +222,7 @@ impl SyntheticNode {
         Ok(())
     }
 
-    /// Indicates if the `addr` is registerd as a connected peer.
+    /// Indicates if the `addr` is registered as a connected peer.
     pub fn is_connected(&self, addr: SocketAddr) -> bool {
         self.inner_node.node().is_connected(addr)
     }
@@ -237,7 +237,7 @@ impl SyntheticNode {
         self.inner_node.node().known_peers()
     }
 
-    /// Returns the list of active connections for this node. Should be prefered over [`known_peers`] when querying active connections.
+    /// Returns the list of active connections for this node. Should be preferred over [`known_peers`] when querying active connections.
     pub fn connected_peers(&self) -> Vec<SocketAddr> {
         self.inner_node.node.connected_addrs()
     }
@@ -247,7 +247,7 @@ impl SyntheticNode {
     pub async fn wait_for_connection(&self) -> SocketAddr {
         const SLEEP: Duration = Duration::from_millis(10);
         loop {
-            // Mutating the collection is alright since this is a copy of the connections and not the actualy list.
+            // Mutating the collection is alright since this is a copy of the connections and not the actually list.
             if let Some(addr) = self.connected_peers().pop() {
                 return addr;
             }
