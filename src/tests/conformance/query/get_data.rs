@@ -4,7 +4,7 @@
 //!
 //! Note: Zebra does not support seeding with chain data and as such cannot run any of these tests successfully.
 //!
-//! Note: ZCashd currently ignores requests for non-existant blocks. We expect a [`Message::NotFound`] response.
+//! Note: Zcashd currently ignores requests for non-existent blocks. We expect a [`Message::NotFound`] response.
 
 use crate::{
     protocol::{
@@ -51,8 +51,8 @@ mod single_block {
     }
 
     #[tokio::test]
-    async fn non_existant() {
-        // zcashd: fail (ignores non-existant block)
+    async fn non_existent() {
+        // zcashd: fail (ignores non-existent block)
         let inv = Inv::new(vec![InvHash::new(ObjectKind::Block, Hash::new([17; 32]))]);
         let query = Message::GetData(inv.clone());
         let expected = vec![Message::NotFound(inv)];
@@ -107,8 +107,8 @@ mod multiple_blocks {
     }
 
     #[tokio::test]
-    async fn non_existant_blocks() {
-        // zcashd: fails (ignores non-existant blocks).
+    async fn non_existent_blocks() {
+        // zcashd: fails (ignores non-existent blocks).
         let inv = Inv::new(vec![
             InvHash::new(ObjectKind::Block, Hash::new([17; 32])),
             InvHash::new(ObjectKind::Block, Hash::new([211; 32])),
@@ -122,19 +122,19 @@ mod multiple_blocks {
     }
 
     #[tokio::test]
-    async fn mixed_existant_and_non_existant_blocks() {
-        // Test a mixture of existant and non-existant blocks
+    async fn mixed_existent_and_non_existent_blocks() {
+        // Test a mixture of existent and non-existent blocks
         // interwoven together.
         //
         // We expect the response to contain a Block for each
         // existing request, and a single NotFound containing
-        // hashes for all non-existant blocks. The order of
+        // hashes for all non-existent blocks. The order of
         // these is undefined, but since zcashd currently
         // does not send NotFound at all, it does not matter.
         //
-        // zcashd: fails (ignores non-existant blocks).
+        // zcashd: fails (ignores non-existent blocks).
 
-        let non_existant_inv = vec![
+        let non_existent_inv = vec![
             InvHash::new(ObjectKind::Block, Hash::new([17; 32])),
             InvHash::new(ObjectKind::Block, Hash::new([211; 32])),
             InvHash::new(ObjectKind::Block, Hash::new([74; 32])),
@@ -142,30 +142,30 @@ mod multiple_blocks {
         let blocks = SEED_BLOCKS
             .iter()
             .skip(3)
-            .take(non_existant_inv.len())
+            .take(non_existent_inv.len())
             .collect::<Vec<_>>();
 
         let expected_blocks = blocks
             .iter()
             .map(|&block| Message::Block(Box::new(block.clone())))
             .collect::<Vec<_>>();
-        let expected_non_existant = Message::NotFound(Inv::new(non_existant_inv.clone()));
+        let expected_non_existent = Message::NotFound(Inv::new(non_existent_inv.clone()));
 
         let mixed_inv = blocks
             .iter()
             .map(|block| block.inv_hash())
-            .zip(non_existant_inv)
+            .zip(non_existent_inv)
             .flat_map(|(a, b)| [a, b])
             .collect();
 
         let query = Message::GetData(Inv::new(mixed_inv));
         let response = run_test_query(query).await.unwrap();
 
-        // Should contain expected_blocks[..] and expected_non_existant. Not sure
+        // Should contain expected_blocks[..] and expected_non_existent. Not sure
         // what order we should expect (if any). But since the node currently ignores
-        // non-existant block queries we are free to assume any order.
+        // non-existent block queries we are free to assume any order.
         let mut expected = expected_blocks;
-        expected.push(expected_non_existant);
+        expected.push(expected_non_existent);
         assert_eq!(response, expected);
     }
 }
