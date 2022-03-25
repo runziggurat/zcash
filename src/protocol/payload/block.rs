@@ -6,11 +6,9 @@ use crate::protocol::payload::{
     read_n_bytes, Hash, ProtocolVersion, Tx, VarInt,
 };
 
-use std::{
-    convert::TryInto,
-    io::{self, Cursor, Write},
-};
+use std::{convert::TryInto, io};
 
+use bytes::{Buf, BufMut};
 use sha2::Digest;
 
 /// The locator hash object, used to communicate chain state.
@@ -44,7 +42,7 @@ impl LocatorHashes {
 }
 
 impl Codec for LocatorHashes {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.version.encode(buffer)?;
         self.block_locator_hashes.encode(buffer)?;
         self.hash_stop.encode(buffer)?;
@@ -52,7 +50,7 @@ impl Codec for LocatorHashes {
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
         let block_locator_hashes = Vec::decode(bytes)?;
         let hash_stop = Hash::decode(bytes)?;
@@ -170,12 +168,12 @@ impl Block {
 }
 
 impl Codec for Block {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.header.encode_without_tx_count(buffer)?;
         self.txs.encode(buffer)
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let header = Header::decode_without_tx_count(bytes)?;
         let txs = Vec::decode(bytes)?;
         Ok(Self { header, txs })
@@ -203,11 +201,11 @@ impl Headers {
 }
 
 impl Codec for Headers {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.headers.encode(buffer)
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let headers = Vec::decode(bytes)?;
         Ok(Self::new(headers))
     }
@@ -239,13 +237,13 @@ pub struct Header {
 }
 
 impl Codec for Header {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.encode_without_tx_count(buffer)?;
         // Encode tx_count=0
         VarInt(0).encode(buffer)
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self>
     where
         Self: Sized,
     {
@@ -281,25 +279,27 @@ impl Header {
 
     /// Encodes [Header] without the VarInt `tx_count=0`. This is useful for [Block] encoding which requires
     /// `tx_count=N`, as well as Hash calculation as it excludes `tx_count`.
-    fn encode_without_tx_count(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode_without_tx_count<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.version.encode(buffer)?;
         self.prev_block.encode(buffer)?;
         self.merkle_root.encode(buffer)?;
         self.light_client_root.encode(buffer)?;
 
-        buffer.write_all(&self.timestamp.to_le_bytes())?;
-        buffer.write_all(&self.bits.to_le_bytes())?;
-        buffer.write_all(&self.nonce)?;
+        buffer.put_u32_le(self.timestamp);
+        buffer.put_u32_le(self.bits);
+        buffer.put_slice(&self.nonce);
 
         self.solution_size.encode(buffer)?;
-        buffer.write_all(&self.solution)
+        buffer.put_slice(&self.solution);
+
+        Ok(())
     }
 
     /// Decodes [Header] without consuming the VarInt `tx_count`. This is useful for [Block] decoding which
     /// requires the value to determine the number of transactions which follow in the body. [Header] on the
     /// otherhand requires that this value be 0. This gets asserted in Header::encode, making it unsuiteable
     /// for use by [Block].
-    fn decode_without_tx_count(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode_without_tx_count<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
         let prev_block = Hash::decode(bytes)?;
         let merkle_root = Hash::decode(bytes)?;
@@ -333,6 +333,8 @@ mod tests {
 
     use super::*;
     use crate::vectors::*;
+
+    use std::io::Cursor;
 
     #[test]
     #[ignore]

@@ -1,5 +1,7 @@
 //! Traits for encoding and decoding network message types.
 
+use bytes::{Buf, BufMut};
+
 use super::VarInt;
 
 use std::io;
@@ -7,16 +9,16 @@ use std::io;
 /// A trait for unifying encoding and decoding.
 pub trait Codec {
     /// Encodes the payload into the supplied buffer.
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()>;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()>;
 
     /// Decodes the bytes and returns the payload.
-    fn decode(bytes: &mut io::Cursor<&[u8]>) -> io::Result<Self>
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self>
     where
         Self: Sized;
 }
 
 impl<T: Codec> Codec for Vec<T> {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         VarInt(self.len()).encode(buffer)?;
         for element in self {
             element.encode(buffer)?;
@@ -25,7 +27,7 @@ impl<T: Codec> Codec for Vec<T> {
         Ok(())
     }
 
-    fn decode(bytes: &mut io::Cursor<&[u8]>) -> io::Result<Self>
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self>
     where
         Self: Sized,
     {

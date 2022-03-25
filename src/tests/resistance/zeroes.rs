@@ -1,5 +1,4 @@
 //! Contains fuzz tests where messages are replaced with random length payloads of 0x00.
-use std::cmp;
 
 use crate::{
     protocol::message::Message,
@@ -31,7 +30,6 @@ async fn instead_of_version_when_node_receives_connection() {
 
     for payload in payloads {
         let mut synth_node = SyntheticNode::builder()
-            .with_max_write_buffer_size(cmp::max(payload.len(), 65536))
             .with_all_auto_reply()
             .build()
             .await
@@ -69,7 +67,6 @@ async fn instead_of_verack_when_node_receives_connection() {
         let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .with_version_exchange_handshake()
-            .with_max_write_buffer_size(cmp::max(payload.len(), 65536))
             .build()
             .await
             .unwrap();
@@ -99,12 +96,9 @@ async fn instead_of_version_when_node_initiates_connection() {
     let mut rng = seeded_rng();
     let mut payloads = zeroes(&mut rng, ITERATIONS);
 
-    let max_payload = payloads.iter().map(|p| p.len()).max().unwrap().max(65536);
-
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
         .with_all_auto_reply()
-        .with_max_write_buffer_size(max_payload)
         .build_n(ITERATIONS)
         .await
         .unwrap();
@@ -159,13 +153,10 @@ async fn instead_of_verack_when_node_initiates_connection() {
     let mut rng = seeded_rng();
     let mut payloads = zeroes(&mut rng, ITERATIONS);
 
-    let max_payload = payloads.iter().map(|p| p.len()).max().unwrap().max(65536);
-
     // create peers (we need their ports to give to the node)
     let (synth_nodes, synth_addrs) = SyntheticNode::builder()
         .with_all_auto_reply()
         .with_version_exchange_handshake()
-        .with_max_write_buffer_size(max_payload)
         .build_n(ITERATIONS)
         .await
         .unwrap();
@@ -230,7 +221,6 @@ async fn post_handshake() {
         let mut synth_node = SyntheticNode::builder()
             .with_all_auto_reply()
             .with_full_handshake()
-            .with_max_write_buffer_size(cmp::max(payload.len(), 65536))
             .build()
             .await
             .unwrap();

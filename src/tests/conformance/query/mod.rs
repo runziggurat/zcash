@@ -59,7 +59,7 @@ async fn run_test_query(query: Message) -> io::Result<Vec<Message>> {
     }
 
     // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop()?;
 
     Ok(messages)

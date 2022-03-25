@@ -1,13 +1,11 @@
 //! Transaction-related types.
 
+use bytes::{Buf, BufMut};
 use sha2::Digest;
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, VarInt};
 
-use std::{
-    convert::TryInto,
-    io::{self, Cursor, Read, Write},
-};
+use std::{convert::TryInto, io};
 
 use crate::protocol::payload::inv::{InvHash, ObjectKind};
 
@@ -46,26 +44,26 @@ impl Tx {
 }
 
 impl Codec for Tx {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         match self {
             Tx::V1(tx) => {
                 // The overwintered flag is NOT set.
-                buffer.write_all(&1u32.to_le_bytes())?;
+                buffer.put_u32_le(1u32);
                 tx.encode(buffer)?;
             }
             Tx::V2(tx) => {
                 // The overwintered flag is NOT set.
-                buffer.write_all(&2u32.to_le_bytes())?;
+                buffer.put_u32_le(2u32);
                 tx.encode(buffer)?;
             }
             Tx::V3(tx) => {
                 // The overwintered flag IS set.
-                buffer.write_all(&(3u32 | 1 << 31).to_le_bytes())?;
+                buffer.put_u32_le(3u32 | 1 << 31);
                 tx.encode(buffer)?;
             }
             Tx::V4(tx) => {
                 // The overwintered flag IS set.
-                buffer.write_all(&(4u32 | 1 << 31).to_le_bytes())?;
+                buffer.put_u32_le(4u32 | 1 << 31);
                 tx.encode(buffer)?;
             }
             Tx::V5 => unimplemented!(),
@@ -74,7 +72,7 @@ impl Codec for Tx {
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         use std::io::{Error, ErrorKind};
 
         let (version, overwinter) = {
@@ -114,16 +112,16 @@ pub struct TxV1 {
 }
 
 impl Codec for TxV1 {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.tx_in.encode(buffer)?;
         self.tx_out.encode(buffer)?;
 
-        buffer.write_all(&self.lock_time.to_le_bytes())?;
+        buffer.put_u32_le(self.lock_time);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let tx_in = Vec::<TxIn>::decode(bytes)?;
         let tx_out = Vec::<TxOut>::decode(bytes)?;
 
@@ -154,11 +152,11 @@ pub struct TxV2 {
 }
 
 impl Codec for TxV2 {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.tx_in.encode(buffer)?;
         self.tx_out.encode(buffer)?;
 
-        buffer.write_all(&self.lock_time.to_le_bytes())?;
+        buffer.put_u32_le(self.lock_time);
 
         VarInt(self.join_split.len()).encode(buffer)?;
         for description in &self.join_split {
@@ -168,14 +166,14 @@ impl Codec for TxV2 {
 
         if !self.join_split.is_empty() {
             // Must be present.
-            buffer.write_all(&self.join_split_pub_key.unwrap())?;
-            buffer.write_all(&self.join_split_sig.unwrap())?;
+            buffer.put_slice(&self.join_split_pub_key.unwrap());
+            buffer.put_slice(&self.join_split_sig.unwrap());
         }
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let tx_in = Vec::<TxIn>::decode(bytes)?;
         let tx_out = Vec::<TxOut>::decode(bytes)?;
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
@@ -189,11 +187,15 @@ impl Codec for TxV2 {
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count > 0 {
+            if bytes.remaining() < 64 {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
             let mut pub_key = [0u8; 32];
-            bytes.read_exact(&mut pub_key)?;
+            bytes.copy_to_slice(&mut pub_key);
 
             let mut sig = [0u8; 32];
-            bytes.read_exact(&mut sig)?;
+            bytes.copy_to_slice(&mut sig);
 
             (Some(pub_key), Some(sig))
         } else {
@@ -231,14 +233,14 @@ pub struct TxV3 {
 }
 
 impl Codec for TxV3 {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.group_id.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u32_le(self.group_id);
 
         self.tx_in.encode(buffer)?;
         self.tx_out.encode(buffer)?;
 
-        buffer.write_all(&self.lock_time.to_le_bytes())?;
-        buffer.write_all(&self.expiry_height.to_le_bytes())?;
+        buffer.put_u32_le(self.lock_time);
+        buffer.put_u32_le(self.expiry_height);
 
         VarInt(self.join_split.len()).encode(buffer)?;
         for description in &self.join_split {
@@ -248,14 +250,14 @@ impl Codec for TxV3 {
 
         if !self.join_split.is_empty() {
             // Must be present.
-            buffer.write_all(&self.join_split_pub_key.unwrap())?;
-            buffer.write_all(&self.join_split_sig.unwrap())?;
+            buffer.put_slice(&self.join_split_pub_key.unwrap());
+            buffer.put_slice(&self.join_split_sig.unwrap());
         }
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let tx_in = Vec::<TxIn>::decode(bytes)?;
@@ -272,11 +274,15 @@ impl Codec for TxV3 {
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count > 0 {
+            if bytes.remaining() < 64 {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
             let mut pub_key = [0u8; 32];
-            bytes.read_exact(&mut pub_key)?;
+            bytes.copy_to_slice(&mut pub_key);
 
             let mut sig = [0u8; 32];
-            bytes.read_exact(&mut sig)?;
+            bytes.copy_to_slice(&mut sig);
 
             (Some(pub_key), Some(sig))
         } else {
@@ -323,16 +329,16 @@ pub struct TxV4 {
 }
 
 impl Codec for TxV4 {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.group_id.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u32_le(self.group_id);
 
         self.tx_in.encode(buffer)?;
         self.tx_out.encode(buffer)?;
 
-        buffer.write_all(&self.lock_time.to_le_bytes())?;
-        buffer.write_all(&self.expiry_height.to_le_bytes())?;
+        buffer.put_u32_le(self.lock_time);
+        buffer.put_u32_le(self.expiry_height);
 
-        buffer.write_all(&self.value_balance_sapling.to_le_bytes())?;
+        buffer.put_i64_le(self.value_balance_sapling);
         self.spends_sapling.encode(buffer)?;
         self.outputs_sapling.encode(buffer)?;
 
@@ -344,19 +350,19 @@ impl Codec for TxV4 {
 
         if !self.join_split.is_empty() {
             // Must be present.
-            buffer.write_all(&self.join_split_pub_key.unwrap())?;
-            buffer.write_all(&self.join_split_sig.unwrap())?;
+            buffer.put_slice(&self.join_split_pub_key.unwrap());
+            buffer.put_slice(&self.join_split_sig.unwrap());
         }
 
         if !self.spends_sapling.is_empty() || !self.outputs_sapling.is_empty() {
             // Must be present.
-            buffer.write_all(&self.binding_sig_sapling.unwrap())?
+            buffer.put_slice(&self.binding_sig_sapling.unwrap());
         }
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let group_id = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let tx_in = Vec::<TxIn>::decode(bytes)?;
@@ -377,11 +383,15 @@ impl Codec for TxV4 {
         }
 
         let (join_split_pub_key, join_split_sig) = if *join_split_count > 0 {
+            if bytes.remaining() < 64 {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
             let mut pub_key = [0u8; 32];
-            bytes.read_exact(&mut pub_key)?;
+            bytes.copy_to_slice(&mut pub_key);
 
             let mut sig = [0u8; 32];
-            bytes.read_exact(&mut sig)?;
+            bytes.copy_to_slice(&mut sig);
 
             (Some(pub_key), Some(sig))
         } else {
@@ -425,25 +435,30 @@ struct TxIn {
 }
 
 impl Codec for TxIn {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.prev_out_hash.encode(buffer)?;
-        buffer.write_all(&self.prev_out_index.to_le_bytes())?;
+        buffer.put_u32_le(self.prev_out_index);
 
         self.script_len.encode(buffer)?;
-        buffer.write_all(&self.script)?;
+        buffer.put_slice(&self.script);
 
-        buffer.write_all(&self.sequence.to_le_bytes())?;
+        buffer.put_u32_le(self.sequence);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let prev_out_hash = Hash::decode(bytes)?;
         let prev_out_index = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let script_len = VarInt::decode(bytes)?;
+
+        if bytes.remaining() < script_len.0 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
         let mut script = vec![0u8; script_len.0];
-        bytes.read_exact(&mut script)?;
+        bytes.copy_to_slice(&mut script);
 
         let sequence = u32::from_le_bytes(read_n_bytes(bytes)?);
 
@@ -465,19 +480,24 @@ struct TxOut {
 }
 
 impl Codec for TxOut {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.value.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_i64_le(self.value);
         self.pk_script_len.encode(buffer)?;
-        buffer.write_all(&self.pk_script)?;
+        buffer.put_slice(&self.pk_script);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let value = i64::from_le_bytes(read_n_bytes(bytes)?);
         let pk_script_len = VarInt::decode(bytes)?;
+
+        if bytes.remaining() < pk_script_len.0 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
         let mut pk_script = vec![0u8; pk_script_len.0];
-        bytes.read_exact(&mut pk_script)?;
+        bytes.copy_to_slice(&mut pk_script);
 
         Ok(Self {
             value,
@@ -507,24 +527,24 @@ struct JoinSplit {
 }
 
 impl JoinSplit {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.pub_old.to_le_bytes())?;
-        buffer.write_all(&self.pub_new.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u64_le(self.pub_old);
+        buffer.put_u64_le(self.pub_new);
 
-        buffer.write_all(&self.anchor)?;
-        buffer.write_all(&self.nullifiers)?;
-        buffer.write_all(&self.commitments)?;
-        buffer.write_all(&self.ephemeral_key)?;
-        buffer.write_all(&self.random_seed)?;
-        buffer.write_all(&self.vmacs)?;
+        buffer.put_slice(&self.anchor);
+        buffer.put_slice(&self.nullifiers);
+        buffer.put_slice(&self.commitments);
+        buffer.put_slice(&self.ephemeral_key);
+        buffer.put_slice(&self.random_seed);
+        buffer.put_slice(&self.vmacs);
 
         self.zkproof.encode(buffer)?;
-        buffer.write_all(&self.enc_cyphertexts)?;
+        buffer.put_slice(&self.enc_cyphertexts);
 
         Ok(())
     }
 
-    fn decode_bctv14(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode_bctv14<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         // TODO: deduplicate (might require generics).
         let pub_old = u64::from_le_bytes(read_n_bytes(bytes)?);
         let pub_new = u64::from_le_bytes(read_n_bytes(bytes)?);
@@ -553,7 +573,7 @@ impl JoinSplit {
         })
     }
 
-    fn decode_groth16(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode_groth16<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let pub_old = u64::from_le_bytes(read_n_bytes(bytes)?);
         let pub_new = u64::from_le_bytes(read_n_bytes(bytes)?);
 
@@ -590,10 +610,10 @@ enum Zkproof {
 }
 
 impl Zkproof {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         match self {
-            Self::BCTV14(bytes) => buffer.write_all(bytes)?,
-            Self::Groth16(bytes) => buffer.write_all(bytes)?,
+            Self::BCTV14(bytes) => buffer.put_slice(&*bytes),
+            Self::Groth16(bytes) => buffer.put_slice(&*bytes),
         }
 
         Ok(())
@@ -612,18 +632,18 @@ struct SpendDescription {
 }
 
 impl Codec for SpendDescription {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.cv)?;
-        buffer.write_all(&self.anchor)?;
-        buffer.write_all(&self.nullifier)?;
-        buffer.write_all(&self.rk)?;
-        buffer.write_all(&self.zkproof)?;
-        buffer.write_all(&self.spend_auth_sig)?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.cv);
+        buffer.put_slice(&self.anchor);
+        buffer.put_slice(&self.nullifier);
+        buffer.put_slice(&self.rk);
+        buffer.put_slice(&self.zkproof);
+        buffer.put_slice(&self.spend_auth_sig);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let cv = read_n_bytes(bytes)?;
         let anchor = read_n_bytes(bytes)?;
         let nullifier = read_n_bytes(bytes)?;
@@ -653,18 +673,18 @@ struct SaplingOutput {
 }
 
 impl Codec for SaplingOutput {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.cv)?;
-        buffer.write_all(&self.cmu)?;
-        buffer.write_all(&self.ephemeral_key)?;
-        buffer.write_all(&self.enc_cyphertext)?;
-        buffer.write_all(&self.out_cyphertext)?;
-        buffer.write_all(&self.zkproof)?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.cv);
+        buffer.put_slice(&self.cmu);
+        buffer.put_slice(&self.ephemeral_key);
+        buffer.put_slice(&self.enc_cyphertext);
+        buffer.put_slice(&self.out_cyphertext);
+        buffer.put_slice(&self.zkproof);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let cv = read_n_bytes(bytes)?;
         let cmu = read_n_bytes(bytes)?;
         let ephemeral_key = read_n_bytes(bytes)?;
@@ -686,6 +706,8 @@ impl Codec for SaplingOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use io::Cursor;
 
     #[test]
     #[ignore]

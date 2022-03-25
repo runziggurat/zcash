@@ -91,7 +91,7 @@ async fn eagerly_crawls_network_for_peers() {
     for node in synthetic_nodes {
         wait_until!(TIMEOUT, node.num_connected() == 1);
 
-        node.shut_down();
+        node.shut_down().await;
     }
 
     // Gracefully shut down the node.
@@ -161,12 +161,12 @@ async fn correctly_lists_peers() {
         let addrs: Vec<SocketAddr> = addrs.iter().map(|network_addr| network_addr.addr).collect();
         assert_eq!(addrs, expected_addrs);
 
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
     }
 
     // Gracefully shut down nodes.
     for synthetic_node in synthetic_nodes {
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
     }
 
     node.stop().unwrap();

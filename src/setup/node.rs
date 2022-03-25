@@ -242,7 +242,7 @@ impl Node {
         }
 
         // Setup is complete, we no longer require this synthetic node.
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
 
         Ok(())
     }
