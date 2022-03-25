@@ -183,7 +183,7 @@ mod when_node_receives_connection {
         }?;
 
         // Gracefully shut down the nodes.
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
         node.stop()?;
 
         Ok(())
@@ -357,7 +357,7 @@ mod when_node_initiates_connection {
         }?;
 
         // Gracefully shut down the nodes.
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
         node.stop()?;
 
         Ok(())

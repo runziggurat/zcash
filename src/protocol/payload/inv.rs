@@ -1,8 +1,10 @@
 //! Inventory vector types.
 
+use bytes::{Buf, BufMut};
+
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
 
-use std::io::{self, Cursor, Write};
+use std::io;
 
 /// An inventory vector.
 #[derive(Debug, PartialEq, Clone)]
@@ -23,11 +25,11 @@ impl Inv {
 }
 
 impl Codec for Inv {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.inventory.encode(buffer)
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         Ok(Self {
             inventory: Vec::decode(bytes)?,
         })
@@ -51,14 +53,14 @@ impl InvHash {
 }
 
 impl Codec for InvHash {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.kind.encode(buffer)?;
         self.hash.encode(buffer)?;
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let kind = ObjectKind::decode(bytes)?;
         let hash = Hash::decode(bytes)?;
 
@@ -80,7 +82,7 @@ pub enum ObjectKind {
 }
 
 impl Codec for ObjectKind {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         let value: u32 = match self {
             Self::Error => 0,
             Self::Tx => 1,
@@ -88,12 +90,12 @@ impl Codec for ObjectKind {
             Self::FilteredBlock => 3,
         };
 
-        buffer.write_all(&value.to_le_bytes())?;
+        buffer.put_u32_le(value);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let value = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let kind = match value {

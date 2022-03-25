@@ -1,8 +1,10 @@
 //! Reject payload types.
 
-use crate::protocol::payload::{codec::Codec, read_n_bytes, VarStr};
+use bytes::{Buf, BufMut};
 
-use std::io::{self, Cursor, Read, Write};
+use crate::protocol::payload::{codec::Codec, VarStr};
+
+use std::io::{self, Read};
 
 /// A reject message payload.
 #[derive(Debug, PartialEq, Clone)]
@@ -23,14 +25,16 @@ pub struct Reject {
 }
 
 impl Codec for Reject {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.message.encode(buffer)?;
         self.ccode.encode(buffer)?;
         self.reason.encode(buffer)?;
-        buffer.write_all(&self.data)
+        buffer.put_slice(&self.data);
+
+        Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let message = VarStr::decode(bytes)?;
         let ccode = CCode::decode(bytes)?;
         let reason = VarStr::decode(bytes)?;
@@ -38,7 +42,7 @@ impl Codec for Reject {
         // Current usage of the data field is `Option<[u8; 32]>`,
         // but the spec allows for any length [u8], so we support that case.
         let mut data = Vec::new();
-        bytes.read_to_end(&mut data)?;
+        bytes.reader().read_to_end(&mut data)?;
 
         Ok(Self {
             message,
@@ -74,7 +78,7 @@ pub enum CCode {
 }
 
 impl Codec for CCode {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         let code: u8 = match self {
             Self::Malformed => MALFORMED_CODE,
             Self::Invalid => INVALID_CODE,
@@ -87,13 +91,17 @@ impl Codec for CCode {
             Self::Other => OTHER_CODE,
         };
 
-        buffer.write_all(&[code])
+        buffer.put_u8(code);
+
+        Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let code: [u8; 1] = read_n_bytes(bytes)?;
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        if bytes.remaining() == 0 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
 
-        match code[0] {
+        match bytes.get_u8() {
             MALFORMED_CODE => Ok(Self::Malformed),
             INVALID_CODE => Ok(Self::Invalid),
             OBSOLETE_CODE => Ok(Self::Obsolete),
@@ -103,9 +111,9 @@ impl Codec for CCode {
             INSUFFICIENT_FEE_CODE => Ok(Self::InsufficientFee),
             CHECKPOINT_CODE => Ok(Self::Checkpoint),
             OTHER_CODE => Ok(Self::Other),
-            _ => Err(io::Error::new(
+            b => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Invalid CCode {:#x}", code[0]),
+                format!("Invalid CCode {:#x}", b),
             )),
         }
     }

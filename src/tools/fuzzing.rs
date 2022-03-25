@@ -1,6 +1,9 @@
 //! Useful helper functions for fuzzing.
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    convert::TryInto,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 
 use crate::protocol::{
     message::{constants::*, Message, MessageHeader},
@@ -11,6 +14,7 @@ use crate::protocol::{
     },
 };
 
+use bytes::BufMut;
 use rand::{
     distributions::Standard,
     prelude::{Rng, SeedableRng, SliceRandom},
@@ -133,15 +137,15 @@ pub fn encode_slightly_corrupted_messages(
 }
 
 fn corrupt_message(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
-    let mut message_buffer = vec![];
-    let header = message.encode(&mut message_buffer).unwrap();
-    let mut header_buffer = vec![];
-    header.encode(&mut header_buffer).unwrap();
+    let mut bytes = Default::default();
+    message.encode(&mut bytes).unwrap();
+    let vec: Vec<_> = bytes.to_vec();
+    let (valid_header, valid_message) = vec.split_at(HEADER_LEN);
 
-    let mut corrupted_header = corrupt_bytes(rng, &header_buffer);
-    let mut corrupted_message = corrupt_bytes(rng, &message_buffer);
+    let mut corrupted_header = corrupt_bytes(rng, valid_header);
+    let corrupted_message = corrupt_bytes(rng, valid_message);
 
-    corrupted_header.append(&mut corrupted_message);
+    corrupted_header.extend_from_slice(&corrupted_message);
 
     // Contains header + message.
     corrupted_header
@@ -162,28 +166,27 @@ fn corrupt_bytes(rng: &mut ChaCha8Rng, serialized: &[u8]) -> Vec<u8> {
 
 /// Encodes a message and corrupts the body length bytes.
 pub fn encode_message_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
-    let mut body_buffer = Vec::new();
-    let mut header = message.encode(&mut body_buffer).unwrap();
+    let mut bytes = Default::default();
+    message.encode(&mut bytes).unwrap();
+    let mut vec: Vec<_> = bytes.to_vec();
 
-    let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
-    header.body_length = random_non_valid_u32(rng, header.body_length);
-    header.encode(&mut buffer).unwrap();
-    buffer.append(&mut body_buffer);
+    let invalid_body_length = random_non_valid_u32(rng, (vec.len() - HEADER_LEN) as u32);
+    (&mut vec[16..][..4]).put_u32_le(invalid_body_length); // TODO: constify
 
-    buffer
+    vec
 }
 
 /// Encodes a message and corrupts the checksum bytes.
 pub fn encode_message_with_corrupt_checksum(rng: &mut ChaCha8Rng, message: &Message) -> Vec<u8> {
-    let mut body_buffer = Vec::new();
-    let mut header = message.encode(&mut body_buffer).unwrap();
+    let mut bytes = Default::default();
+    message.encode(&mut bytes).unwrap();
+    let mut vec: Vec<_> = bytes.to_vec();
 
-    let mut buffer = Vec::with_capacity(body_buffer.len() + HEADER_LEN);
-    header.checksum = random_non_valid_u32(rng, header.checksum);
-    header.encode(&mut buffer).unwrap();
-    buffer.append(&mut body_buffer);
+    let valid_checksum = u32::from_le_bytes(vec[20..][..4].try_into().unwrap()); // TODO: constify
+    let invalid_checksum = random_non_valid_u32(rng, valid_checksum);
+    (&mut vec[20..][..4]).put_u32_le(invalid_checksum); // ditto
 
-    buffer
+    vec
 }
 
 /// Returns a random u32 which isn't the supplied value.

@@ -44,7 +44,7 @@ async fn reusing_nonce() {
     wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
 
     // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop().unwrap();
 }
 
@@ -93,7 +93,7 @@ async fn with_obsolete_version_numbers() {
         wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
 
         // Gracefully shut down the synthetic node.
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
     }
 
     // Gracefully shut down the node.

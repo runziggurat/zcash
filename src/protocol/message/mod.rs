@@ -1,21 +1,20 @@
 //! High level APIs and types for network messages.
 
 pub mod constants;
-#[doc(hidden)]
-pub mod stream_io;
 
 use crate::protocol::{
     message::constants::*,
     payload::{
         block::{Block, Headers, LocatorHashes},
         codec::Codec,
-        read_n_bytes, Addr, FilterAdd, FilterLoad, Inv, Nonce, Reject, Tx, Version,
+        Addr, FilterAdd, FilterLoad, Inv, Nonce, Reject, Tx, Version,
     },
 };
 
+use bytes::{Buf, BufMut, BytesMut};
 use sha2::{Digest, Sha256};
 
-use std::io::{self, Cursor, Write};
+use std::io;
 
 /// The header of a network message.
 #[derive(Debug, Default, Clone)]
@@ -31,21 +30,31 @@ pub struct MessageHeader {
 }
 
 impl Codec for MessageHeader {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.magic)?;
-        buffer.write_all(&self.command)?;
-        buffer.write_all(&self.body_length.to_le_bytes())?;
-        buffer.write_all(&self.checksum.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.magic);
+        buffer.put_slice(&self.command);
+        buffer.put_u32_le(self.body_length);
+        buffer.put_u32_le(self.checksum);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        if bytes.remaining() < HEADER_LEN {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
+        let mut magic = [0u8; 4];
+        let mut command = [0u8; 12];
+
+        bytes.copy_to_slice(&mut magic);
+        bytes.copy_to_slice(&mut command);
+
         Ok(MessageHeader {
-            magic: read_n_bytes(bytes)?,
-            command: read_n_bytes(bytes)?,
-            body_length: u32::from_le_bytes(read_n_bytes(bytes)?),
-            checksum: u32::from_le_bytes(read_n_bytes(bytes)?),
+            magic,
+            command,
+            body_length: bytes.get_u32_le(),
+            checksum: bytes.get_u32_le(),
         })
     }
 }
@@ -89,82 +98,89 @@ pub enum Message {
     FilterClear,
 }
 
+macro_rules! encode_with_header_prefix {
+    ($command:expr, $buffer:expr) => {{
+        let header = MessageHeader::new($command, &[]);
+        header.encode($buffer)?;
+    }};
+
+    ($command:expr, $buffer:expr, $payload:expr) => {{
+        $payload.encode($buffer)?;
+        let serialized_payload = $buffer.split_to($buffer.len()).freeze();
+        let header = MessageHeader::new($command, &serialized_payload);
+        header.encode($buffer)?;
+        $buffer.put_slice(&serialized_payload);
+    }};
+}
+
 impl Message {
-    // FIXME: implement Codec?
     /// Encodes a message into the supplied buffer and returns its header.
-    pub fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<MessageHeader> {
-        let header = match self {
+    pub fn encode(&self, buffer: &mut BytesMut) -> io::Result<()> {
+        match self {
             Self::Version(version) => {
-                version.encode(buffer)?;
-                MessageHeader::new(VERSION_COMMAND, buffer)
+                encode_with_header_prefix!(VERSION_COMMAND, buffer, version);
             }
-            Self::Verack => MessageHeader::new(VERACK_COMMAND, buffer),
+            Self::Verack => {
+                encode_with_header_prefix!(VERACK_COMMAND, buffer);
+            }
             Self::Ping(nonce) => {
-                nonce.encode(buffer)?;
-                MessageHeader::new(PING_COMMAND, buffer)
+                encode_with_header_prefix!(PING_COMMAND, buffer, nonce);
             }
             Self::Pong(nonce) => {
-                nonce.encode(buffer)?;
-                MessageHeader::new(PONG_COMMAND, buffer)
+                encode_with_header_prefix!(PONG_COMMAND, buffer, nonce);
             }
-            Self::GetAddr => MessageHeader::new(GETADDR_COMMAND, buffer),
+            Self::GetAddr => {
+                encode_with_header_prefix!(GETADDR_COMMAND, buffer);
+            }
             Self::Addr(addr) => {
-                addr.encode(buffer)?;
-                MessageHeader::new(ADDR_COMMAND, buffer)
+                encode_with_header_prefix!(ADDR_COMMAND, buffer, addr);
             }
             Self::GetHeaders(locator_hashes) => {
-                locator_hashes.encode(buffer)?;
-                MessageHeader::new(GETHEADERS_COMMAND, buffer)
+                encode_with_header_prefix!(GETHEADERS_COMMAND, buffer, locator_hashes);
             }
             Self::Headers(headers) => {
-                headers.encode(buffer)?;
-                MessageHeader::new(HEADERS_COMMAND, buffer)
+                encode_with_header_prefix!(HEADERS_COMMAND, buffer, headers);
             }
             Self::GetBlocks(locator_hashes) => {
-                locator_hashes.encode(buffer)?;
-                MessageHeader::new(GETBLOCKS_COMMAND, buffer)
+                encode_with_header_prefix!(GETBLOCKS_COMMAND, buffer, locator_hashes);
             }
             Self::Block(block) => {
-                block.encode(buffer)?;
-                MessageHeader::new(BLOCK_COMMAND, buffer)
+                encode_with_header_prefix!(BLOCK_COMMAND, buffer, block);
             }
             Self::GetData(inv) => {
-                inv.encode(buffer)?;
-                MessageHeader::new(GETDATA_COMMAND, buffer)
+                encode_with_header_prefix!(GETDATA_COMMAND, buffer, inv);
             }
             Self::Inv(inv) => {
-                inv.encode(buffer)?;
-                MessageHeader::new(INV_COMMAND, buffer)
+                encode_with_header_prefix!(INV_COMMAND, buffer, inv);
             }
             Self::NotFound(inv) => {
-                inv.encode(buffer)?;
-                MessageHeader::new(NOTFOUND_COMMAND, buffer)
+                encode_with_header_prefix!(NOTFOUND_COMMAND, buffer, inv);
             }
-            Self::MemPool => MessageHeader::new(MEMPOOL_COMMAND, buffer),
+            Self::MemPool => {
+                encode_with_header_prefix!(MEMPOOL_COMMAND, buffer);
+            }
             Self::Tx(tx) => {
-                tx.encode(buffer)?;
-                MessageHeader::new(TX_COMMAND, buffer)
+                encode_with_header_prefix!(TX_COMMAND, buffer, tx);
             }
             Self::Reject(reject) => {
-                reject.encode(buffer)?;
-                MessageHeader::new(REJECT_COMMAND, buffer)
+                encode_with_header_prefix!(REJECT_COMMAND, buffer, reject);
             }
             Self::FilterLoad(filter_load) => {
-                filter_load.encode(buffer)?;
-                MessageHeader::new(FILTERLOAD_COMMAND, buffer)
+                encode_with_header_prefix!(FILTERLOAD_COMMAND, buffer, filter_load);
             }
             Self::FilterAdd(filter) => {
-                filter.encode(buffer)?;
-                MessageHeader::new(FILTERADD_COMMAND, buffer)
+                encode_with_header_prefix!(FILTERADD_COMMAND, buffer, filter);
             }
-            Self::FilterClear => MessageHeader::new(FILTERCLEAR_COMMAND, buffer),
-        };
+            Self::FilterClear => {
+                encode_with_header_prefix!(FILTERCLEAR_COMMAND, buffer);
+            }
+        }
 
-        Ok(header)
+        Ok(())
     }
 
     /// Decodes the bytes into a message.
-    pub fn decode(command: [u8; 12], bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    pub fn decode<B: Buf>(command: [u8; 12], bytes: &mut B) -> io::Result<Self> {
         let message = match command {
             VERSION_COMMAND => Self::Version(Version::decode(bytes)?),
             VERACK_COMMAND => Self::Verack,
