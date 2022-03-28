@@ -93,7 +93,7 @@ async fn run_test_case(message: Message) -> io::Result<()> {
         .await;
 
     // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop()?;
 
     result?;

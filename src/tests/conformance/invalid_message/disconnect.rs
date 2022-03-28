@@ -85,7 +85,7 @@ async fn pong_with_wrong_nonce() {
         Err(err) => panic!("Connection was not aborted: {:?}", err),
     }
 
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop().unwrap();
 }
 
@@ -137,8 +137,9 @@ async fn addr_without_timestamp() {
 
     // Create a Addr message and encode it. This encoding includes the timestamp.
     let message = Message::Addr(Addr::new(net_addrs));
-    let mut payload = Vec::new();
+    let mut payload = Default::default();
     message.encode(&mut payload).unwrap();
+    let mut payload = payload.to_vec();
 
     // Remove the timestamp bytes. The length of the timestamp field is four 4 bytes (u32).p
     payload.drain(timestamp_offset..timestamp_offset + 4);
@@ -157,9 +158,9 @@ async fn addr_without_timestamp() {
 }
 
 async fn run_test_case_message(message: Message) -> io::Result<()> {
-    let mut buffer = Vec::new();
+    let mut buffer = Default::default();
     message.encode(&mut buffer)?;
-    run_test_case_bytes(buffer).await
+    run_test_case_bytes(buffer.to_vec()).await
 }
 
 async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
@@ -200,7 +201,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
         )),
     };
 
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop()?;
 
     result

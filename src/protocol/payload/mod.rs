@@ -1,9 +1,10 @@
 //! Network message payload types.
 
+use bytes::{Buf, BufMut};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use rand::{thread_rng, Rng};
 
-use std::io::{self, Cursor, Read, Write};
+use std::io;
 
 pub mod addr;
 pub use addr::Addr;
@@ -42,14 +43,14 @@ impl Default for Nonce {
 }
 
 impl Codec for Nonce {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.0.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u64_le(self.0);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
-        let nonce = u64::from_le_bytes(read_n_bytes(bytes)?);
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        let nonce = bytes.get_u64_le();
 
         Ok(Self(nonce))
     }
@@ -67,13 +68,13 @@ impl ProtocolVersion {
 }
 
 impl Codec for ProtocolVersion {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.0.to_le_bytes())?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u32_le(self.0);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let version = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         Ok(Self(version))
@@ -99,31 +100,31 @@ impl std::ops::Deref for VarInt {
 }
 
 impl Codec for VarInt {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         // length of the payload to be written.
         let l = self.0;
         match l {
             0x0000_0000..=0x0000_00fc => {
-                buffer.write_all(&[l as u8])?;
+                buffer.put_u8(l as u8);
             }
             0x0000_00fd..=0x0000_ffff => {
-                buffer.write_all(&[0xfdu8])?;
-                buffer.write_all(&(l as u16).to_le_bytes())?;
+                buffer.put_u8(0xfdu8);
+                buffer.put_u16_le(l as u16);
             }
             0x0001_0000..=0xffff_ffff => {
-                buffer.write_all(&[0xfeu8])?;
-                buffer.write_all(&(l as u32).to_le_bytes())?;
+                buffer.put_u8(0xfeu8);
+                buffer.put_u32_le(l as u32);
             }
             _ => {
-                buffer.write_all(&[0xffu8])?;
-                buffer.write_all(&(l as u64).to_le_bytes())?;
+                buffer.put_u8(0xffu8);
+                buffer.put_u64_le(l as u64);
             }
         };
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let flag = u8::from_le_bytes(read_n_bytes(bytes)?);
 
         let len = match flag {
@@ -152,14 +153,14 @@ impl Codec for VarInt {
 pub struct VarStr(String);
 
 impl VarStr {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         VarInt(self.0.len()).encode(buffer)?;
-        buffer.write_all(self.0.as_bytes())?;
+        buffer.put(self.0.as_bytes());
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let str_len = VarInt::decode(bytes)?;
 
         if *str_len > MAX_MESSAGE_LEN {
@@ -172,8 +173,12 @@ impl VarStr {
             ));
         }
 
+        if bytes.remaining() < str_len.0 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
         let mut buffer = vec![0u8; str_len.0];
-        bytes.read_exact(&mut buffer)?;
+        bytes.copy_to_slice(&mut buffer);
 
         Ok(VarStr(String::from_utf8(buffer).map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
@@ -198,30 +203,38 @@ impl Hash {
 }
 
 impl Codec for Hash {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.0)?;
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.0);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        if bytes.remaining() < 32 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
         let mut hash = Hash([0u8; 32]);
-        bytes.read_exact(&mut hash.0)?;
+        bytes.copy_to_slice(&mut hash.0);
 
         Ok(hash)
     }
 }
 
 /// Reads `n` bytes from the bytes.
-pub fn read_n_bytes<const N: usize>(bytes: &mut Cursor<&[u8]>) -> io::Result<[u8; N]> {
+pub fn read_n_bytes<const N: usize, B: Buf>(bytes: &mut B) -> io::Result<[u8; N]> {
+    if bytes.remaining() < N {
+        return Err(io::ErrorKind::InvalidData.into());
+    }
+
     let mut buffer = [0u8; N];
-    bytes.read_exact(&mut buffer)?;
+    bytes.copy_to_slice(&mut buffer);
 
     Ok(buffer)
 }
 
 /// Reads a timestamp from the bytes.
-pub fn read_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<DateTime<Utc>> {
+pub fn read_timestamp<B: Buf>(bytes: &mut B) -> io::Result<DateTime<Utc>> {
     let timestamp_i64 = i64::from_le_bytes(read_n_bytes(bytes)?);
     let timestamp = NaiveDateTime::from_timestamp_opt(timestamp_i64, 0)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Bad UTC timestamp"))?;

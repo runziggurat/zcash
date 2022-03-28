@@ -472,7 +472,6 @@ async fn simulate_peer(
     let mut synth_node = SyntheticNode::builder()
         .with_all_auto_reply()
         .with_full_handshake()
-        .with_max_write_buffer_size(std::cmp::max(corrupt_message.len(), 65536))
         .build()
         .await
         .unwrap();

@@ -4,12 +4,10 @@ use crate::protocol::payload::{
     addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
 };
 
+use bytes::{Buf, BufMut};
 use chrono::{DateTime, Utc};
 
-use std::{
-    io::{self, Cursor, Write},
-    net::SocketAddr,
-};
+use std::{io, net::SocketAddr};
 
 /// A version payload.
 #[derive(Debug, PartialEq, Clone)]
@@ -67,23 +65,23 @@ impl Version {
 }
 
 impl Codec for Version {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.version.encode(buffer)?;
-        buffer.write_all(&self.services.to_le_bytes())?;
-        buffer.write_all(&self.timestamp.timestamp().to_le_bytes())?;
+        buffer.put_u64_le(self.services);
+        buffer.put_i64_le(self.timestamp.timestamp());
 
         self.addr_recv.encode_without_timestamp(buffer)?;
         self.addr_from.encode_without_timestamp(buffer)?;
 
         self.nonce.encode(buffer)?;
         self.user_agent.encode(buffer)?;
-        buffer.write_all(&self.start_height.to_le_bytes())?;
-        buffer.write_all(&[self.relay as u8])?;
+        buffer.put_u32_le(self.start_height);
+        buffer.put_u8(self.relay as u8);
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let version = ProtocolVersion::decode(bytes)?;
         let services = u64::from_le_bytes(read_n_bytes(bytes)?);
         let timestamp = read_timestamp(bytes)?;

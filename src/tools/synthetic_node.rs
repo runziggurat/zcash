@@ -2,26 +2,29 @@
 
 use crate::{
     protocol::{
-        message::{constants::HEADER_LEN, Message, MessageHeader},
+        message::{Message, MessageHeader},
         payload::{codec::Codec, Nonce, Version},
     },
     tools::message_filter::{Filter, MessageFilter},
 };
 
 use assert_matches::assert_matches;
+use bytes::{BufMut, BytesMut};
+use futures_util::{sink::SinkExt, TryStreamExt};
 use pea2pea::{
     connections::ConnectionSide,
-    protocols::{Handshaking, Reading, Writing},
-    Connection, KnownPeers, Node, NodeConfig, Pea2Pea,
+    protocols::{Handshake, Reading, Writing},
+    Config as NodeConfig, Connection, KnownPeers, Node, Pea2Pea,
 };
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
     time::timeout,
 };
+use tokio_util::codec::{Decoder, Encoder, Framed, LengthDelimitedCodec};
 use tracing::*;
 
 use std::{
-    io::{self, Cursor, Error, ErrorKind},
+    io::{self, Error, ErrorKind},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
@@ -96,7 +99,7 @@ pub fn enable_tracing() {
 
 /// Describes the handshake to be performed by a [`SyntheticNode`].
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Handshake {
+pub enum HandshakeKind {
     /// [`Version`] and [`Verack`] in both directions.
     ///
     /// [`Version`]: enum@crate::protocol::message::Message::Version
@@ -112,7 +115,7 @@ pub enum Handshake {
 #[derive(Debug, Clone)]
 pub struct SyntheticNodeBuilder {
     network_config: Option<NodeConfig>,
-    handshake: Option<Handshake>,
+    handshake: Option<HandshakeKind>,
     message_filter: MessageFilter,
 }
 
@@ -121,7 +124,7 @@ impl Default for SyntheticNodeBuilder {
         Self {
             network_config: Some(NodeConfig {
                 // Set localhost as the default IP.
-                listener_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+                listener_ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
                 ..Default::default()
             }),
             handshake: None,
@@ -138,11 +141,12 @@ impl SyntheticNodeBuilder {
 
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
-        let inner_node = InnerNode::new(node, tx, self.message_filter.clone(), self.handshake);
+        let inner_node =
+            InnerNode::new(node, tx, self.message_filter.clone(), self.handshake).await;
 
         // Enable the read and write protocols
-        inner_node.enable_reading();
-        inner_node.enable_writing();
+        inner_node.enable_reading().await;
+        inner_node.enable_writing().await;
 
         Ok(SyntheticNode {
             inner_node,
@@ -169,29 +173,21 @@ impl SyntheticNodeBuilder {
         self
     }
 
-    /// Enables handshaking with [`Handshake::Full`].
+    /// Enables handshaking with [`HandshakeKind::Full`].
     pub fn with_full_handshake(mut self) -> Self {
-        self.handshake = Some(Handshake::Full);
+        self.handshake = Some(HandshakeKind::Full);
         self
     }
 
-    /// Enables handshaking with [`Handshake::VersionOnly`].
+    /// Enables handshaking with [`HandshakeKind::VersionOnly`].
     pub fn with_version_exchange_handshake(mut self) -> Self {
-        self.handshake = Some(Handshake::VersionOnly);
+        self.handshake = Some(HandshakeKind::VersionOnly);
         self
     }
 
     /// Sets the node's [`MessageFilter`].
     pub fn with_message_filter(mut self, filter: MessageFilter) -> Self {
         self.message_filter = filter;
-        self
-    }
-
-    /// Sets the node's write buffer size.
-    pub fn with_max_write_buffer_size(mut self, size: usize) -> Self {
-        let mut config = self.network_config.unwrap_or_default();
-        config.conn_write_buffer_size = size;
-        self.network_config = Some(config);
         self
     }
 }
@@ -210,7 +206,7 @@ impl SyntheticNode {
 
     /// Returns the listening address of the node.
     pub fn listening_addr(&self) -> SocketAddr {
-        self.inner_node.node().listening_addr()
+        self.inner_node.node().listening_addr().unwrap()
     }
 
     /// Connects to the target address.
@@ -258,14 +254,16 @@ impl SyntheticNode {
 
     /// Sends a direct message to the target address.
     pub fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
-        self.inner_node.send_direct_message(target, message)?;
+        self.inner_node
+            .send_direct_message(target, MessageOrBytes::Message(message.into()))?;
 
         Ok(())
     }
 
     /// Sends bytes directly to the target address.
     pub fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
-        self.inner_node.send_direct_bytes(target, data)?;
+        self.inner_node
+            .send_direct_message(target, MessageOrBytes::Bytes(data))?;
 
         Ok(())
     }
@@ -370,31 +368,25 @@ impl SyntheticNode {
     }
 
     /// Gracefully shuts down the node.
-    pub fn shut_down(&self) {
-        self.inner_node.node().shut_down()
-    }
-}
-
-impl Drop for SyntheticNode {
-    fn drop(&mut self) {
-        self.shut_down();
+    pub async fn shut_down(&self) {
+        self.inner_node.node().shut_down().await
     }
 }
 
 #[derive(Clone)]
 struct InnerNode {
     node: Node,
-    handshake: Option<Handshake>,
+    handshake: Option<HandshakeKind>,
     inbound_tx: Sender<(SocketAddr, Message)>,
     message_filter: MessageFilter,
 }
 
 impl InnerNode {
-    fn new(
+    async fn new(
         node: Node,
         tx: Sender<(SocketAddr, Message)>,
         message_filter: MessageFilter,
-        handshake: Option<Handshake>,
+        handshake: Option<HandshakeKind>,
     ) -> Self {
         let node = Self {
             node,
@@ -404,28 +396,10 @@ impl InnerNode {
         };
 
         if handshake.is_some() {
-            node.enable_handshaking();
+            node.enable_handshake().await;
         }
 
         node
-    }
-
-    fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
-        let mut payload = vec![];
-        let header = message.encode(&mut payload)?;
-
-        // Encode the header and append the message to it.
-        let mut buffer = Vec::with_capacity(HEADER_LEN + header.body_length as usize);
-        header.encode(&mut buffer)?;
-        buffer.append(&mut payload);
-
-        self.node().send_direct_message(target, buffer.into())?;
-
-        Ok(())
-    }
-
-    fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
-        self.node.send_direct_message(target, data.into())
     }
 }
 
@@ -435,35 +409,85 @@ impl Pea2Pea for InnerNode {
     }
 }
 
+// TODO: move to protocol
+struct MessageCodec {
+    codec: LengthDelimitedCodec,
+}
+
+impl Default for MessageCodec {
+    fn default() -> Self {
+        Self {
+            codec: LengthDelimitedCodec::builder()
+                .length_adjustment(24)
+                .length_field_offset(16)
+                .little_endian()
+                .num_skip(0)
+                .max_frame_length(65536) // FIXME
+                .new_codec(),
+        }
+    }
+}
+
+impl Decoder for MessageCodec {
+    type Item = Message;
+    type Error = io::Error;
+
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        let mut bytes = if let Some(bytes) = self.codec.decode(src)? {
+            bytes
+        } else {
+            return Ok(None);
+        };
+
+        let header = MessageHeader::decode(&mut bytes)?;
+        let message = Message::decode(header.command, &mut bytes)?;
+
+        Ok(Some(message))
+    }
+}
+
+impl Encoder<Vec<u8>> for MessageCodec {
+    type Error = io::Error;
+
+    fn encode(&mut self, message: Vec<u8>, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        dst.put_slice(&message);
+
+        Ok(())
+    }
+}
+
+impl Encoder<Message> for MessageCodec {
+    type Error = io::Error;
+
+    fn encode(&mut self, message: Message, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        message.encode(dst)
+    }
+}
+
+impl Encoder<MessageOrBytes> for MessageCodec {
+    type Error = io::Error;
+
+    fn encode(&mut self, message: MessageOrBytes, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        match message {
+            MessageOrBytes::Bytes(message) => Encoder::<Vec<u8>>::encode(self, message, dst),
+            MessageOrBytes::Message(message) => Encoder::<Message>::encode(self, *message, dst),
+        }
+    }
+}
+
+// TODO: move to protocol
+enum MessageOrBytes {
+    Message(Box<Message>),
+    Bytes(Vec<u8>),
+}
+
 #[async_trait::async_trait]
 impl Reading for InnerNode {
     type Message = Message;
+    type Codec = MessageCodec;
 
-    fn read_message(
-        &self,
-        _source: SocketAddr,
-        buffer: &[u8],
-    ) -> io::Result<Option<(Self::Message, usize)>> {
-        // Check buffer contains a full header.
-        if buffer.len() < HEADER_LEN {
-            return Ok(None);
-        }
-
-        // Decode header.
-        let header_bytes = &buffer[..HEADER_LEN];
-        let header = MessageHeader::decode(&mut Cursor::new(header_bytes))?;
-
-        // Check buffer contains the announced message length.
-        if buffer.len() < HEADER_LEN + header.body_length as usize {
-            return Err(ErrorKind::InvalidData.into());
-        }
-
-        // Decode message.
-        let mut bytes = Cursor::new(&buffer[HEADER_LEN..][..header.body_length as usize]);
-        let message = Message::decode(header.command, &mut bytes)?;
-
-        // Read the position from the cursor.
-        Ok(Some((message, HEADER_LEN + bytes.position() as usize)))
+    fn codec(&self, _addr: SocketAddr) -> Self::Codec {
+        Default::default()
     }
 
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> io::Result<()> {
@@ -476,7 +500,7 @@ impl Reading for InnerNode {
                 let response = self.message_filter.reply_message(&message);
 
                 debug!(parent: span, "auto replying with {:?}", response);
-                self.send_direct_message(source, response)?;
+                self.send_direct_message(source, MessageOrBytes::Message(response.into()))?;
             }
 
             Filter::Disabled => {
@@ -502,48 +526,43 @@ impl Reading for InnerNode {
 }
 
 impl Writing for InnerNode {
-    fn write_message(
-        &self,
-        _target: SocketAddr,
-        payload: &[u8],
-        buffer: &mut [u8],
-    ) -> io::Result<usize> {
-        buffer[..payload.len()].copy_from_slice(payload);
-        Ok(payload.len())
+    type Message = MessageOrBytes;
+    type Codec = MessageCodec;
+
+    fn codec(&self, _addr: SocketAddr) -> Self::Codec {
+        Default::default()
     }
 }
 
 #[async_trait::async_trait]
-impl Handshaking for InnerNode {
+impl Handshake for InnerNode {
     async fn perform_handshake(&self, mut conn: Connection) -> io::Result<Connection> {
-        match (self.handshake, !conn.side) {
-            (Some(Handshake::Full), ConnectionSide::Initiator) => {
-                // Possible bug: running zebra node results in internal pea2pea panics:
-                //  "thread 'tokio-runtime-worker' panicked at 'internal error: entered unreachable code'"
-                // which gets "fixed" by reversing the parameters in Version::new -- no current insight into
-                // why this is the case. The panic is triggered by the following code in pea2pea:
-                // https://docs.rs/pea2pea/0.20.3/src/pea2pea/node.rs.html#201
+        let node_conn_side = !conn.side();
+        let conn_addr = conn.addr();
+        let own_listening_addr = self.node().listening_addr().unwrap();
+        let mut framed_stream = Framed::new(self.borrow_stream(&mut conn), MessageCodec::default());
 
+        match (self.handshake, node_conn_side) {
+            (Some(HandshakeKind::Full), ConnectionSide::Initiator) => {
                 // Send and receive Version.
-                Message::Version(Version::new(conn.addr, self.node().listening_addr()))
-                    .write_to_stream(conn.writer())
-                    .await?;
+                let own_version = Message::Version(Version::new(conn_addr, own_listening_addr));
+                framed_stream.send(own_version).await?;
 
-                let version = Message::read_from_stream(conn.reader()).await?;
-                assert_matches!(version, Message::Version(..));
+                let peer_version = framed_stream.try_next().await?;
+                assert_matches!(peer_version, Some(Message::Version(..)));
 
                 // Send and receive Verack.
-                Message::Verack.write_to_stream(conn.writer()).await?;
+                framed_stream.send(Message::Verack).await?;
 
-                let verack = Message::read_from_stream(conn.reader()).await?;
-                assert_matches!(verack, Message::Verack);
+                let peer_verack = framed_stream.try_next().await?;
+                assert_matches!(peer_verack, Some(Message::Verack));
             }
-            (Some(Handshake::Full), ConnectionSide::Responder) => {
+            (Some(HandshakeKind::Full), ConnectionSide::Responder) => {
                 // Receive and send Version.
-                let version = Message::read_from_stream(conn.reader()).await?;
-                let node_addr = match version {
-                    Message::Version(version) => version.addr_from.addr,
-                    other => {
+                let peer_version = framed_stream.try_next().await?;
+                let node_addr = match peer_version {
+                    Some(Message::Version(version)) => version.addr_from.addr,
+                    Some(other) => {
                         let span = self.node().span().clone();
                         error!(
                             parent: span,
@@ -551,32 +570,31 @@ impl Handshaking for InnerNode {
                         );
                         panic!("Expected Version, got {:?}", other);
                     }
+                    None => return Err(io::ErrorKind::InvalidData.into()),
                 };
 
-                Message::Version(Version::new(node_addr, self.node().listening_addr()))
-                    .write_to_stream(conn.writer())
-                    .await?;
+                let own_version = Message::Version(Version::new(node_addr, own_listening_addr));
+                framed_stream.send(own_version).await?;
 
                 // Receive and send Verack.
-                let verack = Message::read_from_stream(conn.reader()).await?;
-                assert_matches!(verack, Message::Verack);
+                let peer_verack = framed_stream.try_next().await?;
+                assert_matches!(peer_verack, Some(Message::Verack));
 
-                Message::Verack.write_to_stream(conn.writer()).await?;
+                framed_stream.send(Message::Verack).await?;
             }
-            (Some(Handshake::VersionOnly), ConnectionSide::Initiator) => {
-                Message::Version(Version::new(conn.addr, self.node().listening_addr()))
-                    .write_to_stream(conn.writer())
-                    .await?;
+            (Some(HandshakeKind::VersionOnly), ConnectionSide::Initiator) => {
+                let own_version = Message::Version(Version::new(conn_addr, own_listening_addr));
+                framed_stream.send(own_version).await?;
 
-                let version = Message::read_from_stream(conn.reader()).await?;
-                assert_matches!(version, Message::Version(..));
+                let peer_version = framed_stream.try_next().await?;
+                assert_matches!(peer_version, Some(Message::Version(..)));
             }
-            (Some(Handshake::VersionOnly), ConnectionSide::Responder) => {
+            (Some(HandshakeKind::VersionOnly), ConnectionSide::Responder) => {
                 // Receive and send Version.
-                let version = Message::read_from_stream(conn.reader()).await?;
-                let node_addr = match version {
-                    Message::Version(version) => version.addr_from.addr,
-                    other => {
+                let peer_version = framed_stream.try_next().await?;
+                let node_addr = match peer_version {
+                    Some(Message::Version(version)) => version.addr_from.addr,
+                    Some(other) => {
                         let span = self.node().span().clone();
                         error!(
                             parent: span,
@@ -584,11 +602,11 @@ impl Handshaking for InnerNode {
                         );
                         panic!("Expected Version, got {:?}", other);
                     }
+                    None => return Err(io::ErrorKind::InvalidData.into()),
                 };
 
-                Message::Version(Version::new(node_addr, self.node().listening_addr()))
-                    .write_to_stream(conn.writer())
-                    .await?;
+                let own_version = Message::Version(Version::new(node_addr, own_listening_addr));
+                framed_stream.send(own_version).await?;
             }
             (None, _) => {}
         }
