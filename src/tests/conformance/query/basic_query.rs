@@ -137,7 +137,7 @@ mod node_is_seeded_with_blocks {
         };
 
         // Gracefully shut down the nodes.
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
         node.stop()?;
 
         result
@@ -250,7 +250,7 @@ mod node_is_not_seeded_with_blocks {
         };
 
         // Gracefully shut down the nodes.
-        synthetic_node.shut_down();
+        synthetic_node.shut_down().await;
         node.stop()?;
 
         result

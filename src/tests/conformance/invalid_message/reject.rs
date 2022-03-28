@@ -141,7 +141,7 @@ async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()>
     };
 
     // clean-up
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop()?;
 
     result

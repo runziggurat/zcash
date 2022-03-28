@@ -1,6 +1,8 @@
 //! Bloom filtering types, see [BIP 37](https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki).
 
-use std::io::{self, Cursor, ErrorKind, Read, Write};
+use bytes::{Buf, BufMut};
+
+use std::io::{self, Cursor, ErrorKind, Read};
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes};
 
@@ -25,16 +27,18 @@ pub struct FilterLoad {
 }
 
 impl Codec for FilterAdd {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.data)
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.data);
+
+        Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self>
     where
         Self: Sized,
     {
         let mut data = Vec::new();
-        bytes.read_to_end(&mut data)?;
+        bytes.reader().read_to_end(&mut data)?;
 
         if data.len() > 520 {
             return Err(io::Error::new(
@@ -51,21 +55,23 @@ impl Codec for FilterAdd {
 }
 
 impl Codec for FilterLoad {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.filter)?;
-        buffer.write_all(&self.hash_fn_count.to_le_bytes())?;
-        buffer.write_all(&self.tweak.to_le_bytes())?;
-        buffer.write_all(&[self.flags])
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.filter);
+        buffer.put_u32_le(self.hash_fn_count);
+        buffer.put_u32_le(self.tweak);
+        buffer.put_u8(self.flags);
+
+        Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self>
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self>
     where
         Self: Sized,
     {
         // Have to read to end in order to get size of filter.
         // (we only know the final 9 bytes are reserved for the other fields)
         let mut buffer = Vec::new();
-        let bytes_read = bytes.read_to_end(&mut buffer)?;
+        let bytes_read = bytes.reader().read_to_end(&mut buffer)?;
 
         const NON_FILTER_BYTES: usize = 4 + 4 + 1;
         if bytes_read < NON_FILTER_BYTES {

@@ -69,7 +69,7 @@ impl Response {
     ///
     /// A missing end index is interpreted as `SEED_BLOCKS.len()`.
     fn headers_with_range(start: usize, end: Option<usize>) -> Self {
-        let end = end.unwrap_or_else(|| SEED_BLOCKS.len());
+        let end = end.unwrap_or(SEED_BLOCKS.len());
 
         let headers = SEED_BLOCKS[start..end]
             .iter()

@@ -4,10 +4,11 @@ use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
 
 use std::convert::TryInto;
 
+use bytes::{Buf, BufMut};
 use chrono::{DateTime, Utc};
 
 use std::{
-    io::{self, Cursor, Read, Write},
+    io,
     net::{IpAddr::*, Ipv6Addr, SocketAddr},
 };
 
@@ -35,11 +36,11 @@ impl Addr {
 }
 
 impl Codec for Addr {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.addrs.encode(buffer)
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         Ok(Self::new(Vec::decode(bytes)?))
     }
 }
@@ -67,25 +68,25 @@ impl NetworkAddr {
         }
     }
 
-    pub fn encode_without_timestamp(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
-        buffer.write_all(&self.services.to_le_bytes())?;
+    pub fn encode_without_timestamp<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u64_le(self.services);
 
         let (ip, port) = match self.addr {
             SocketAddr::V4(v4) => (v4.ip().to_ipv6_mapped(), v4.port()),
             SocketAddr::V6(v6) => (*v6.ip(), v6.port()),
         };
 
-        buffer.write_all(&ip.octets())?;
-        buffer.write_all(&port.to_be_bytes())?;
+        buffer.put_slice(&ip.octets());
+        buffer.put_u16(port);
 
         Ok(())
     }
 
-    pub(super) fn decode_without_timestamp(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    pub(super) fn decode_without_timestamp<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let services = u64::from_le_bytes(read_n_bytes(bytes)?);
 
         let mut octets = [0u8; 16];
-        bytes.read_exact(&mut octets)?;
+        bytes.copy_to_slice(&mut octets);
         let v6_addr = Ipv6Addr::from(octets);
 
         let ip_addr = match v6_addr.to_ipv4() {
@@ -104,21 +105,21 @@ impl NetworkAddr {
 }
 
 impl Codec for NetworkAddr {
-    fn encode(&self, buffer: &mut Vec<u8>) -> io::Result<()> {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         let timestamp: u32 = self
             .last_seen
             .expect("missing timestamp")
             .timestamp()
             .try_into()
             .unwrap();
-        buffer.write_all(&timestamp.to_le_bytes())?;
+        buffer.put_u32_le(timestamp);
 
         self.encode_without_timestamp(buffer)?;
 
         Ok(())
     }
 
-    fn decode(bytes: &mut Cursor<&[u8]>) -> io::Result<Self> {
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let timestamp = read_timestamp(bytes)?;
         let without_timestamp = Self::decode_without_timestamp(bytes)?;
 

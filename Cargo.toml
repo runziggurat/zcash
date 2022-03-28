@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 assert_matches = "1.5"
 async-trait = "0.1.50"
+bytes = "1"
 chrono = "0.4"
 hex = "0.4.3"
 histogram = "0.6.9"
@@ -16,12 +17,16 @@ home = "0.5.3"
 lazy_static = "1.4.0"
 metrics = "0.17.0"
 parking_lot = "0.11.1"
-pea2pea = "0.21.0"
+pea2pea = "0.35"
 rand = "0.8.3"
 rand_chacha = "0.3.0"
 sha2 = "0.9.3"
 tabled = "0.2.1"
 toml = "0.5.8"
+
+[dependencies.futures-util]
+version = "0.3"
+features = [ "sink" ]
 
 [dependencies.serde]
 version = "1"
@@ -30,6 +35,10 @@ features = [ "derive" ]
 [dependencies.tokio]
 version = "1"
 features = [ "full" ]
+
+[dependencies.tokio-util]
+version = "0.7"
+features = [ "codec" ]
 
 [dependencies.tracing]
 version = "0.1"

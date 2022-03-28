@@ -31,7 +31,7 @@ async fn when_node_receives_connection() {
     assert!(synthetic_node.is_connected(node.addr()));
 
     // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop().unwrap();
 }
 
@@ -58,6 +58,6 @@ async fn when_node_initiates_connection() {
     wait_until!(Duration::from_secs(5), synthetic_node.num_connected() == 1);
 
     // Gracefully shut down the nodes.
-    synthetic_node.shut_down();
+    synthetic_node.shut_down().await;
     node.stop().unwrap();
 }
