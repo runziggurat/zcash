@@ -542,62 +542,31 @@ impl Codec for TxV5 {
         };
 
         let anchor_sapling = if spends_sapling.len() > 0 {
-            if bytes.remaining() < 32 {
-                return Err(io::ErrorKind::InvalidData.into());
-            }
-
-            let mut anchor_sapling = [0u8; 32];
-            bytes.copy_to_slice(&mut anchor_sapling);
-
-            Some(anchor_sapling)
+            Some(read_n_bytes(bytes)?)
         } else {
             None
         };
 
         // Decode spend proofs sapling.
-        if bytes.remaining() < spends_sapling.len() * 192 {
-            return Err(io::ErrorKind::InvalidData.into());
-        }
-
         let mut spend_proofs_sapling = Vec::with_capacity(spends_sapling.len());
         for _ in 0..spends_sapling.len() {
-            let mut proof = [0u8; 192];
-            bytes.copy_to_slice(&mut proof);
-            spend_proofs_sapling.push(proof);
+            spend_proofs_sapling.push(read_n_bytes(bytes)?);
         }
 
         // Decode spend auth sigs.
-        if bytes.remaining() < spends_sapling.len() * 64 {
-            return Err(io::ErrorKind::InvalidData.into());
-        }
-
         let mut spend_auth_sigs_sapling = Vec::with_capacity(spends_sapling.len());
         for _ in 0..spends_sapling.len() {
-            let mut auth_sig = [0u8; 64];
-            bytes.copy_to_slice(&mut auth_sig);
-            spend_auth_sigs_sapling.push(auth_sig);
+            spend_auth_sigs_sapling.push(read_n_bytes(bytes)?);
         }
 
         // Decode output proofs.
-        if bytes.remaining() < spends_sapling.len() * 192 {
-            return Err(io::ErrorKind::InvalidData.into());
-        }
-
         let mut output_proofs_sapling = Vec::with_capacity(spends_sapling.len());
         for _ in 0..spends_sapling.len() {
-            let mut proof = [0u8; 192];
-            bytes.copy_to_slice(&mut proof);
-            output_proofs_sapling.push(proof);
+            output_proofs_sapling.push(read_n_bytes(bytes)?);
         }
 
         let binding_sig_sapling = if spends_sapling.len() + outputs_sapling.len() > 0 {
-            if bytes.remaining() < 64 {
-                return Err(io::ErrorKind::InvalidData.into());
-            }
-
-            let mut binding_sig_sapling = [0u8; 64];
-            bytes.copy_to_slice(&mut binding_sig_sapling);
-            Some(binding_sig_sapling)
+            Some(read_n_bytes(bytes)?)
         } else {
             None
         };
@@ -625,14 +594,7 @@ impl Codec for TxV5 {
             }
 
             let value_balance_orchard = bytes.get_i64_le();
-
-            // Decode the orchard anchor.
-            if bytes.remaining() < 32 {
-                return Err(io::ErrorKind::InvalidData.into());
-            }
-
-            let mut anchor_orchard = [0u8; 32];
-            bytes.copy_to_slice(&mut anchor_orchard);
+            let anchor_orchard = read_n_bytes(bytes)?;
 
             // Decode the orchard proofs.
             let n_proofs_orchard = VarInt::decode(bytes)?;
@@ -647,23 +609,12 @@ impl Codec for TxV5 {
             }
 
             // Decode orchard auth sigs.
-            if bytes.remaining() < 64 * actions_orchard.len() {
-                return Err(io::ErrorKind::InvalidData.into());
-            }
-
             let mut auth_sigs_orchard = Vec::with_capacity(actions_orchard.len());
             for _ in 0..actions_orchard.len() {
-                let mut auth_sig = [0u8; 64];
-                bytes.copy_to_slice(&mut auth_sig);
-                auth_sigs_orchard.push(auth_sig);
+                auth_sigs_orchard.push(read_n_bytes(bytes)?);
             }
 
-            if bytes.remaining() < 64 {
-                return Err(io::ErrorKind::InvalidData.into());
-            }
-
-            let mut binding_sig_orchard = [0u8; 64];
-            bytes.copy_to_slice(&mut binding_sig_orchard);
+            let binding_sig_orchard = read_n_bytes(bytes)?;
 
             (
                 Some(flags_orchard),
