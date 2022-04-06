@@ -8,6 +8,8 @@ pub const HEADER_LEN: usize = 24;
 /// Maximum message length (2 MiB).
 pub const MAX_MESSAGE_LEN: usize = 2 * 1024 * 1024;
 
+/// The current network protocol version number.
+pub const PROTOCOL_VERSION: u32 = 170_015;
 /// The current network version identifier.
 pub const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
 
