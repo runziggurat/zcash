@@ -18,7 +18,7 @@ pub enum Tx {
     V2(TxV2),
     V3(TxV3),
     V4(TxV4),
-    V5(TxV5),
+    V5(Box<TxV5>),
 }
 
 impl Tx {
@@ -91,7 +91,7 @@ impl Codec for Tx {
             (2, false) => Self::V2(TxV2::decode(bytes)?),
             (3, true) => Self::V3(TxV3::decode(bytes)?),
             (4, true) => Self::V4(TxV4::decode(bytes)?),
-            (5, true) => Self::V5(TxV5::decode(bytes)?),
+            (5, true) => Self::V5(Box::new(TxV5::decode(bytes)?)),
             (version, overwinter) => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
@@ -474,7 +474,7 @@ impl Codec for TxV5 {
             buffer.put_i64_le(self.value_balance_sapling.unwrap());
         }
 
-        if self.spends_sapling.len() > 0 {
+        if !self.spends_sapling.is_empty() {
             // Must be present.
             buffer.put_slice(&self.anchor_sapling.unwrap());
         }
@@ -499,7 +499,7 @@ impl Codec for TxV5 {
 
         self.actions_orchard.encode(buffer)?;
 
-        if self.actions_orchard.len() > 0 {
+        if !self.actions_orchard.is_empty() {
             buffer.put_u8(self.flags_orchard.unwrap());
             buffer.put_i64_le(self.value_balance_orchard.unwrap());
             buffer.put_slice(&self.anchor_orchard.unwrap());
@@ -541,7 +541,7 @@ impl Codec for TxV5 {
             None
         };
 
-        let anchor_sapling = if spends_sapling.len() > 0 {
+        let anchor_sapling = if !spends_sapling.is_empty() {
             Some(read_n_bytes(bytes)?)
         } else {
             None
@@ -580,7 +580,7 @@ impl Codec for TxV5 {
             proofs_orchard,
             auth_sigs_orchard,
             binding_sig_orchard,
-        ) = if actions_orchard.len() > 0 {
+        ) = if !actions_orchard.is_empty() {
             // Decode the orchard flags.
             if bytes.remaining() < 1 {
                 return Err(io::ErrorKind::InvalidData.into());
@@ -1129,7 +1129,7 @@ mod tests {
     #[test]
     #[ignore]
     fn empty_transaction_v5_round_trip() {
-        let tx_v5 = Tx::V5(TxV5 {
+        let tx_v5 = Tx::V5(Box::new(TxV5 {
             group_id: 0,
             consensus_branch: 0,
             lock_time: 500_000_000,
@@ -1151,7 +1151,7 @@ mod tests {
             proofs_orchard: None,
             auth_sigs_orchard: None,
             binding_sig_orchard: None,
-        });
+        }));
 
         let mut bytes = Vec::new();
         tx_v5.encode(&mut bytes).unwrap();
