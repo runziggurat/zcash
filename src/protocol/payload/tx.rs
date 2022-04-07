@@ -505,9 +505,7 @@ impl Codec for TxV5 {
             buffer.put_slice(&self.anchor_orchard.unwrap());
 
             VarInt(self.proofs_orchard.as_ref().unwrap().len()).encode(buffer)?;
-            for proof in self.proofs_orchard.as_ref().unwrap() {
-                buffer.put_u8(*proof)
-            }
+            buffer.put_slice(self.proofs_orchard.as_ref().unwrap());
 
             for auth_sig in self.auth_sigs_orchard.as_ref().unwrap() {
                 buffer.put_slice(auth_sig)
@@ -582,7 +580,7 @@ impl Codec for TxV5 {
             binding_sig_orchard,
         ) = if !actions_orchard.is_empty() {
             // Decode the orchard flags.
-            if bytes.remaining() < 1 {
+            if bytes.remaining() == 0 {
                 return Err(io::ErrorKind::InvalidData.into());
             }
 
