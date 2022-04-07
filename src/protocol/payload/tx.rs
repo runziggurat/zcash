@@ -18,8 +18,7 @@ pub enum Tx {
     V2(TxV2),
     V3(TxV3),
     V4(TxV4),
-    // Not yet stabilised.
-    V5,
+    V5(Box<TxV5>),
 }
 
 impl Tx {
@@ -66,7 +65,11 @@ impl Codec for Tx {
                 buffer.put_u32_le(4u32 | 1 << 31);
                 tx.encode(buffer)?;
             }
-            Tx::V5 => unimplemented!(),
+            Tx::V5(tx) => {
+                // The overwintered flag IS set.
+                buffer.put_u32_le(5u32 | 1 << 31);
+                tx.encode(buffer)?;
+            }
         }
 
         Ok(())
@@ -88,7 +91,7 @@ impl Codec for Tx {
             (2, false) => Self::V2(TxV2::decode(bytes)?),
             (3, true) => Self::V3(TxV3::decode(bytes)?),
             (4, true) => Self::V4(TxV4::decode(bytes)?),
-            (5, true) => unimplemented!(),
+            (5, true) => Self::V5(Box::new(TxV5::decode(bytes)?)),
             (version, overwinter) => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
@@ -314,8 +317,8 @@ pub struct TxV4 {
     expiry_height: u32,
 
     value_balance_sapling: i64,
-    spends_sapling: Vec<SpendDescription>,
-    outputs_sapling: Vec<SaplingOutput>,
+    spends_sapling: Vec<SpendDescriptionV4>,
+    outputs_sapling: Vec<OutputDescriptionV4>,
 
     // Groth16
     join_split: Vec<JoinSplit>,
@@ -371,8 +374,8 @@ impl Codec for TxV4 {
         let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let value_balance_sapling = i64::from_le_bytes(read_n_bytes(bytes)?);
-        let spends_sapling = Vec::<SpendDescription>::decode(bytes)?;
-        let outputs_sapling = Vec::<SaplingOutput>::decode(bytes)?;
+        let spends_sapling = Vec::<SpendDescriptionV4>::decode(bytes)?;
+        let outputs_sapling = Vec::<OutputDescriptionV4>::decode(bytes)?;
 
         let join_split_count = VarInt::decode(bytes)?;
         let mut join_split = Vec::with_capacity(*join_split_count);
@@ -417,6 +420,234 @@ impl Codec for TxV4 {
             join_split_pub_key,
             join_split_sig,
             binding_sig_sapling,
+        })
+    }
+}
+
+/// A V5 transaction.
+#[derive(Debug, PartialEq, Clone)]
+pub struct TxV5 {
+    group_id: u32,
+    consensus_branch: u32,
+    lock_time: u32,
+    expiry_height: u32,
+
+    tx_in: Vec<TxIn>,
+    tx_out: Vec<TxOut>,
+
+    spends_sapling: Vec<SpendDescriptionV5>,
+    outputs_sapling: Vec<OutputDescriptionV5>,
+
+    value_balance_sapling: Option<i64>,
+    anchor_sapling: Option<[u8; 32]>,
+
+    spend_proofs_sapling: Vec<[u8; 192]>,
+    spend_auth_sigs_sapling: Vec<[u8; 64]>,
+    output_proofs_sapling: Vec<[u8; 192]>,
+    binding_sig_sapling: Option<[u8; 64]>,
+
+    actions_orchard: Vec<ActionDescription>,
+    flags_orchard: Option<u8>,
+    value_balance_orchard: Option<i64>,
+    anchor_orchard: Option<[u8; 32]>,
+
+    proofs_orchard: Option<Vec<u8>>,
+    auth_sigs_orchard: Option<Vec<[u8; 64]>>,
+    binding_sig_orchard: Option<[u8; 64]>,
+}
+
+impl Codec for TxV5 {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_u32_le(self.group_id);
+        buffer.put_u32_le(self.consensus_branch);
+        buffer.put_u32_le(self.lock_time);
+        buffer.put_u32_le(self.expiry_height);
+
+        self.tx_in.encode(buffer)?;
+        self.tx_out.encode(buffer)?;
+
+        self.spends_sapling.encode(buffer)?;
+        self.outputs_sapling.encode(buffer)?;
+
+        if self.spends_sapling.len() + self.outputs_sapling.len() > 0 {
+            // Must be present.
+            buffer.put_i64_le(self.value_balance_sapling.unwrap());
+        }
+
+        if !self.spends_sapling.is_empty() {
+            // Must be present.
+            buffer.put_slice(&self.anchor_sapling.unwrap());
+        }
+
+        // Manually encode the contents of the `Vec` as it doesn't need the lenght prepended.
+        for proof in &self.spend_proofs_sapling {
+            buffer.put_slice(proof);
+        }
+
+        for auth_sig in &self.spend_auth_sigs_sapling {
+            buffer.put_slice(auth_sig);
+        }
+
+        for proof in &self.output_proofs_sapling {
+            buffer.put_slice(proof);
+        }
+
+        if self.spends_sapling.len() + self.outputs_sapling.len() > 0 {
+            // Must be present.
+            buffer.put_slice(&self.binding_sig_sapling.unwrap());
+        }
+
+        self.actions_orchard.encode(buffer)?;
+
+        if !self.actions_orchard.is_empty() {
+            buffer.put_u8(self.flags_orchard.unwrap());
+            buffer.put_i64_le(self.value_balance_orchard.unwrap());
+            buffer.put_slice(&self.anchor_orchard.unwrap());
+
+            VarInt(self.proofs_orchard.as_ref().unwrap().len()).encode(buffer)?;
+            buffer.put_slice(self.proofs_orchard.as_ref().unwrap());
+
+            for auth_sig in self.auth_sigs_orchard.as_ref().unwrap() {
+                buffer.put_slice(auth_sig)
+            }
+
+            buffer.put_slice(&self.binding_sig_orchard.unwrap());
+        }
+
+        Ok(())
+    }
+
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        let group_id = bytes.get_u32_le();
+        let consensus_branch = bytes.get_u32_le();
+        let lock_time = bytes.get_u32_le();
+        let expiry_height = bytes.get_u32_le();
+
+        let tx_in = Vec::<TxIn>::decode(bytes)?;
+        let tx_out = Vec::<TxOut>::decode(bytes)?;
+
+        let spends_sapling = Vec::<SpendDescriptionV5>::decode(bytes)?;
+        let outputs_sapling = Vec::<OutputDescriptionV5>::decode(bytes)?;
+
+        let value_balance_sapling = if spends_sapling.len() + outputs_sapling.len() > 0 {
+            if bytes.remaining() < 8 {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
+            Some(bytes.get_i64_le())
+        } else {
+            None
+        };
+
+        let anchor_sapling = if !spends_sapling.is_empty() {
+            Some(read_n_bytes(bytes)?)
+        } else {
+            None
+        };
+
+        // Decode spend proofs sapling.
+        let mut spend_proofs_sapling = Vec::with_capacity(spends_sapling.len());
+        for _ in 0..spends_sapling.len() {
+            spend_proofs_sapling.push(read_n_bytes(bytes)?);
+        }
+
+        // Decode spend auth sigs.
+        let mut spend_auth_sigs_sapling = Vec::with_capacity(spends_sapling.len());
+        for _ in 0..spends_sapling.len() {
+            spend_auth_sigs_sapling.push(read_n_bytes(bytes)?);
+        }
+
+        // Decode output proofs.
+        let mut output_proofs_sapling = Vec::with_capacity(spends_sapling.len());
+        for _ in 0..spends_sapling.len() {
+            output_proofs_sapling.push(read_n_bytes(bytes)?);
+        }
+
+        let binding_sig_sapling = if spends_sapling.len() + outputs_sapling.len() > 0 {
+            Some(read_n_bytes(bytes)?)
+        } else {
+            None
+        };
+
+        let actions_orchard = Vec::<ActionDescription>::decode(bytes)?;
+
+        let (
+            flags_orchard,
+            value_balance_orchard,
+            anchor_orchard,
+            proofs_orchard,
+            auth_sigs_orchard,
+            binding_sig_orchard,
+        ) = if !actions_orchard.is_empty() {
+            // Decode the orchard flags.
+            if bytes.remaining() == 0 {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
+            let flags_orchard = bytes.get_u8();
+
+            // Decode the value balance.
+            if bytes.remaining() < 8 {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
+            let value_balance_orchard = bytes.get_i64_le();
+            let anchor_orchard = read_n_bytes(bytes)?;
+
+            // Decode the orchard proofs.
+            let n_proofs_orchard = VarInt::decode(bytes)?;
+
+            if bytes.remaining() < *n_proofs_orchard {
+                return Err(io::ErrorKind::InvalidData.into());
+            }
+
+            let mut proofs_orchard = Vec::with_capacity(*n_proofs_orchard);
+            for _ in 0..*n_proofs_orchard {
+                proofs_orchard.push(bytes.get_u8());
+            }
+
+            // Decode orchard auth sigs.
+            let mut auth_sigs_orchard = Vec::with_capacity(actions_orchard.len());
+            for _ in 0..actions_orchard.len() {
+                auth_sigs_orchard.push(read_n_bytes(bytes)?);
+            }
+
+            let binding_sig_orchard = read_n_bytes(bytes)?;
+
+            (
+                Some(flags_orchard),
+                Some(value_balance_orchard),
+                Some(anchor_orchard),
+                Some(proofs_orchard),
+                Some(auth_sigs_orchard),
+                Some(binding_sig_orchard),
+            )
+        } else {
+            (None, None, None, None, None, None)
+        };
+
+        Ok(Self {
+            group_id,
+            consensus_branch,
+            lock_time,
+            expiry_height,
+            tx_in,
+            tx_out,
+            spends_sapling,
+            outputs_sapling,
+            value_balance_sapling,
+            anchor_sapling,
+            spend_proofs_sapling,
+            spend_auth_sigs_sapling,
+            output_proofs_sapling,
+            binding_sig_sapling,
+            actions_orchard,
+            flags_orchard,
+            value_balance_orchard,
+            anchor_orchard,
+            proofs_orchard,
+            auth_sigs_orchard,
+            binding_sig_orchard,
         })
     }
 }
@@ -522,8 +753,8 @@ struct JoinSplit {
     vmacs: [u8; 64],
     // BCTV14 or Groth16, depending on the transaction version.
     zkproof: Zkproof,
-    // Two cyphertex components are present, each 601 bytes long.
-    enc_cyphertexts: [u8; 1202],
+    // Two ciphertex components are present, each 601 bytes long.
+    enc_ciphertexts: [u8; 1202],
 }
 
 impl JoinSplit {
@@ -539,7 +770,7 @@ impl JoinSplit {
         buffer.put_slice(&self.vmacs);
 
         self.zkproof.encode(buffer)?;
-        buffer.put_slice(&self.enc_cyphertexts);
+        buffer.put_slice(&self.enc_ciphertexts);
 
         Ok(())
     }
@@ -557,7 +788,7 @@ impl JoinSplit {
         let vmacs = read_n_bytes(bytes)?;
 
         let zkproof = Zkproof::BCTV14(read_n_bytes(bytes)?);
-        let enc_cyphertexts = read_n_bytes(bytes)?;
+        let enc_ciphertexts = read_n_bytes(bytes)?;
 
         Ok(Self {
             pub_old,
@@ -569,7 +800,7 @@ impl JoinSplit {
             random_seed,
             vmacs,
             zkproof,
-            enc_cyphertexts,
+            enc_ciphertexts,
         })
     }
 
@@ -585,7 +816,7 @@ impl JoinSplit {
         let vmacs = read_n_bytes(bytes)?;
 
         let zkproof = Zkproof::Groth16(read_n_bytes(bytes)?);
-        let enc_cyphertexts = read_n_bytes(bytes)?;
+        let enc_ciphertexts = read_n_bytes(bytes)?;
 
         Ok(Self {
             pub_old,
@@ -597,7 +828,7 @@ impl JoinSplit {
             random_seed,
             vmacs,
             zkproof,
-            enc_cyphertexts,
+            enc_ciphertexts,
         })
     }
 }
@@ -621,7 +852,7 @@ impl Zkproof {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct SpendDescription {
+struct SpendDescriptionV4 {
     cv: [u8; 32],
     anchor: [u8; 32],
     nullifier: [u8; 32],
@@ -631,7 +862,7 @@ struct SpendDescription {
     spend_auth_sig: [u8; 64],
 }
 
-impl Codec for SpendDescription {
+impl Codec for SpendDescriptionV4 {
     fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         buffer.put_slice(&self.cv);
         buffer.put_slice(&self.anchor);
@@ -663,22 +894,47 @@ impl Codec for SpendDescription {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct SaplingOutput {
+struct SpendDescriptionV5 {
+    cv: [u8; 32],
+    nullifier: [u8; 32],
+    rk: [u8; 32],
+}
+
+impl Codec for SpendDescriptionV5 {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.cv);
+        buffer.put_slice(&self.nullifier);
+        buffer.put_slice(&self.rk);
+
+        Ok(())
+    }
+
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        let cv = read_n_bytes(bytes)?;
+        let nullifier = read_n_bytes(bytes)?;
+        let rk = read_n_bytes(bytes)?;
+
+        Ok(Self { cv, nullifier, rk })
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct OutputDescriptionV4 {
     cv: [u8; 32],
     cmu: [u8; 32],
     ephemeral_key: [u8; 32],
-    enc_cyphertext: [u8; 580],
-    out_cyphertext: [u8; 80],
+    enc_ciphertext: [u8; 580],
+    out_ciphertext: [u8; 80],
     zkproof: [u8; 192],
 }
 
-impl Codec for SaplingOutput {
+impl Codec for OutputDescriptionV4 {
     fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         buffer.put_slice(&self.cv);
         buffer.put_slice(&self.cmu);
         buffer.put_slice(&self.ephemeral_key);
-        buffer.put_slice(&self.enc_cyphertext);
-        buffer.put_slice(&self.out_cyphertext);
+        buffer.put_slice(&self.enc_ciphertext);
+        buffer.put_slice(&self.out_ciphertext);
         buffer.put_slice(&self.zkproof);
 
         Ok(())
@@ -688,17 +944,99 @@ impl Codec for SaplingOutput {
         let cv = read_n_bytes(bytes)?;
         let cmu = read_n_bytes(bytes)?;
         let ephemeral_key = read_n_bytes(bytes)?;
-        let enc_cyphertext = read_n_bytes(bytes)?;
-        let out_cyphertext = read_n_bytes(bytes)?;
+        let enc_ciphertext = read_n_bytes(bytes)?;
+        let out_ciphertext = read_n_bytes(bytes)?;
         let zkproof = read_n_bytes(bytes)?;
 
         Ok(Self {
             cv,
             cmu,
             ephemeral_key,
-            enc_cyphertext,
-            out_cyphertext,
+            enc_ciphertext,
+            out_ciphertext,
             zkproof,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct OutputDescriptionV5 {
+    cv: [u8; 32],
+    cmu: [u8; 32],
+    ephemeral_key: [u8; 32],
+    enc_ciphertext: [u8; 580],
+    out_ciphertext: [u8; 80],
+}
+
+impl Codec for OutputDescriptionV5 {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.cv);
+        buffer.put_slice(&self.cmu);
+        buffer.put_slice(&self.ephemeral_key);
+        buffer.put_slice(&self.enc_ciphertext);
+        buffer.put_slice(&self.out_ciphertext);
+
+        Ok(())
+    }
+
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        let cv = read_n_bytes(bytes)?;
+        let cmu = read_n_bytes(bytes)?;
+        let ephemeral_key = read_n_bytes(bytes)?;
+        let enc_ciphertext = read_n_bytes(bytes)?;
+        let out_ciphertext = read_n_bytes(bytes)?;
+
+        Ok(Self {
+            cv,
+            cmu,
+            ephemeral_key,
+            enc_ciphertext,
+            out_ciphertext,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct ActionDescription {
+    cv: [u8; 32],
+    nullifier: [u8; 32],
+    rk: [u8; 32],
+    cmx: [u8; 32],
+    ephemeral_key: [u8; 32],
+    enc_ciphertext: [u8; 580],
+    out_ciphertext: [u8; 80],
+}
+
+impl Codec for ActionDescription {
+    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
+        buffer.put_slice(&self.cv);
+        buffer.put_slice(&self.nullifier);
+        buffer.put_slice(&self.rk);
+        buffer.put_slice(&self.cmx);
+        buffer.put_slice(&self.ephemeral_key);
+        buffer.put_slice(&self.enc_ciphertext);
+        buffer.put_slice(&self.out_ciphertext);
+
+        Ok(())
+    }
+
+    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        let cv = read_n_bytes(bytes)?;
+        let nullifier = read_n_bytes(bytes)?;
+        let rk = read_n_bytes(bytes)?;
+        let cmx = read_n_bytes(bytes)?;
+        let ephemeral_key = read_n_bytes(bytes)?;
+        let enc_ciphertext = read_n_bytes(bytes)?;
+        let out_ciphertext = read_n_bytes(bytes)?;
+
+        Ok(Self {
+            cv,
+            nullifier,
+            rk,
+            cmx,
+            ephemeral_key,
+            enc_ciphertext,
+            out_ciphertext,
         })
     }
 }
@@ -784,5 +1122,38 @@ mod tests {
         tx_v4.encode(&mut bytes).unwrap();
 
         assert_eq!(tx_v4, Tx::decode(&mut Cursor::new(&bytes)).unwrap());
+    }
+
+    #[test]
+    #[ignore]
+    fn empty_transaction_v5_round_trip() {
+        let tx_v5 = Tx::V5(Box::new(TxV5 {
+            group_id: 0,
+            consensus_branch: 0,
+            lock_time: 500_000_000,
+            expiry_height: 500_000_000,
+            tx_in: Vec::new(),
+            tx_out: Vec::new(),
+            spends_sapling: Vec::new(),
+            outputs_sapling: Vec::new(),
+            value_balance_sapling: None,
+            anchor_sapling: None,
+            spend_proofs_sapling: Vec::new(),
+            spend_auth_sigs_sapling: Vec::new(),
+            output_proofs_sapling: Vec::new(),
+            binding_sig_sapling: None,
+            actions_orchard: Vec::new(),
+            flags_orchard: None,
+            value_balance_orchard: None,
+            anchor_orchard: None,
+            proofs_orchard: None,
+            auth_sigs_orchard: None,
+            binding_sig_orchard: None,
+        }));
+
+        let mut bytes = Vec::new();
+        tx_v5.encode(&mut bytes).unwrap();
+
+        assert_eq!(tx_v5, Tx::decode(&mut Cursor::new(&bytes)).unwrap());
     }
 }
