@@ -23,7 +23,7 @@ pub use version::Version;
 pub mod reject;
 pub use reject::Reject;
 
-use crate::protocol::message::constants::MAX_MESSAGE_LEN;
+use crate::protocol::message::constants::{MAX_MESSAGE_LEN, PROTOCOL_VERSION};
 
 use self::codec::Codec;
 
@@ -63,7 +63,7 @@ pub struct ProtocolVersion(u32);
 impl ProtocolVersion {
     /// The current protocol version.
     pub fn current() -> Self {
-        Self(170_013)
+        Self(PROTOCOL_VERSION)
     }
 }
 

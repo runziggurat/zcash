@@ -20,7 +20,7 @@ and [zebra](https://github.com/ZcashFoundation/zebra) devs with this reliable fo
 
 Ziggurat is written in stable Rust; you can install the Rust toolchain by following the official instructions [here](*https://www.rust-lang.org/learn/get-started).
 
-You also need to install at least one node implementation to test.
+You also need to install at least one node implementation to test. Ziggurat is currently configured to test the Nu5 network protocol (version `170_015`).
 
 ### Zcashd
 
