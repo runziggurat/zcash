@@ -593,6 +593,54 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn testnet_1599199_round_trip() {
+        // Canopy.
+        let block_bytes = &BLOCK_TESTNET_1_599_199_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_1599200_round_trip() {
+        // Canopy.
+        let block_bytes = &BLOCK_TESTNET_1_599_200_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
+    fn testnet_1599201_round_trip() {
+        // Canopy.
+        let block_bytes = &BLOCK_TESTNET_1_599_201_BYTES[..];
+        let mut bytes = Cursor::new(block_bytes);
+
+        let mut buffer = Vec::new();
+        Block::decode(&mut bytes)
+            .unwrap()
+            .encode(&mut buffer)
+            .unwrap();
+
+        assert_eq!(block_bytes, buffer);
+    }
+
+    #[test]
+    #[ignore]
     fn testnet_genesis_block_hash() {
         let mut bytes = Cursor::new(&BLOCK_TESTNET_GENESIS_BYTES[..]);
         let hash = Block::decode(&mut bytes).unwrap().double_sha256().unwrap();
