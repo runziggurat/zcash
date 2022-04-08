@@ -54,4 +54,13 @@ lazy_static! {
     /// Testnet block at height `1028500` (first canopy).
     pub static ref BLOCK_TESTNET_1_028_500_BYTES: Vec<u8> =
         <Vec<u8>>::from_hex(include_str!("block-test-1-028-500.txt").trim()).unwrap();
+    /// Testnet block at height `1599199` (last canopy).
+    pub static ref BLOCK_TESTNET_1_599_199_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-1-599-199.txt").trim()).unwrap();
+    /// Testnet block at height `1599200` (first nu5).
+    pub static ref BLOCK_TESTNET_1_599_200_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-1-599-200.txt").trim()).unwrap();
+    /// Testnet block at height `1599200` (second nu5).
+    pub static ref BLOCK_TESTNET_1_599_201_BYTES: Vec<u8> =
+        <Vec<u8>>::from_hex(include_str!("block-test-1-599-201.txt").trim()).unwrap();
 }
