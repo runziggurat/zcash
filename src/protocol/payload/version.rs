@@ -5,7 +5,7 @@ use crate::protocol::payload::{
 };
 
 use bytes::{Buf, BufMut};
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 
 use std::{io, net::SocketAddr};
 
@@ -17,7 +17,7 @@ pub struct Version {
     /// The services supported by the sender.
     pub services: u64,
     /// The timestamp of the message.
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: OffsetDateTime,
     /// The receiving address of the message.
     pub addr_recv: NetworkAddr,
     /// The sender of the message.
@@ -39,7 +39,7 @@ impl Version {
         Self {
             version: ProtocolVersion::current(),
             services: 1,
-            timestamp: Utc::now(),
+            timestamp: OffsetDateTime::now_utc(),
             addr_recv: NetworkAddr {
                 last_seen: None,
                 services: 1,
@@ -68,7 +68,7 @@ impl Codec for Version {
     fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         self.version.encode(buffer)?;
         buffer.put_u64_le(self.services);
-        buffer.put_i64_le(self.timestamp.timestamp());
+        buffer.put_i64_le(self.timestamp.unix_timestamp());
 
         self.addr_recv.encode_without_timestamp(buffer)?;
         self.addr_from.encode_without_timestamp(buffer)?;
