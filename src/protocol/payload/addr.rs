@@ -5,7 +5,7 @@ use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
 use std::convert::TryInto;
 
 use bytes::{Buf, BufMut};
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 
 use std::{
     io,
@@ -50,7 +50,7 @@ impl Codec for Addr {
 pub struct NetworkAddr {
     /// The last time this address was seen.
     /// Note: Present only when version is >= 31402
-    pub last_seen: Option<DateTime<Utc>>,
+    pub last_seen: Option<OffsetDateTime>,
     /// The services supported by this address.
     pub services: u64,
     /// The socket address.
@@ -58,11 +58,11 @@ pub struct NetworkAddr {
 }
 
 impl NetworkAddr {
-    /// Creates a new NetworkAddr with the given socket address, `last_seen=chrono::Utc::now()`,
+    /// Creates a new NetworkAddr with the given socket address, `last_seen=OffsetDateTime`,
     /// and `services=1` (only `NODE_NETWORK` is enabled).
     pub fn new(addr: SocketAddr) -> Self {
         Self {
-            last_seen: Some(chrono::Utc::now()),
+            last_seen: Some(OffsetDateTime::now_utc()),
             services: 1,
             addr,
         }
@@ -109,7 +109,7 @@ impl Codec for NetworkAddr {
         let timestamp: u32 = self
             .last_seen
             .expect("missing timestamp")
-            .timestamp()
+            .unix_timestamp()
             .try_into()
             .unwrap();
         buffer.put_u32_le(timestamp);
