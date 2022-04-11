@@ -1,8 +1,8 @@
 //! Network message payload types.
 
 use bytes::{Buf, BufMut};
-use chrono::{DateTime, NaiveDateTime, Utc};
 use rand::{thread_rng, Rng};
+use time::OffsetDateTime;
 
 use std::io;
 
@@ -234,9 +234,8 @@ pub fn read_n_bytes<const N: usize, B: Buf>(bytes: &mut B) -> io::Result<[u8; N]
 }
 
 /// Reads a timestamp from the bytes.
-pub fn read_timestamp<B: Buf>(bytes: &mut B) -> io::Result<DateTime<Utc>> {
+pub fn read_timestamp<B: Buf>(bytes: &mut B) -> io::Result<OffsetDateTime> {
     let timestamp_i64 = i64::from_le_bytes(read_n_bytes(bytes)?);
-    let timestamp = NaiveDateTime::from_timestamp_opt(timestamp_i64, 0)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Bad UTC timestamp"))?;
-    Ok(DateTime::<Utc>::from_utc(timestamp, Utc))
+    OffsetDateTime::from_unix_timestamp(timestamp_i64)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Bad UTC timestamp"))
 }
