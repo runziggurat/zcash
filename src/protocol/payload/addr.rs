@@ -58,7 +58,8 @@ pub struct NetworkAddr {
 }
 
 impl NetworkAddr {
-    /// Creates a new NetworkAddr with the given socket address, `last_seen=OffsetDateTime`,
+    /// Creates a new NetworkAddr with the given socket address,
+    /// `last_seen=OffsetDateTime::now_utc()`,
     /// and `services=1` (only `NODE_NETWORK` is enabled).
     pub fn new(addr: SocketAddr) -> Self {
         Self {
