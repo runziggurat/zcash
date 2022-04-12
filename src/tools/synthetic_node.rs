@@ -410,7 +410,7 @@ impl Pea2Pea for InnerNode {
 }
 
 // TODO: move to protocol
-struct MessageCodec {
+pub struct MessageCodec {
     codec: LengthDelimitedCodec,
 }
 
