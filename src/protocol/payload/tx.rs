@@ -518,6 +518,10 @@ impl Codec for TxV5 {
     }
 
     fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        if bytes.remaining() < 16 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
         let group_id = bytes.get_u32_le();
         let consensus_branch = bytes.get_u32_le();
         let lock_time = bytes.get_u32_le();

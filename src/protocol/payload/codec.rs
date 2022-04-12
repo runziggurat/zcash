@@ -32,8 +32,6 @@ impl<T: Codec> Codec for Vec<T> {
         Self: Sized,
     {
         let length = *VarInt::decode(bytes)?;
-        (0..length)
-            .map(|_| T::decode(bytes))
-            .collect::<io::Result<Self>>()
+        (0..length).map(|_| T::decode(bytes)).collect()
     }
 }
