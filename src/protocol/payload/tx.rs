@@ -182,7 +182,7 @@ impl Codec for TxV2 {
         let lock_time = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let join_split_count = *VarInt::decode(bytes)?;
-        let mut join_split = Vec::with_capacity(join_split_count);
+        let mut join_split = Vec::new();
 
         for _ in 0..join_split_count {
             let description = JoinSplit::decode_bctv14(bytes)?;
@@ -269,7 +269,7 @@ impl Codec for TxV3 {
         let expiry_height = u32::from_le_bytes(read_n_bytes(bytes)?);
 
         let join_split_count = *VarInt::decode(bytes)?;
-        let mut join_split = Vec::with_capacity(join_split_count);
+        let mut join_split = Vec::new();
 
         for _ in 0..join_split_count {
             let description = JoinSplit::decode_bctv14(bytes)?;
@@ -378,7 +378,7 @@ impl Codec for TxV4 {
         let outputs_sapling = Vec::<OutputDescriptionV4>::decode(bytes)?;
 
         let join_split_count = VarInt::decode(bytes)?;
-        let mut join_split = Vec::with_capacity(*join_split_count);
+        let mut join_split = Vec::new();
 
         for _ in 0..*join_split_count {
             let description = JoinSplit::decode_groth16(bytes)?;
@@ -550,19 +550,19 @@ impl Codec for TxV5 {
         };
 
         // Decode spend proofs sapling.
-        let mut spend_proofs_sapling = Vec::with_capacity(spends_sapling.len());
+        let mut spend_proofs_sapling = Vec::new();
         for _ in 0..spends_sapling.len() {
             spend_proofs_sapling.push(read_n_bytes(bytes)?);
         }
 
         // Decode spend auth sigs.
-        let mut spend_auth_sigs_sapling = Vec::with_capacity(spends_sapling.len());
+        let mut spend_auth_sigs_sapling = Vec::new();
         for _ in 0..spends_sapling.len() {
             spend_auth_sigs_sapling.push(read_n_bytes(bytes)?);
         }
 
         // Decode output proofs.
-        let mut output_proofs_sapling = Vec::with_capacity(spends_sapling.len());
+        let mut output_proofs_sapling = Vec::new();
         for _ in 0..spends_sapling.len() {
             output_proofs_sapling.push(read_n_bytes(bytes)?);
         }
@@ -605,13 +605,13 @@ impl Codec for TxV5 {
                 return Err(io::ErrorKind::InvalidData.into());
             }
 
-            let mut proofs_orchard = Vec::with_capacity(*n_proofs_orchard);
+            let mut proofs_orchard = Vec::new();
             for _ in 0..*n_proofs_orchard {
                 proofs_orchard.push(bytes.get_u8());
             }
 
             // Decode orchard auth sigs.
-            let mut auth_sigs_orchard = Vec::with_capacity(actions_orchard.len());
+            let mut auth_sigs_orchard = Vec::new();
             for _ in 0..actions_orchard.len() {
                 auth_sigs_orchard.push(read_n_bytes(bytes)?);
             }
