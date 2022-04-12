@@ -50,6 +50,9 @@ impl Codec for Nonce {
     }
 
     fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
+        if bytes.remaining() < 8 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
         let nonce = bytes.get_u64_le();
 
         Ok(Self(nonce))

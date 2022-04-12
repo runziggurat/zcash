@@ -86,6 +86,10 @@ impl NetworkAddr {
     pub(super) fn decode_without_timestamp<B: Buf>(bytes: &mut B) -> io::Result<Self> {
         let services = u64::from_le_bytes(read_n_bytes(bytes)?);
 
+        if bytes.remaining() < 16 {
+            return Err(io::ErrorKind::InvalidData.into());
+        }
+
         let mut octets = [0u8; 16];
         bytes.copy_to_slice(&mut octets);
         let v6_addr = Ipv6Addr::from(octets);
