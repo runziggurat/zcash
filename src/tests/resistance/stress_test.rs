@@ -32,27 +32,27 @@ use crate::{
 struct Stats {
     peers: usize,
     requests: usize,
-    #[header(" handshakes \n accepted ")]
+    #[tabled(rename = " handshakes \n accepted ")]
     handshake_accepted: u16,
-    #[header(" handshakes \n rejected ")]
+    #[tabled(rename = " handshakes \n rejected ")]
     handshake_rejected: u16,
-    #[header(" peers \n dropped ")]
+    #[tabled(rename = " peers \n dropped ")]
     peers_dropped: u16,
-    #[header(" corrupt \n terminated ")]
+    #[tabled(rename = " corrupt \n terminated ")]
     corrupt_terminated: u16,
-    #[header(" corrupt \n rejected ")]
+    #[tabled(rename = " corrupt \n rejected ")]
     corrupt_rejected: u16,
-    #[header(" corrupt \n replied ")]
+    #[tabled(rename = " corrupt \n replied ")]
     corrupt_reply: u16,
-    #[header(" corrupt \n ignored ")]
+    #[tabled(rename = " corrupt \n ignored ")]
     corrupt_ignored: u16,
-    #[header(" bad \n replies ")]
+    #[tabled(rename = " bad \n replies ")]
     reply_errors: u16,
 
-    #[header(" hung \n connections ")]
+    #[tabled(rename = " hung \n connections ")]
     dangling: u16,
-    #[header(" time (s) ")]
-    #[field(display_with = "table_float_display")]
+    #[tabled(rename = " time (s) ")]
+    #[tabled(display_with = "table_float_display")]
     time: f64,
 }
 
