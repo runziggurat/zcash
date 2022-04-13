@@ -16,22 +16,22 @@ use tokio::sync::mpsc::Sender;
 
 #[derive(Tabled, Default, Debug, Clone)]
 struct Stats {
-    #[header("\n max peers ")]
+    #[tabled(rename = "\n max peers ")]
     pub max_peers: u16,
-    #[header("\n peers ")]
+    #[tabled(rename = "\n peers ")]
     pub peers: u16,
-    #[header(" connection \n accepted ")]
+    #[tabled(rename = " connection \n accepted ")]
     pub accepted: u16,
-    #[header(" connection \n rejected ")]
+    #[tabled(rename = " connection \n rejected ")]
     pub rejected: u16,
-    #[header(" connection \n terminated ")]
+    #[tabled(rename = " connection \n terminated ")]
     pub terminated: u16,
-    #[header(" connection \n error ")]
+    #[tabled(rename = " connection \n error ")]
     pub conn_error: u16,
-    #[header(" connection \n timed out ")]
+    #[tabled(rename = " connection \n timed out ")]
     pub timed_out: u16,
-    #[header("\n time (s) ")]
-    #[field(display_with = "table_float_display")]
+    #[tabled(rename = "\n time (s) ")]
+    #[tabled(display_with = "table_float_display")]
     pub time: f64,
 }
 
