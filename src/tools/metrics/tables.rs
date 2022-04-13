@@ -1,7 +1,7 @@
 //! Tables to display metrics.
 
 use histogram::Histogram;
-use tabled::{Alignment, Modify, Style, Table, Tabled};
+use tabled::{object::Full, Alignment, Modify, Style, Table, Tabled};
 use tokio::time::Duration;
 
 /// Provides a simplified interface to produce a well-formatted table for latency statistics.
@@ -15,34 +15,34 @@ pub struct RequestsTable {
 /// Commonly used request statistics.
 #[derive(Tabled)]
 pub struct RequestStats {
-    #[header(" peers ")]
+    #[tabled(rename = " peers ")]
     peers: u16,
-    #[header(" requests ")]
+    #[tabled(rename = " requests ")]
     requests: u16,
-    #[header(" min (ms) ")]
+    #[tabled(rename = " min (ms) ")]
     latency_min: u16,
-    #[header(" max (ms) ")]
+    #[tabled(rename = " max (ms) ")]
     latency_max: u16,
-    #[header(" std dev (ms) ")]
+    #[tabled(rename = " std dev (ms) ")]
     latency_std_dev: u16,
-    #[header(" 10% (ms) ")]
+    #[tabled(rename = " 10% (ms) ")]
     latency_percentile_10: u16,
-    #[header(" 50% (ms) ")]
+    #[tabled(rename = " 50% (ms) ")]
     latency_percentile_50: u16,
-    #[header(" 75% (ms) ")]
+    #[tabled(rename = " 75% (ms) ")]
     latency_percentile_75: u16,
-    #[header(" 90% (ms) ")]
+    #[tabled(rename = " 90% (ms) ")]
     latency_percentile_90: u16,
-    #[header(" 99% (ms) ")]
+    #[tabled(rename = " 99% (ms) ")]
     latency_percentile_99: u16,
-    #[header(" completion % ")]
-    #[field(display_with = "table_float_display")]
+    #[tabled(rename = " completion % ")]
+    #[tabled(display_with = "table_float_display")]
     completion: f64,
-    #[header(" time (s) ")]
-    #[field(display_with = "table_float_display")]
+    #[tabled(rename = " time (s) ")]
+    #[tabled(display_with = "table_float_display")]
     time: f64,
-    #[header(" requests/s ")]
-    #[field(display_with = "table_float_display")]
+    #[tabled(rename = " requests/s ")]
+    #[tabled(display_with = "table_float_display")]
     throughput: f64,
 }
 
@@ -97,8 +97,7 @@ pub fn duration_as_ms(duration: Duration) -> f64 {
 pub fn fmt_table(table: Table) -> String {
     // table with pseudo style, right aligned data and center aligned headers
     table
-        .with(Style::pseudo())
-        .with(Modify::new(tabled::Full).with(Alignment::right()))
-        .with(Modify::new(tabled::Head).with(Alignment::center_horizontal()))
+        .with(Style::modern())
+        .with(Modify::new(Full).with(Alignment::right()))
         .to_string()
 }
