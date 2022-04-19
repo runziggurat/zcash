@@ -27,28 +27,28 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn get_addr() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::GetAddr).await.unwrap();
     }
 
     #[tokio::test]
     async fn mempool() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::MemPool).await.unwrap();
     }
 
     #[tokio::test]
     async fn verack() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::Verack).await.unwrap();
     }
 
     #[tokio::test]
     async fn ping() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::Ping(Nonce::default()))
             .await
             .unwrap();
@@ -57,7 +57,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn pong() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::Pong(Nonce::default()))
             .await
             .unwrap();
@@ -66,7 +66,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn addr() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::Addr(Addr::empty())).await.unwrap();
     }
 
@@ -91,7 +91,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn get_data_block() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
         run_test_case(Message::GetData(block_inv)).await.unwrap();
     }
@@ -99,7 +99,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn get_data_tx() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         run_test_case(Message::GetData(Inv::new(vec![Block::testnet_genesis()
             .txs[0]
             .inv_hash()])))
@@ -110,7 +110,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn inv() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
         run_test_case(Message::Inv(block_inv)).await.unwrap();
     }
@@ -118,7 +118,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn not_found() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
         run_test_case(Message::NotFound(block_inv)).await.unwrap();
     }
