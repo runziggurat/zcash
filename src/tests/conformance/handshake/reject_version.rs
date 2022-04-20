@@ -16,8 +16,8 @@ async fn reusing_nonce() {
     //
     // The node rejects connections reusing its nonce (usually indicative of self-connection).
     //
-    // zebra: closes the write half of the stream, doesn't close the socket.
     // zcashd: closes the write half of the stream, doesn't close the socket.
+    // zebra: pass
 
     // Create a synthetic node, no handshake, no message filters.
     let mut synthetic_node = SyntheticNode::builder().build().await.unwrap();
@@ -54,10 +54,10 @@ async fn with_obsolete_version_numbers() {
     //
     // The node rejects connections with obsolete node versions.
     //
-    // zebra: doesn't send a reject, closes the write half of the stream, doesn't close the socket.
+    // zebra: doesn't send a reject, the connection gets dropped.
     // zcashd: sends reject before closing the write half of the stream, doesn't close the socket.
 
-    let obsolete_version_numbers: Vec<u32> = (170000..170002).collect();
+    let obsolete_version_numbers: Vec<u32> = (170000..170012).collect();
 
     // Spin up a node instance.
     let mut node = Node::new().unwrap();
