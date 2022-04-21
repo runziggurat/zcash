@@ -44,8 +44,10 @@ async fn verack_post_handshake() {
 
 #[tokio::test]
 async fn mixed_inventory() {
+    // TODO: is this the desired behaviour, https://github.com/ZcashFoundation/zebra/issues/2107
+    // might suggest it is.
     // zcashd: fail (ignored)
-    // zebra:  fail (connection terminated)
+    // zebra:  fail (ignored)
     let genesis_block = Block::testnet_genesis();
     let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
 
@@ -57,7 +59,7 @@ async fn mixed_inventory() {
 #[tokio::test]
 async fn multi_block_inventory() {
     // zcashd: fail (ignored)
-    // zebra:  fail (connection terminated)
+    // zebra:  fail (ignored)
     let multi_block_inv = vec![
         Block::testnet_genesis().inv_hash(),
         Block::testnet_1().inv_hash(),
@@ -72,7 +74,7 @@ async fn multi_block_inventory() {
 #[tokio::test]
 async fn bloom_filter_add() {
     // zcashd: fail (ccode: Malformed)
-    // zebra:  fail (connection terminated)
+    // zebra:  fail (ignored)
     run_test_case(Message::FilterAdd(FilterAdd::default()), CCode::Obsolete)
         .await
         .unwrap();
@@ -81,7 +83,7 @@ async fn bloom_filter_add() {
 #[tokio::test]
 async fn bloom_filter_load() {
     // zcashd: fail (ccode: Malformed)
-    // zebra:  fail (connection terminated)
+    // zebra:  fail (ignored)
     run_test_case(Message::FilterLoad(FilterLoad::default()), CCode::Obsolete)
         .await
         .unwrap();
@@ -90,7 +92,7 @@ async fn bloom_filter_load() {
 #[tokio::test]
 async fn bloom_filter_clear() {
     // zcashd: fail (ignored)
-    // zebra:  fail (connection terminated)
+    // zebra:  fail (ignored)
     run_test_case(Message::FilterClear, CCode::Obsolete)
         .await
         .unwrap();
