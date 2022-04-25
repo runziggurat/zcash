@@ -84,7 +84,6 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    // #[should_panic]
     // This test should currently fail, since we have no way of seeding the Mempool of the node.
     async fn get_data_tx() {
         // zcashd: fail (NotFound), this is expected as we cannot seed the mempool of the node.
