@@ -49,6 +49,7 @@ async fn pong_with_wrong_nonce() {
         .start()
         .await
         .unwrap();
+
     // Create SyntheticNode which lets through Ping's
     let mut synthetic_node = SyntheticNode::builder()
         .with_full_handshake()
@@ -92,7 +93,7 @@ async fn pong_with_wrong_nonce() {
 #[tokio::test]
 async fn get_data_with_mixed_types() {
     // zcashd: fail (replies with Block)
-    // zebra:  pass
+    // zebra:  fail (replies with NotFound)
     let genesis_block = Block::testnet_genesis();
     let mixed_inv = vec![genesis_block.inv_hash(), genesis_block.txs[0].inv_hash()];
     let message = Message::GetData(Inv::new(mixed_inv));
@@ -102,7 +103,7 @@ async fn get_data_with_mixed_types() {
 #[tokio::test]
 async fn inv_with_mixed_types() {
     // zcashd: fail (message ignored)
-    // zebra:  pass
+    // zebra:  fail (message ignored)
 
     // Inv with mixed inventory (using non-genesis block since all node's "should" have genesis already,
     // which makes advertising it non-sensical).
@@ -169,6 +170,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
     node.initial_action(Action::WaitForConnection)
         .start()
         .await?;
+
     let mut synthetic_node = SyntheticNode::builder()
         .with_full_handshake()
         .with_all_auto_reply()
