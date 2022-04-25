@@ -40,6 +40,9 @@ async fn eagerly_crawls_network_for_peers() {
     //         If we do not keep responding then the peer connections take really long to establish,
     //         failing the test completely.
     //
+    //         Nu5: fails, caches the addresses but doesn't open new connections, peer protocol
+    //         tbc.
+    //
     //         Related issues: https://github.com/ZcashFoundation/zebra/pull/2154
     //                         https://github.com/ZcashFoundation/zebra/issues/2163
 
@@ -66,7 +69,7 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Adjust the config so it lets through GetAddr message and start a "main" synthetic node which
     // will provide the peer list.
-    let mut synthetic_node = SyntheticNode::builder()
+    let synthetic_node = SyntheticNode::builder()
         .with_full_handshake()
         .with_message_filter(
             MessageFilter::with_all_auto_reply().with_getaddr_filter(Filter::Disabled),
@@ -78,9 +81,9 @@ async fn eagerly_crawls_network_for_peers() {
     // Connect and handshake.
     synthetic_node.connect(node.addr()).await.unwrap();
 
-    // Expect GetAddr.
-    let (_, getaddr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
-    assert_matches!(getaddr, Message::GetAddr);
+    // Expect GetAddr, this used to be necessary, as of Nu5, it may not be anymore.
+    // let (_, getaddr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    // assert_matches!(getaddr, Message::GetAddr);
 
     // Respond with peer list.
     synthetic_node
@@ -125,6 +128,8 @@ async fn correctly_lists_peers() {
     //
     //  zebra:  Never responds: "zebrad::components::inbound: ignoring `Peers` request from remote peer during network setup"
     //
+    //          Nu5: never responds, not sure why, adding a timeout after the node start removes the setup error.
+    //
     //          Can be coaxed into responding by sending a non-empty Addr in
     //          response to node's GetAddr. This still fails as it includes previous inbound
     //          connections in its address book (as in the bug listed above).
@@ -143,6 +148,9 @@ async fn correctly_lists_peers() {
         .start()
         .await
         .unwrap();
+
+    // This fixes the "setup incomplete" issue.
+    // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     // Connect to node and request GetAddr. We perform multiple iterations to exercise the #2120
     // zebra bug.
