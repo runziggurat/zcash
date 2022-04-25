@@ -84,7 +84,7 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    #[should_panic]
+    // #[should_panic]
     // This test should currently fail, since we have no way of seeding the Mempool of the node.
     async fn get_data_tx() {
         // zcashd: fail (NotFound), this is expected as we cannot seed the mempool of the node.
@@ -160,7 +160,7 @@ mod node_is_not_seeded_with_blocks {
     #[tokio::test]
     async fn get_addr() {
         // zcashd: fail (query ignored)
-        // zebra:  pass
+        // zebra:  fail (query ignored, nil response internally)
         let reply = run_test_case(Message::GetAddr).await.unwrap();
         assert_matches!(reply, Message::Addr(..));
     }
@@ -188,7 +188,8 @@ mod node_is_not_seeded_with_blocks {
     #[tokio::test]
     async fn get_data_block() {
         // zcashd: fail (query ignored)
-        // zebra:  fail (query ignored)
+        // zebra:  fail (query ignored), pass when timeout is used to account for node startup (10s
+        // is usually enough).
         let inv = Inv::new(vec![Block::testnet_2().inv_hash()]);
         let query = Message::GetData(inv.clone());
         let expected = Message::NotFound(inv);
@@ -199,7 +200,8 @@ mod node_is_not_seeded_with_blocks {
     #[tokio::test]
     async fn get_data_tx() {
         // zcashd: pass
-        // zebra:  fail (query ignored)
+        // zebra:  fail (query ignored), sometimes pass (flaky), reliably passes when timeout is
+        // used to account for node startup (10s is usually enough).
         let inv = Inv::new(vec![Block::testnet_genesis().txs[0].inv_hash()]);
         let query = Message::GetData(inv.clone());
         let expected = Message::NotFound(inv);
