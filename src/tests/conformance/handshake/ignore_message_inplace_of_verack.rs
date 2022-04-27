@@ -2,7 +2,7 @@
 //!
 //! The node ignores non-`Verack` message as a response to initial `Verack` it sent.
 
-use std::{io, time::Duration};
+use std::io;
 
 use crate::{
     protocol::{
@@ -13,11 +13,8 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tools::{synthetic_node::SyntheticNode, RECV_TIMEOUT, TIMEOUT},
 };
-
-const RECV_TIMEOUT: Duration = Duration::from_millis(100);
-const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
 
 mod when_node_receives_connection {
     //! Contains test cases which cover ZG-CONFORMANCE-005.
@@ -275,8 +272,7 @@ mod when_node_initiates_connection {
         // Wait for the node to establish the connection.
         // This will result in a connection in which the Version's have
         // already been exchanged.
-        let node_addr =
-            tokio::time::timeout(CONNECTION_TIMEOUT, synthetic_node.wait_for_connection()).await?;
+        let node_addr = tokio::time::timeout(TIMEOUT, synthetic_node.wait_for_connection()).await?;
 
         // Send a non-version message.
         synthetic_node.send_direct_message(node_addr, message)?;

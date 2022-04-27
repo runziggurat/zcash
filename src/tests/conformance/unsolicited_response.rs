@@ -4,7 +4,7 @@
 //!
 //!  Reject, NotFound, Pong, Tx, Block, Header, Addr
 
-use std::{io, time::Duration};
+use std::io;
 
 use crate::{
     protocol::{
@@ -15,7 +15,7 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tools::{synthetic_node::SyntheticNode, RECV_TIMEOUT},
 };
 
 #[tokio::test]
@@ -89,7 +89,7 @@ async fn run_test_case(message: Message) -> io::Result<()> {
 
     // A response to ping would indicate the previous message was ignored.
     let result = synthetic_node
-        .ping_pong_timeout(node.addr(), Duration::from_secs(1))
+        .ping_pong_timeout(node.addr(), RECV_TIMEOUT)
         .await;
 
     // Gracefully shut down the nodes.
