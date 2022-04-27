@@ -1,3 +1,5 @@
+use assert_matches::assert_matches;
+
 use crate::{
     protocol::{
         message::Message,
@@ -7,8 +9,6 @@ use crate::{
     tools::{synthetic_node::SyntheticNode, LONG_TIMEOUT},
     wait_until,
 };
-
-use assert_matches::assert_matches;
 
 #[tokio::test]
 async fn reusing_nonce() {

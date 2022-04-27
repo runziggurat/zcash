@@ -1,6 +1,7 @@
+use std::{net::SocketAddr, time::Duration};
+
 use rand::prelude::SliceRandom;
 use rand_chacha::ChaCha8Rng;
-use std::{net::SocketAddr, time::Duration};
 use tabled::{Table, Tabled};
 
 use crate::{

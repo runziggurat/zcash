@@ -1,10 +1,10 @@
 //! Reject payload types.
 
+use std::io::{self, Read};
+
 use bytes::{Buf, BufMut};
 
 use crate::protocol::payload::{codec::Codec, VarStr};
-
-use std::io::{self, Read};
 
 /// A reject message payload.
 #[derive(Debug, PartialEq, Clone)]

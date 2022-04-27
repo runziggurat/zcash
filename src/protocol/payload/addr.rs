@@ -1,16 +1,15 @@
 //! Network address types.
 
-use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
-
-use std::convert::TryInto;
+use std::{
+    convert::TryInto,
+    io,
+    net::{IpAddr::*, Ipv6Addr, SocketAddr},
+};
 
 use bytes::{Buf, BufMut};
 use time::OffsetDateTime;
 
-use std::{
-    io,
-    net::{IpAddr::*, Ipv6Addr, SocketAddr},
-};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
 
 /// A list of network addresses, used for peering.
 #[derive(Debug, PartialEq, Clone)]

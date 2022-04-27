@@ -1,10 +1,10 @@
 //! Traits for encoding and decoding network message types.
 
+use std::io;
+
 use bytes::{Buf, BufMut};
 
 use super::VarInt;
-
-use std::io;
 
 /// A trait for unifying encoding and decoding.
 pub trait Codec {

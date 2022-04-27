@@ -1,13 +1,15 @@
 //! Transaction-related types.
 
+use std::{convert::TryInto, io};
+
 use bytes::{Buf, BufMut};
 use sha2::Digest;
 
-use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash, VarInt};
-
-use std::{convert::TryInto, io};
-
-use crate::protocol::payload::inv::{InvHash, ObjectKind};
+use crate::protocol::payload::{
+    codec::Codec,
+    inv::{InvHash, ObjectKind},
+    read_n_bytes, Hash, VarInt,
+};
 
 /// A Zcash transaction ([spec](https://zips.z.cash/protocol/canopy.pdf#txnencodingandconsensus)).
 ///
@@ -1047,9 +1049,9 @@ impl Codec for ActionDescription {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use io::Cursor;
+
+    use super::*;
 
     #[test]
     #[ignore]

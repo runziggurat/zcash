@@ -1,15 +1,15 @@
 //! Block-related types.
 
+use std::{convert::TryInto, io};
+
+use bytes::{Buf, BufMut};
+use sha2::Digest;
+
 use crate::protocol::payload::{
     codec::Codec,
     inv::{InvHash, ObjectKind},
     read_n_bytes, Hash, ProtocolVersion, Tx, VarInt,
 };
-
-use std::{convert::TryInto, io};
-
-use bytes::{Buf, BufMut};
-use sha2::Digest;
 
 /// The locator hash object, used to communicate chain state.
 #[derive(Debug, PartialEq, Clone)]
@@ -329,12 +329,12 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
     use hex::FromHex;
 
     use super::*;
     use crate::vectors::*;
-
-    use std::io::Cursor;
 
     #[test]
     #[ignore]
