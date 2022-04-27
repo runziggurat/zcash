@@ -1,5 +1,11 @@
 //! High level APIs and types for node setup and teardown.
 
+use std::{
+    fs, io,
+    net::SocketAddr,
+    process::{Child, Command, Stdio},
+};
+
 use tracing::error;
 
 use crate::{
@@ -15,10 +21,6 @@ use crate::{
     },
     wait_until,
 };
-
-use std::process::{Child, Command};
-
-use std::{fs, io, net::SocketAddr, process::Stdio};
 
 /// Actions to prepare node state on start.
 pub enum Action {

@@ -1,3 +1,7 @@
+use std::net::SocketAddr;
+
+use assert_matches::assert_matches;
+
 use crate::{
     protocol::{
         message::Message,
@@ -11,10 +15,6 @@ use crate::{
     },
     wait_until,
 };
-
-use assert_matches::assert_matches;
-
-use std::net::SocketAddr;
 
 #[tokio::test]
 async fn eagerly_crawls_network_for_peers() {

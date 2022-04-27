@@ -2,6 +2,8 @@
 //!
 //! The node ignores non-version messages sent inplace of version.
 
+use std::io;
+
 use crate::{
     protocol::{
         message::Message,
@@ -13,8 +15,6 @@ use crate::{
     setup::node::{Action, Node},
     tools::{synthetic_node::SyntheticNode, LONG_TIMEOUT, RECV_TIMEOUT},
 };
-
-use std::io;
 
 mod when_node_receives_connection {
     //! Contains test cases which cover ZG-CONFORMANCE-003.
