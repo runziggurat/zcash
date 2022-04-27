@@ -1,10 +1,10 @@
 //! Inventory vector types.
 
+use std::io;
+
 use bytes::{Buf, BufMut};
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
-
-use std::io;
 
 /// An inventory vector.
 #[derive(Debug, PartialEq, Clone)]

@@ -17,6 +17,10 @@
 //!     - GetData(block) -> Block (1) | NotFound (2)
 //!     - GetData(tx)    -> Tx    (1) | NotFound (2)
 
+use std::io;
+
+use assert_matches::assert_matches;
+
 use crate::{
     protocol::{
         message::Message,
@@ -31,8 +35,6 @@ use crate::{
         RECV_TIMEOUT,
     },
 };
-use assert_matches::assert_matches;
-use std::io;
 
 mod node_is_seeded_with_blocks {
     use super::*;

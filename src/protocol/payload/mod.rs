@@ -1,10 +1,10 @@
 //! Network message payload types.
 
+use std::io;
+
 use bytes::{Buf, BufMut};
 use rand::{thread_rng, Rng};
 use time::OffsetDateTime;
-
-use std::io;
 
 pub mod addr;
 pub use addr::Addr;
@@ -23,9 +23,8 @@ pub use version::Version;
 pub mod reject;
 pub use reject::Reject;
 
-use crate::protocol::message::constants::{MAX_MESSAGE_LEN, PROTOCOL_VERSION};
-
 use self::codec::Codec;
+use crate::protocol::message::constants::{MAX_MESSAGE_LEN, PROTOCOL_VERSION};
 
 pub mod codec;
 

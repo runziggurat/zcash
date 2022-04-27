@@ -1,8 +1,8 @@
 //! Bloom filtering types, see [BIP 37](https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki).
 
-use bytes::{Buf, BufMut};
-
 use std::io::{self, Cursor, ErrorKind, Read};
+
+use bytes::{Buf, BufMut};
 
 use crate::protocol::payload::{codec::Codec, read_n_bytes};
 
