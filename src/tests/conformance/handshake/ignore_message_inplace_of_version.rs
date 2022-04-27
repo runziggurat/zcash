@@ -11,13 +11,10 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tools::{synthetic_node::SyntheticNode, RECV_TIMEOUT, TIMEOUT},
 };
 
-use std::{io, time::Duration};
-
-const RECV_TIMEOUT: Duration = Duration::from_millis(100);
-const CONNECTION_TIMEOUT: Duration = Duration::from_secs(5);
+use std::io;
 
 mod when_node_receives_connection {
     //! Contains test cases which cover ZG-CONFORMANCE-003.
@@ -308,8 +305,7 @@ mod when_node_initiates_connection {
             .await?;
 
         // Wait for the node to establish the connection.
-        let node_addr =
-            tokio::time::timeout(CONNECTION_TIMEOUT, synthetic_node.wait_for_connection()).await?;
+        let node_addr = tokio::time::timeout(TIMEOUT, synthetic_node.wait_for_connection()).await?;
 
         // Send a non-version message.
         synthetic_node.send_direct_message(node_addr, message)?;

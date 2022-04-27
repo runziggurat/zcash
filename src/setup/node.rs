@@ -11,13 +11,14 @@ use crate::{
     tools::{
         message_filter::{Filter, MessageFilter},
         synthetic_node::SyntheticNode,
+        TIMEOUT,
     },
     wait_until,
 };
 
 use std::process::{Child, Command};
 
-use std::{fs, io, net::SocketAddr, process::Stdio, time::Duration};
+use std::{fs, io, net::SocketAddr, process::Stdio};
 
 /// Actions to prepare node state on start.
 pub enum Action {
@@ -164,8 +165,6 @@ impl Node {
     }
 
     async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) -> io::Result<()> {
-        const TIMEOUT: Duration = Duration::from_secs(10);
-
         match self.config.initial_action {
             Action::None => {}
             Action::WaitForConnection => {

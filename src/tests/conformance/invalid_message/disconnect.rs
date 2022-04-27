@@ -18,7 +18,6 @@
 use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    time::Duration,
 };
 
 use crate::{
@@ -33,16 +32,14 @@ use crate::{
     tools::{
         message_filter::{Filter, MessageFilter},
         synthetic_node::{PingPongError, SyntheticNode},
+        RECV_TIMEOUT, TIMEOUT,
     },
 };
-
-const DC_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[tokio::test]
 async fn pong_with_wrong_nonce() {
     // zcashd: fail (message ignored)
     // zebra:  fail (message ignored)
-    const PING_TIMEOUT: Duration = Duration::from_secs(1);
 
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
@@ -63,7 +60,7 @@ async fn pong_with_wrong_nonce() {
     synthetic_node.connect(node.addr()).await.unwrap();
 
     // Wait for a Ping request.
-    match synthetic_node.recv_message_timeout(PING_TIMEOUT).await {
+    match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {
         Ok((_, Message::Ping(_))) => synthetic_node
             .send_direct_message(node.addr(), Message::Pong(Nonce::default()))
             .unwrap(),
@@ -77,10 +74,7 @@ async fn pong_with_wrong_nonce() {
 
     // Use Ping-Pong to check node's response.
     // We expect a disconnect.
-    match synthetic_node
-        .ping_pong_timeout(node.addr(), DC_TIMEOUT)
-        .await
-    {
+    match synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await {
         Err(PingPongError::ConnectionAborted) => {}
         Ok(_) => panic!("Message was ignored."),
         Err(err) => panic!("Connection was not aborted: {:?}", err),
@@ -183,10 +177,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
     // Use Ping-Pong to check node's response.
     // We expect a disconnect.
     use PingPongError::*;
-    let result = match synthetic_node
-        .ping_pong_timeout(node.addr(), DC_TIMEOUT)
-        .await
-    {
+    let result = match synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await {
         Err(ConnectionAborted) => Ok(()),
         Ok(_) => Err(io::Error::new(io::ErrorKind::Other, "Message was ignored")),
         Err(Unexpected(msg)) => Err(io::Error::new(

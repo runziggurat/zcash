@@ -1,4 +1,4 @@
-use std::{io, time::Duration};
+use std::io;
 
 use crate::{
     protocol::{
@@ -6,7 +6,7 @@ use crate::{
         payload::{block::Block, Nonce},
     },
     setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tools::{synthetic_node::SyntheticNode, RECV_TIMEOUT},
 };
 
 mod basic_query;
@@ -49,7 +49,6 @@ async fn run_test_query(query: Message) -> io::Result<Vec<Message>> {
     synthetic_node.send_direct_message(node.addr(), Message::Ping(nonce))?;
 
     // Receive messages until we receive the matching Pong, or we timeout.
-    const RECV_TIMEOUT: Duration = Duration::from_millis(100);
     let mut messages = Vec::new();
     loop {
         match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await? {
