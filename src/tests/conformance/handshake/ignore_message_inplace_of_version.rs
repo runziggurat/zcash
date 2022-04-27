@@ -11,7 +11,7 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tools::{synthetic_node::SyntheticNode, RECV_TIMEOUT, TIMEOUT},
+    tools::{synthetic_node::SyntheticNode, LONG_TIMEOUT, RECV_TIMEOUT},
 };
 
 use std::io;
@@ -305,7 +305,8 @@ mod when_node_initiates_connection {
             .await?;
 
         // Wait for the node to establish the connection.
-        let node_addr = tokio::time::timeout(TIMEOUT, synthetic_node.wait_for_connection()).await?;
+        let node_addr =
+            tokio::time::timeout(LONG_TIMEOUT, synthetic_node.wait_for_connection()).await?;
 
         // Send a non-version message.
         synthetic_node.send_direct_message(node_addr, message)?;

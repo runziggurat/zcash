@@ -4,7 +4,7 @@ use crate::{
         payload::{reject::CCode, Version},
     },
     setup::node::{Action, Node},
-    tools::{synthetic_node::SyntheticNode, TIMEOUT},
+    tools::{synthetic_node::SyntheticNode, LONG_TIMEOUT},
     wait_until,
 };
 
@@ -30,7 +30,10 @@ async fn reusing_nonce() {
         .unwrap();
 
     // Receive a Version.
-    let (source, version) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+    let (source, version) = synthetic_node
+        .recv_message_timeout(LONG_TIMEOUT)
+        .await
+        .unwrap();
     let nonce = assert_matches!(version, Message::Version(version) => version.nonce);
 
     // Send a Version.
@@ -41,7 +44,7 @@ async fn reusing_nonce() {
         .unwrap();
 
     // Assert on disconnect.
-    wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+    wait_until!(LONG_TIMEOUT, synthetic_node.num_connected() == 0);
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down().await;
@@ -86,11 +89,14 @@ async fn with_obsolete_version_numbers() {
             .unwrap();
 
         // Expect a reject message.
-        let (_, reject) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let (_, reject) = synthetic_node
+            .recv_message_timeout(LONG_TIMEOUT)
+            .await
+            .unwrap();
         assert_matches!(reject, Message::Reject(reject) if reject.ccode == CCode::Obsolete);
 
         // Expect the connection to be dropped.
-        wait_until!(TIMEOUT, synthetic_node.num_connected() == 0);
+        wait_until!(LONG_TIMEOUT, synthetic_node.num_connected() == 0);
 
         // Gracefully shut down the synthetic node.
         synthetic_node.shut_down().await;

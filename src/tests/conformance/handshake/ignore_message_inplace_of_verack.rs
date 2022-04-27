@@ -13,7 +13,7 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tools::{synthetic_node::SyntheticNode, RECV_TIMEOUT, TIMEOUT},
+    tools::{synthetic_node::SyntheticNode, LONG_TIMEOUT, RECV_TIMEOUT},
 };
 
 mod when_node_receives_connection {
@@ -272,7 +272,8 @@ mod when_node_initiates_connection {
         // Wait for the node to establish the connection.
         // This will result in a connection in which the Version's have
         // already been exchanged.
-        let node_addr = tokio::time::timeout(TIMEOUT, synthetic_node.wait_for_connection()).await?;
+        let node_addr =
+            tokio::time::timeout(LONG_TIMEOUT, synthetic_node.wait_for_connection()).await?;
 
         // Send a non-version message.
         synthetic_node.send_direct_message(node_addr, message)?;
