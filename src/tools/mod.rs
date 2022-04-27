@@ -7,9 +7,10 @@ pub mod synthetic_node;
 
 use std::time::Duration;
 
-/// Default timeout for connection reads in seconds.
+/// Default timeout for connection operations in seconds.
 /// TODO: move to config file.
 pub const TIMEOUT: Duration = Duration::from_secs(10);
+/// Default timeout for response-specific reads in seconds.
 pub const RECV_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// Waits until an expression is true or times out.
