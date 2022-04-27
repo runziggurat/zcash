@@ -2,6 +2,8 @@ pub mod bad_checksum;
 pub mod bad_length;
 pub mod random_payload;
 
+use assert_matches::assert_matches;
+
 use crate::{
     protocol::message::Message,
     setup::node::{Action, Node},
@@ -11,8 +13,6 @@ use crate::{
         synthetic_node::SyntheticNode,
     },
 };
-
-use assert_matches::assert_matches;
 
 #[tokio::test]
 async fn instead_of_version_when_node_receives_connection() {

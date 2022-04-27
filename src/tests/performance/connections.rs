@@ -1,5 +1,8 @@
 use std::{net::SocketAddr, time::Duration};
 
+use tabled::{Table, Tabled};
+use tokio::sync::mpsc::Sender;
+
 use crate::{
     setup::node::{Action, Node},
     tools::{
@@ -10,9 +13,6 @@ use crate::{
         synthetic_node::SyntheticNode,
     },
 };
-
-use tabled::{Table, Tabled};
-use tokio::sync::mpsc::Sender;
 
 #[derive(Tabled, Default, Debug, Clone)]
 struct Stats {

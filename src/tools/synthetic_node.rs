@@ -1,11 +1,9 @@
 //! A lightweight node implementation to be used as peers in tests.
 
-use crate::{
-    protocol::{
-        message::{Message, MessageHeader},
-        payload::{codec::Codec, Nonce, Version},
-    },
-    tools::message_filter::{Filter, MessageFilter},
+use std::{
+    io::{self, Error, ErrorKind},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
 };
 
 use assert_matches::assert_matches;
@@ -23,10 +21,12 @@ use tokio::{
 use tokio_util::codec::{Decoder, Encoder, Framed, LengthDelimitedCodec};
 use tracing::*;
 
-use std::{
-    io::{self, Error, ErrorKind},
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    time::Duration,
+use crate::{
+    protocol::{
+        message::{Message, MessageHeader},
+        payload::{codec::Codec, Nonce, Version},
+    },
+    tools::message_filter::{Filter, MessageFilter},
 };
 
 /// An [`Error`](std::error::Error) type for [`SyntheticNode::ping_pong_timeout`]

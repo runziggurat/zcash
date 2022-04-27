@@ -2,6 +2,11 @@
 
 pub mod constants;
 
+use std::io;
+
+use bytes::{Buf, BufMut, BytesMut};
+use sha2::{Digest, Sha256};
+
 use crate::protocol::{
     message::constants::*,
     payload::{
@@ -10,11 +15,6 @@ use crate::protocol::{
         Addr, FilterAdd, FilterLoad, Inv, Nonce, Reject, Tx, Version,
     },
 };
-
-use bytes::{Buf, BufMut, BytesMut};
-use sha2::{Digest, Sha256};
-
-use std::io;
 
 /// The header of a network message.
 #[derive(Debug, Default, Clone)]

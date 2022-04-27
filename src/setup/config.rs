@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use std::{
     collections::HashSet,
     ffi::OsString,
@@ -8,6 +6,8 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
+
+use serde::{Deserialize, Serialize};
 
 use crate::setup::node::Action;
 

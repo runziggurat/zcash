@@ -1,13 +1,13 @@
 //! Version payload types.
 
-use crate::protocol::payload::{
-    addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
-};
+use std::{io, net::SocketAddr};
 
 use bytes::{Buf, BufMut};
 use time::OffsetDateTime;
 
-use std::{io, net::SocketAddr};
+use crate::protocol::payload::{
+    addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
+};
 
 /// A version payload.
 #[derive(Debug, PartialEq, Clone)]

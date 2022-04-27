@@ -5,6 +5,14 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
+use bytes::BufMut;
+use rand::{
+    distributions::Standard,
+    prelude::{Rng, SeedableRng, SliceRandom},
+    thread_rng,
+};
+use rand_chacha::ChaCha8Rng;
+
 use crate::protocol::{
     message::{constants::*, Message, MessageHeader},
     payload::{
@@ -13,14 +21,6 @@ use crate::protocol::{
         Addr, Inv, Nonce, Version,
     },
 };
-
-use bytes::BufMut;
-use rand::{
-    distributions::Standard,
-    prelude::{Rng, SeedableRng, SliceRandom},
-    thread_rng,
-};
-use rand_chacha::ChaCha8Rng;
 
 /// A list of message commands which contain payload bytes.
 pub const COMMANDS_WITH_PAYLOADS: [[u8; 12]; 13] = [
