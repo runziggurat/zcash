@@ -11,13 +11,14 @@ use crate::{
     tools::{
         message_filter::{Filter, MessageFilter},
         synthetic_node::SyntheticNode,
+        LONG_TIMEOUT,
     },
     wait_until,
 };
 
 use std::process::{Child, Command};
 
-use std::{fs, io, net::SocketAddr, process::Stdio, time::Duration};
+use std::{fs, io, net::SocketAddr, process::Stdio};
 
 /// Actions to prepare node state on start.
 pub enum Action {
@@ -164,13 +165,11 @@ impl Node {
     }
 
     async fn perform_initial_action(&self, mut synthetic_node: SyntheticNode) -> io::Result<()> {
-        const TIMEOUT: Duration = Duration::from_secs(10);
-
         match self.config.initial_action {
             Action::None => {}
             Action::WaitForConnection => {
                 // The synthetic node will accept the connection and handshake by itself.
-                wait_until!(TIMEOUT, synthetic_node.num_connected() == 1);
+                wait_until!(LONG_TIMEOUT, synthetic_node.num_connected() == 1);
             }
             Action::SeedWithTestnetBlocks(_) if self.meta.kind == NodeKind::Zebra => {
                 unimplemented!("zebra doesn't support block seeding");
@@ -187,7 +186,7 @@ impl Node {
                     .collect::<Vec<_>>();
 
                 // respond to GetHeaders(Block[0])
-                let source = match synthetic_node.recv_message_timeout(TIMEOUT).await? {
+                let source = match synthetic_node.recv_message_timeout(LONG_TIMEOUT).await? {
                     (source, Message::GetHeaders(locations)) => {
                         // The request should be from the genesis hash onwards,
                         // i.e. locator_hash = [genesis.hash], stop_hash = [0]
@@ -214,7 +213,7 @@ impl Node {
                 };
 
                 // respond to GetData(inv) for the initial blocks
-                match synthetic_node.recv_message_timeout(TIMEOUT).await? {
+                match synthetic_node.recv_message_timeout(LONG_TIMEOUT).await? {
                     (source, Message::GetData(inv)) => {
                         // The request must be for the initial blocks
                         let inv_hashes = blocks.iter().map(|block| block.inv_hash()).collect();
@@ -237,7 +236,9 @@ impl Node {
                 }
 
                 // Check that the node has received and processed all previous messages.
-                synthetic_node.ping_pong_timeout(source, TIMEOUT).await?;
+                synthetic_node
+                    .ping_pong_timeout(source, LONG_TIMEOUT)
+                    .await?;
             }
         }
 

@@ -1,8 +1,6 @@
-use std::time::Duration;
-
 use crate::{
     setup::node::{Action, Node},
-    tools::synthetic_node::SyntheticNode,
+    tools::{synthetic_node::SyntheticNode, LONG_TIMEOUT},
     wait_until,
 };
 
@@ -55,7 +53,7 @@ async fn when_node_initiates_connection() {
 
     // Check the connection has been established (this is only set post-handshake). We can't check
     // for the addr as nodes use ephemeral addresses when initiating connections.
-    wait_until!(Duration::from_secs(5), synthetic_node.num_connected() == 1);
+    wait_until!(LONG_TIMEOUT, synthetic_node.num_connected() == 1);
 
     // Gracefully shut down the nodes.
     synthetic_node.shut_down().await;

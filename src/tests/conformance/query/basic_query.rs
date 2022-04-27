@@ -26,12 +26,13 @@ use crate::{
         },
     },
     setup::node::{Action, Node},
-    tools::synthetic_node::{PingPongError, SyntheticNode},
+    tools::{
+        synthetic_node::{PingPongError, SyntheticNode},
+        RECV_TIMEOUT,
+    },
 };
 use assert_matches::assert_matches;
-use std::{io, time::Duration};
-
-const RECV_TIMEOUT: Duration = Duration::from_millis(100);
+use std::io;
 
 mod node_is_seeded_with_blocks {
     use super::*;
