@@ -7,7 +7,7 @@ use crate::{
     tools::{
         message_filter::{Filter, MessageFilter},
         synthetic_node::SyntheticNode,
-        TIMEOUT,
+        LONG_TIMEOUT,
     },
     wait_until,
 };
@@ -92,7 +92,7 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Expect the synthetic nodes to get a connection request from the node.
     for node in synthetic_nodes {
-        wait_until!(TIMEOUT, node.num_connected() == 1);
+        wait_until!(LONG_TIMEOUT, node.num_connected() == 1);
 
         node.shut_down().await;
     }
@@ -162,7 +162,10 @@ async fn correctly_lists_peers() {
             .send_direct_message(node.addr(), Message::GetAddr)
             .unwrap();
 
-        let (_, addr) = synthetic_node.recv_message_timeout(TIMEOUT).await.unwrap();
+        let (_, addr) = synthetic_node
+            .recv_message_timeout(LONG_TIMEOUT)
+            .await
+            .unwrap();
         let addrs = assert_matches!(addr, Message::Addr(addrs) => addrs);
 
         // Check that ephemeral connections were not gossiped.

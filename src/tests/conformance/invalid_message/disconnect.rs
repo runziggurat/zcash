@@ -32,7 +32,7 @@ use crate::{
     tools::{
         message_filter::{Filter, MessageFilter},
         synthetic_node::{PingPongError, SyntheticNode},
-        RECV_TIMEOUT, TIMEOUT,
+        LONG_TIMEOUT, RECV_TIMEOUT,
     },
 };
 
@@ -74,7 +74,10 @@ async fn pong_with_wrong_nonce() {
 
     // Use Ping-Pong to check node's response.
     // We expect a disconnect.
-    match synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await {
+    match synthetic_node
+        .ping_pong_timeout(node.addr(), LONG_TIMEOUT)
+        .await
+    {
         Err(PingPongError::ConnectionAborted) => {}
         Ok(_) => panic!("Message was ignored."),
         Err(err) => panic!("Connection was not aborted: {:?}", err),
@@ -177,7 +180,10 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
     // Use Ping-Pong to check node's response.
     // We expect a disconnect.
     use PingPongError::*;
-    let result = match synthetic_node.ping_pong_timeout(node.addr(), TIMEOUT).await {
+    let result = match synthetic_node
+        .ping_pong_timeout(node.addr(), LONG_TIMEOUT)
+        .await
+    {
         Err(ConnectionAborted) => Ok(()),
         Ok(_) => Err(io::Error::new(io::ErrorKind::Other, "Message was ignored")),
         Err(Unexpected(msg)) => Err(io::Error::new(
