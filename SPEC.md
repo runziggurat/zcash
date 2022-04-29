@@ -111,7 +111,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
 ### ZG-CONFORMANCE-005
 
-    The node ignores non-`Verack` message as a response to initial `Verack` it sent.
+    The node ignores non-`Verack` message as a response to initial `Version` it sent.
 
     1. Connect to the node under test.
     2. Send `Version`, expect `Version`.
