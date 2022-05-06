@@ -9,7 +9,7 @@ use std::{
 use bytes::{Buf, BufMut};
 use time::OffsetDateTime;
 
-use crate::protocol::payload::{codec::Codec, read_n_bytes, read_timestamp};
+use crate::protocol::payload::{codec::Codec, read_n_bytes, read_short_timestamp};
 
 /// A list of network addresses, used for peering.
 #[derive(Debug, PartialEq, Clone)]
@@ -124,7 +124,7 @@ impl Codec for NetworkAddr {
     }
 
     fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
-        let timestamp = read_timestamp(bytes)?;
+        let timestamp = read_short_timestamp(bytes)?;
         let without_timestamp = Self::decode_without_timestamp(bytes)?;
 
         Ok(Self {
