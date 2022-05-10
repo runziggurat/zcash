@@ -235,14 +235,14 @@ pub fn read_n_bytes<const N: usize, B: Buf>(bytes: &mut B) -> io::Result<[u8; N]
     Ok(buffer)
 }
 
-/// Reads a timestamp from the bytes.
+/// Reads a timestamp encoded as 8 bytes.
 pub fn read_timestamp<B: Buf>(bytes: &mut B) -> io::Result<OffsetDateTime> {
     let timestamp_i64 = i64::from_le_bytes(read_n_bytes(bytes)?);
     OffsetDateTime::from_unix_timestamp(timestamp_i64)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Bad UTC timestamp"))
 }
 
-/// Reads a timestamp from the bytes.
+/// Reads a timestamp encoded as 4 bytes.
 pub fn read_short_timestamp<B: Buf>(bytes: &mut B) -> io::Result<OffsetDateTime> {
     let timestamp_u32 = u32::from_le_bytes(read_n_bytes(bytes)?);
     OffsetDateTime::from_unix_timestamp(timestamp_u32.into())
