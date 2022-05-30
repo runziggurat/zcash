@@ -326,7 +326,7 @@ mod tests {
         crawler.enable_writing().await;
 
         // The initial IPs to connect to.
-        let initial_conns = [];
+        let initial_conns: [&str; 0] = [];
 
         for addr in initial_conns {
             let crawler_clone = crawler.clone();
