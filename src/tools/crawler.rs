@@ -3,7 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
     hash::{Hash, Hasher},
     io,
-    net::{IpAddr, SocketAddr},
+    net::SocketAddr,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -154,12 +154,10 @@ impl Pea2Pea for Crawler {
 
 impl Crawler {
     /// Creates a new instance of the `Crawler` without starting it.
-    pub async fn new<T: Into<IpAddr>>(ip: T, port: u16) -> Self {
+    pub async fn new() -> Self {
         let config = Config {
             name: Some("crawler".into()),
-            listener_ip: Some(ip.into()),
-            desired_listening_port: Some(port),
-            allow_random_port: false,
+            listener_ip: None,
             ..Default::default()
         };
 
@@ -199,7 +197,7 @@ impl Crawler {
 impl Handshake for Crawler {
     async fn perform_handshake(&self, mut conn: Connection) -> io::Result<Connection> {
         let conn_addr = conn.addr();
-        let own_listening_addr = self.node().listening_addr().unwrap();
+        let own_listening_addr: SocketAddr = ([127, 0, 0, 1], 0).into();
         let mut framed_stream = Framed::new(self.borrow_stream(&mut conn), MessageCodec::default());
 
         let own_version = Message::Version(Version::new(conn_addr, own_listening_addr));
@@ -319,7 +317,7 @@ mod tests {
         start_logger(LevelFilter::TRACE);
 
         // Create the crawler with the given listener address.
-        let crawler = Crawler::new([127, 0, 0, 1], 0).await;
+        let crawler = Crawler::new().await;
 
         crawler.enable_handshake().await;
         crawler.enable_reading().await;
