@@ -21,19 +21,25 @@ use tracing::*;
 use crate::{
     protocol::{
         message::Message,
-        payload::{block::Headers, Addr, Version},
+        payload::{block::Headers, Addr, Version, ProtocolVersion, VarStr},
     },
     tools::synthetic_node::MessageCodec,
 };
 
 /// A node encountered in the network or obtained from one of the peers.
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct KnownNode {
     // The address is omitted, as it's a key in the owning HashMap.
     /// The last time the node was successfully connected to.
     pub last_connected: Option<Instant>,
     /// The time it took to complete a connection.
     pub handshake_time: Option<Duration>,
+    /// The node's protocol version.
+    pub protocol_version: Option<ProtocolVersion>,
+    /// The node's user agent.
+    pub user_agent: Option<VarStr>,
+    /// The number of services supported by the node.
+    pub services: Option<u64>,
     /// The number of subsequent connection errors.
     connection_failures: u8,
 }
@@ -263,7 +269,14 @@ impl Reading for Crawler {
                     .unwrap()
                     .await;
             }
-            Message::Version(_) => {
+            Message::Version(ver) => {
+                // Update source node with information from version.
+                if let Some(known_node) = self.known_network.nodes.write().get_mut(&source) {
+                    known_node.protocol_version = Some(ver.version);
+                    known_node.user_agent = Some(ver.user_agent);
+                    known_node.services = Some(ver.services);
+                }
+
                 let _ = self
                     .send_direct_message(source, Message::Verack)
                     .unwrap()
