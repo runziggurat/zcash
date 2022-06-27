@@ -10,9 +10,8 @@ use assert_matches::assert_matches;
 use bytes::{BufMut, BytesMut};
 use futures_util::{sink::SinkExt, TryStreamExt};
 use pea2pea::{
-    connections::ConnectionSide,
     protocols::{Handshake, Reading, Writing},
-    Config as NodeConfig, Connection, KnownPeers, Node, Pea2Pea,
+    Config as NodeConfig, Connection, ConnectionSide, KnownPeers, Node, Pea2Pea,
 };
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -486,7 +485,7 @@ impl Reading for InnerNode {
     type Message = Message;
     type Codec = MessageCodec;
 
-    fn codec(&self, _addr: SocketAddr) -> Self::Codec {
+    fn codec(&self, _addr: SocketAddr, _side: ConnectionSide) -> Self::Codec {
         Default::default()
     }
 
@@ -529,7 +528,7 @@ impl Writing for InnerNode {
     type Message = MessageOrBytes;
     type Codec = MessageCodec;
 
-    fn codec(&self, _addr: SocketAddr) -> Self::Codec {
+    fn codec(&self, _addr: SocketAddr, _side: ConnectionSide) -> Self::Codec {
         Default::default()
     }
 }
