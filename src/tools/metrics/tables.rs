@@ -1,7 +1,7 @@
 //! Tables to display metrics.
 
 use histogram::Histogram;
-use tabled::{object::Full, Alignment, Modify, Style, Table, Tabled};
+use tabled::{object::Segment, Alignment, Modify, Style, Table, Tabled};
 use tokio::time::Duration;
 
 /// Provides a simplified interface to produce a well-formatted table for latency statistics.
@@ -98,6 +98,6 @@ pub fn fmt_table(table: Table) -> String {
     // table with pseudo style, right aligned data and center aligned headers
     table
         .with(Style::modern())
-        .with(Modify::new(Full).with(Alignment::right()))
+        .with(Modify::new(Segment::all()).with(Alignment::right()))
         .to_string()
 }
