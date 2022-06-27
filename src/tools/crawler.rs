@@ -12,7 +12,7 @@ use futures_util::SinkExt;
 use parking_lot::RwLock;
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
-    Config, Connection, Node as Pea2PeaNode, Pea2Pea,
+    Config, Connection, ConnectionSide, Node as Pea2PeaNode, Pea2Pea,
 };
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
@@ -21,7 +21,7 @@ use tracing::*;
 use crate::{
     protocol::{
         message::Message,
-        payload::{block::Headers, Addr, Version, ProtocolVersion, VarStr},
+        payload::{block::Headers, Addr, ProtocolVersion, VarStr, Version},
     },
     tools::synthetic_node::MessageCodec,
 };
@@ -218,7 +218,7 @@ impl Reading for Crawler {
     type Message = Message;
     type Codec = MessageCodec;
 
-    fn codec(&self, _addr: SocketAddr) -> Self::Codec {
+    fn codec(&self, _addr: SocketAddr, _side: ConnectionSide) -> Self::Codec {
         Default::default()
     }
 
@@ -293,7 +293,7 @@ impl Writing for Crawler {
     type Message = Message;
     type Codec = MessageCodec;
 
-    fn codec(&self, _addr: SocketAddr) -> Self::Codec {
+    fn codec(&self, _addr: SocketAddr, _side: ConnectionSide) -> Self::Codec {
         Default::default()
     }
 }
