@@ -26,6 +26,12 @@ use crate::{
     tools::synthetic_node::MessageCodec,
 };
 
+const NUM_CONN_ATTEMPTS_ON_PEERLIST: usize = 100;
+#[allow(dead_code)]
+const NUM_CONN_ATTEMPTS_PERIODIC: usize = 100;
+#[allow(dead_code)]
+const MAIN_LOOP_INTERVAL: u64 = 60;
+
 /// A node encountered in the network or obtained from one of the peers.
 #[derive(Debug, Default, Clone)]
 pub struct KnownNode {
@@ -233,7 +239,7 @@ impl Reading for Crawler {
                 }
                 self.known_network.add_addrs(source, &listening_addrs);
 
-                for addr in listening_addrs {
+                for addr in listening_addrs.into_iter().take(NUM_CONN_ATTEMPTS_ON_PEERLIST) {
                     if !(self.node().is_connected(addr) || self.node().is_connecting(addr)) {
                         let crawler = self.clone();
                         tokio::spawn(async move {
@@ -244,6 +250,7 @@ impl Reading for Crawler {
                         });
                     }
                 }
+                self.node().disconnect(source).await;
             }
             Message::Ping(nonce) => {
                 let _ = self
@@ -302,6 +309,7 @@ impl Writing for Crawler {
 mod tests {
     use std::time::Duration;
 
+    use rand::prelude::IteratorRandom;
     use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 
     use super::*;
@@ -368,7 +376,7 @@ mod tests {
                 info!(parent: crawler.node().span(), "asking peers for their peers (connected to {})", crawler.node().num_connected());
                 info!(parent: crawler.node().span(), "known addrs: {}", crawler.known_network.num_nodes());
 
-                for (addr, _) in crawler.known_network.nodes() {
+                for (addr, _) in crawler.known_network.nodes().into_iter().choose_multiple(&mut rand::thread_rng(), NUM_CONN_ATTEMPTS_PERIODIC) {
                     if !(crawler.node().is_connected(addr) || crawler.node().is_connecting(addr)) {
                         let crawler_clone = crawler.clone();
                         tokio::spawn(async move {
@@ -382,7 +390,7 @@ mod tests {
 
                 crawler.send_broadcast(Message::GetAddr).unwrap();
 
-                sleep(Duration::from_secs(60)).await;
+                sleep(Duration::from_secs(MAIN_LOOP_INTERVAL)).await;
             }
         });
 
