@@ -60,7 +60,7 @@ impl Codec for Nonce {
 
 /// Specifies the protocol version.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct ProtocolVersion(u32);
+pub struct ProtocolVersion(pub u32);
 
 impl ProtocolVersion {
     /// The current protocol version.
@@ -152,7 +152,7 @@ impl Codec for VarInt {
 
 /// A variable length string.
 #[derive(Debug, PartialEq, Clone)]
-pub struct VarStr(String);
+pub struct VarStr(pub String);
 
 impl VarStr {
     fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
