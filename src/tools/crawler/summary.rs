@@ -1,9 +1,10 @@
 use core::fmt;
 use std::{
+    cmp,
     collections::HashMap,
+    fs,
     net::SocketAddr,
-    time::{Instant, Duration},
-    cmp, fs,
+    time::{Duration, Instant},
 };
 
 use super::network::KnownNode;
@@ -21,10 +22,14 @@ pub struct NetworkSummary {
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(nodes: HashMap<SocketAddr, KnownNode>, crawler_start_time: Instant) -> NetworkSummary {
+    pub fn new(
+        nodes: HashMap<SocketAddr, KnownNode>,
+        crawler_start_time: Instant,
+    ) -> NetworkSummary {
         let num_known_nodes = nodes.len();
 
-        let good_nodes: HashMap<_, _> = nodes.clone()
+        let good_nodes: HashMap<_, _> = nodes
+            .clone()
             .into_iter()
             .filter(|(_, node)| node.last_connected.is_some())
             .collect();
@@ -36,8 +41,14 @@ impl NetworkSummary {
 
         for (_, node) in nodes {
             if let Some(_) = node.protocol_version {
-                protocol_versions.entry(node.protocol_version.unwrap().0).and_modify(|count| *count += 1).or_insert(1);
-                user_agents.entry(node.user_agent.unwrap().0).and_modify(|count| *count += 1).or_insert(1);
+                protocol_versions
+                    .entry(node.protocol_version.unwrap().0)
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
+                user_agents
+                    .entry(node.user_agent.unwrap().0)
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
             }
         }
 
@@ -61,7 +72,10 @@ impl NetworkSummary {
 
 impl fmt::Display for NetworkSummary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn print_hashmap<T: fmt::Display>(f: &mut fmt::Formatter<'_>, counts :&HashMap<T, usize>) -> fmt::Result {
+        fn print_hashmap<T: fmt::Display>(
+            f: &mut fmt::Formatter<'_>,
+            counts: &HashMap<T, usize>,
+        ) -> fmt::Result {
             let mut vec: Vec<(&T, &usize)> = counts.iter().collect();
             vec.sort_by_key(|(_, count)| cmp::Reverse(*count));
 
@@ -81,7 +95,11 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "\nUser agents:")?;
         print_hashmap(f, &self.user_agents)?;
 
-        writeln!(f, "\nCrawler ran for a total of {} minutes", self.crawler_runtime.as_secs() / 60)?;
+        writeln!(
+            f,
+            "\nCrawler ran for a total of {} minutes",
+            self.crawler_runtime.as_secs() / 60
+        )?;
 
         Ok(())
     }
