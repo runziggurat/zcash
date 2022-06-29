@@ -313,7 +313,7 @@ mod tests {
     use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 
     use super::*;
-    use crate::wait_until;
+    use crate::{wait_until, tools::metrics::summary::NetworkSummary};
 
     fn start_logger(default_level: LevelFilter) {
         let filter = match EnvFilter::try_from_default_env() {
@@ -369,6 +369,9 @@ mod tests {
 
         sleep(Duration::from_secs(1)).await;
 
+        // Capture the start time of the crawler.
+        let crawler_start_time = Instant::now();
+
         tokio::spawn(async move {
             loop {
                 crawler.known_network.update_nodes();
@@ -389,6 +392,11 @@ mod tests {
                 }
 
                 crawler.send_broadcast(Message::GetAddr).unwrap();
+
+                // Create summary and log to file.
+                let network_summary = NetworkSummary::new(crawler.known_network.nodes(), crawler_start_time);
+                network_summary.log_to_file().unwrap();
+                info!("{}", network_summary);
 
                 sleep(Duration::from_secs(MAIN_LOOP_INTERVAL)).await;
             }
