@@ -9,9 +9,15 @@ pub const HEADER_LEN: usize = 24;
 pub const MAX_MESSAGE_LEN: usize = 2 * 1024 * 1024;
 
 /// The current network protocol version number.
-pub const PROTOCOL_VERSION: u32 = 170_015;
+pub const PROTOCOL_VERSION: u32 = 170_100;
 /// The current network version identifier.
-pub const MAGIC: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
+pub const MAGIC_TESTNET: [u8; 4] = [0xfa, 0x1a, 0xf9, 0xbf];
+pub const MAGIC_MAINNET: [u8; 4] = [0x24, 0xe9, 0x27, 0x64];
+
+#[cfg(test)]
+pub const MAGIC: [u8; 4] = MAGIC_TESTNET;
+#[cfg(not(test))]
+pub const MAGIC: [u8; 4] = MAGIC_MAINNET;
 
 // Message command bytes.
 pub const VERSION_COMMAND: [u8; 12] = *b"version\0\0\0\0\0";
