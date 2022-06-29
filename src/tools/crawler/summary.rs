@@ -6,7 +6,7 @@ use std::{
     cmp, fs,
 };
 
-use crate::tools::crawler::KnownNode;
+use super::network::KnownNode;
 
 const LOG_PATH: &str = "crawler-log.txt";
 
