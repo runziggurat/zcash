@@ -25,6 +25,7 @@ use super::network::KnownNetwork;
 
 pub const NUM_CONN_ATTEMPTS_ON_PEERLIST: usize = 100;
 pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 100;
+pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
 pub const MAIN_LOOP_INTERVAL: u64 = 60;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
 
@@ -47,7 +48,7 @@ impl Crawler {
         let config = Config {
             name: Some("crawler".into()),
             listener_ip: None,
-            max_connections: 1000,
+            max_connections: MAX_CONCURRENT_CONNECTIONS,
             ..Default::default()
         };
 
@@ -85,6 +86,10 @@ impl Crawler {
     /// Checks to see if crawler should connect to the given address.
     pub fn should_connect(&self, addr: SocketAddr) -> bool {
         if let Some(node) = self.known_network.nodes().get(&addr) {
+            // Ensure that crawler is not exceeding the MAX_CONCURRENT_CONNECTIONS.
+            if self.node().num_connected() + self.node().num_connecting() >= MAX_CONCURRENT_CONNECTIONS {
+                return false;
+            }
             // Ensure that there are no active connections with the given addr.
             if self.node().is_connected(addr) || self.node().is_connecting(addr) {
                 return false;
