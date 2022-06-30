@@ -7,8 +7,7 @@ use std::{
 };
 
 use parking_lot::RwLock;
-
-use crate::protocol::payload::{ProtocolVersion, VarStr};
+use ziggurat::protocol::payload::{ProtocolVersion, VarStr};
 
 /// A node encountered in the network or obtained from one of the peers.
 #[derive(Debug, Default, Clone)]
@@ -103,6 +102,7 @@ impl KnownNetwork {
     }
 
     /// Returns the number of known connections.
+    #[allow(dead_code)]
     pub fn num_connections(&self) -> usize {
         self.connections.read().len()
     }

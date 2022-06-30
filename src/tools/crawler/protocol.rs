@@ -13,8 +13,7 @@ use pea2pea::{
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
 use tracing::*;
-
-use crate::{
+use ziggurat::{
     protocol::{
         message::Message,
         payload::{block::Headers, Addr, Version},
@@ -24,17 +23,15 @@ use crate::{
 
 use super::network::KnownNetwork;
 
-const NUM_CONN_ATTEMPTS_ON_PEERLIST: usize = 100;
-#[allow(dead_code)]
-const NUM_CONN_ATTEMPTS_PERIODIC: usize = 100;
-#[allow(dead_code)]
-const MAIN_LOOP_INTERVAL: u64 = 60;
+pub const NUM_CONN_ATTEMPTS_ON_PEERLIST: usize = 100;
+pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 100;
+pub const MAIN_LOOP_INTERVAL: u64 = 60;
 
 /// Represents the crawler together with network metrics it has collected.
 #[derive(Clone)]
 pub struct Crawler {
     node: Pea2PeaNode,
-    known_network: Arc<KnownNetwork>,
+    pub known_network: Arc<KnownNetwork>,
 }
 
 impl Pea2Pea for Crawler {
@@ -118,7 +115,10 @@ impl Reading for Crawler {
                 }
                 self.known_network.add_addrs(source, &listening_addrs);
 
-                for addr in listening_addrs.into_iter().take(NUM_CONN_ATTEMPTS_ON_PEERLIST) {
+                for addr in listening_addrs
+                    .into_iter()
+                    .take(NUM_CONN_ATTEMPTS_ON_PEERLIST)
+                {
                     if !(self.node().is_connected(addr) || self.node().is_connecting(addr)) {
                         let crawler = self.clone();
                         tokio::spawn(async move {
@@ -181,109 +181,5 @@ impl Writing for Crawler {
 
     fn codec(&self, _addr: SocketAddr, _side: ConnectionSide) -> Self::Codec {
         Default::default()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use rand::prelude::IteratorRandom;
-    use tracing_subscriber::filter::{EnvFilter, LevelFilter};
-
-    use super::*;
-    use crate::{
-        wait_until,
-        tools::crawler::{summary::NetworkSummary, network::KnownNode}
-    };
-
-    fn start_logger(default_level: LevelFilter) {
-        let filter = match EnvFilter::try_from_default_env() {
-            Ok(filter) => filter
-                .add_directive("tokio_util=off".parse().unwrap())
-                .add_directive("mio=off".parse().unwrap()),
-            _ => EnvFilter::default()
-                .add_directive(default_level.into())
-                .add_directive("tokio_util=off".parse().unwrap())
-                .add_directive("mio=off".parse().unwrap()),
-        };
-
-        tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .with_target(false)
-            .init();
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "Needs to be moved to a binary"]
-    async fn crawler_gets_peers() {
-        start_logger(LevelFilter::TRACE);
-
-        // Create the crawler with the given listener address.
-        let crawler = Crawler::new().await;
-
-        crawler.enable_handshake().await;
-        crawler.enable_reading().await;
-        crawler.enable_writing().await;
-
-        // The initial IPs to connect to.
-        let initial_conns: [&str; 0] = [];
-
-        for addr in initial_conns {
-            let crawler_clone = crawler.clone();
-            tokio::spawn(async move {
-                let addr = addr.parse().unwrap();
-                crawler_clone
-                    .known_network
-                    .nodes
-                    .write()
-                    .insert(addr, KnownNode::default());
-
-                if crawler_clone.connect(addr).await.is_ok() {
-                    sleep(Duration::from_secs(1)).await;
-                    let _ = crawler_clone.send_direct_message(addr, Message::GetAddr);
-                }
-            });
-        }
-
-        // Wait for the connection to be complete.
-        wait_until!(Duration::from_secs(3), crawler.node().num_connected() >= 1);
-
-        sleep(Duration::from_secs(1)).await;
-
-        // Capture the start time of the crawler.
-        let crawler_start_time = Instant::now();
-
-        tokio::spawn(async move {
-            loop {
-                crawler.known_network.update_nodes();
-
-                info!(parent: crawler.node().span(), "asking peers for their peers (connected to {})", crawler.node().num_connected());
-                info!(parent: crawler.node().span(), "known addrs: {}", crawler.known_network.num_nodes());
-
-                for (addr, _) in crawler.known_network.nodes().into_iter().choose_multiple(&mut rand::thread_rng(), NUM_CONN_ATTEMPTS_PERIODIC) {
-                    if !(crawler.node().is_connected(addr) || crawler.node().is_connecting(addr)) {
-                        let crawler_clone = crawler.clone();
-                        tokio::spawn(async move {
-                            if crawler_clone.connect(addr).await.is_ok() {
-                                sleep(Duration::from_secs(1)).await;
-                                let _ = crawler_clone.send_direct_message(addr, Message::GetAddr);
-                            }
-                        });
-                    }
-                }
-
-                crawler.send_broadcast(Message::GetAddr).unwrap();
-
-                // Create summary and log to file.
-                let network_summary = NetworkSummary::new(crawler.known_network.nodes(), crawler_start_time);
-                network_summary.log_to_file().unwrap();
-                info!("{}", network_summary);
-
-                sleep(Duration::from_secs(MAIN_LOOP_INTERVAL)).await;
-            }
-        });
-
-        std::future::pending::<()>().await;
     }
 }

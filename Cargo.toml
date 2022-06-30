@@ -48,3 +48,15 @@ default-features = false
 version = "0.3"
 features = [ "env-filter", "fmt" ]
 
+[dependencies.clap]
+version = "3.2.7"
+features = [ "derive" ]
+optional = true
+
+[features]
+crawler = ["clap"]
+
+[[bin]]
+name = "crawler"
+path = "src/tools/crawler/main.rs"
+required-features = ["crawler"]
