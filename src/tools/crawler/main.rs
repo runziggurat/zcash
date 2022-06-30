@@ -28,8 +28,9 @@ struct Args {
     seed_addrs: Vec<String>,
     #[clap(short, long, value_parser, default_value_t = MAIN_LOOP_INTERVAL)]
     crawl_interval: u64,
-    #[clap(short, long, value_parser, default_value = "testnet")]
-    network: String,
+    // TODO
+    // #[clap(short, long, value_parser, default_value = "testnet")]
+    // network: String,
 }
 
 fn start_logger(default_level: LevelFilter) {
