@@ -1,6 +1,5 @@
 //! Utilities for network testing.
 
-pub mod crawler;
 pub mod fuzzing;
 pub mod message_filter;
 pub mod metrics;
