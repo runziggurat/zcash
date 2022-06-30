@@ -16,7 +16,9 @@ pub const MAGIC_MAINNET: [u8; 4] = [0x24, 0xe9, 0x27, 0x64];
 
 #[cfg(test)]
 pub const MAGIC: [u8; 4] = MAGIC_TESTNET;
-#[cfg(not(test))]
+#[cfg(all(not(test), not(feature = "crawler")))]
+pub const MAGIC: [u8; 4] = MAGIC_MAINNET;
+#[cfg(feature = "crawler")]
 pub const MAGIC: [u8; 4] = MAGIC_MAINNET;
 
 // Message command bytes.
