@@ -90,6 +90,7 @@ impl Crawler {
             if self.node().num_connected() + self.node().num_connecting() >= MAX_CONCURRENT_CONNECTIONS {
                 return false;
             }
+
             // Ensure that there are no active connections with the given addr.
             if self.node().is_connected(addr) || self.node().is_connecting(addr) {
                 return false;
