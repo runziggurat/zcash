@@ -100,7 +100,7 @@ async fn main() {
                 .into_iter()
                 .choose_multiple(&mut rand::thread_rng(), NUM_CONN_ATTEMPTS_PERIODIC)
             {
-                if !(crawler.node().is_connected(addr) || crawler.node().is_connecting(addr)) {
+                if crawler.should_connect(addr) {
                     let crawler_clone = crawler.clone();
                     tokio::spawn(async move {
                         if crawler_clone.connect(addr).await.is_ok() {

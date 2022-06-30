@@ -26,6 +26,7 @@ use super::network::KnownNetwork;
 pub const NUM_CONN_ATTEMPTS_ON_PEERLIST: usize = 100;
 pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 100;
 pub const MAIN_LOOP_INTERVAL: u64 = 60;
+pub const RECONNECT_INTERVAL: u64 = 5 * 60;
 
 /// Represents the crawler together with network metrics it has collected.
 #[derive(Clone)]
@@ -46,6 +47,7 @@ impl Crawler {
         let config = Config {
             name: Some("crawler".into()),
             listener_ip: None,
+            max_connections: 1000,
             ..Default::default()
         };
 
@@ -78,6 +80,27 @@ impl Crawler {
         }
 
         result
+    }
+
+    /// Checks to see if crawler should connect to the given address.
+    pub fn should_connect(&self, addr: SocketAddr) -> bool {
+        if let Some(node) = self.known_network.nodes().get(&addr) {
+            // Ensure that there are no active connections with the given addr.
+            if self.node().is_connected(addr) || self.node().is_connecting(addr) {
+                return false;
+            }
+
+            // Ensure that the RECONNECT_INTERVAL is obeyed.
+            if let Some(i) = node.last_connected {
+                if i.elapsed() < Duration::from_secs(RECONNECT_INTERVAL) {
+                    return false;
+                }
+            }
+            
+            true
+        } else {
+            panic!("Logic bug! The crawler should only attempt to connect to known addresses.");
+        }
     }
 }
 
@@ -119,7 +142,7 @@ impl Reading for Crawler {
                     .into_iter()
                     .take(NUM_CONN_ATTEMPTS_ON_PEERLIST)
                 {
-                    if !(self.node().is_connected(addr) || self.node().is_connecting(addr)) {
+                    if self.should_connect(addr) {
                         let crawler = self.clone();
                         tokio::spawn(async move {
                             if crawler.connect(addr).await.is_ok() {
