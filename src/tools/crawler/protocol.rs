@@ -87,7 +87,7 @@ impl Crawler {
     pub fn should_connect(&self, addr: SocketAddr) -> bool {
         if let Some(node) = self.known_network.nodes().get(&addr) {
             // Ensure that crawler is not exceeding the MAX_CONCURRENT_CONNECTIONS.
-            if self.node().num_connected() + self.node().num_connecting() >= MAX_CONCURRENT_CONNECTIONS {
+            if self.node().num_connected() + self.node().num_connecting() >= MAX_CONCURRENT_CONNECTIONS.into() {
                 return false;
             }
 
@@ -98,11 +98,11 @@ impl Crawler {
 
             // Ensure that the RECONNECT_INTERVAL is obeyed.
             if let Some(i) = node.last_connected {
-                if i.elapsed() < Duration::from_secs(RECONNECT_INTERVAL) {
+                if i.elapsed().as_secs() < RECONNECT_INTERVAL {
                     return false;
                 }
             }
-            
+
             true
         } else {
             panic!("Logic bug! The crawler should only attempt to connect to known addresses.");
