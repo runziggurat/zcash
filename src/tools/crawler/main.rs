@@ -114,7 +114,7 @@ async fn main() {
             crawler.send_broadcast(Message::GetAddr).unwrap();
 
             if crawler.known_network.num_connections() > 0 {
-                // Create summary and log to file.
+                // Create a summary and log it to a file.
                 let network_summary = NetworkSummary::new(
                     crawler.known_network.nodes(),
                     crawler.known_network.connections(),
