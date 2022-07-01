@@ -1,16 +1,14 @@
 use core::fmt;
 use std::{
     cmp,
-    collections::{HashMap, HashSet},
     fs,
-    net::SocketAddr,
-    time::{Duration, Instant},
+    collections::HashMap,
+    time::Duration,
 };
 
 use spectre::{edge::Edge, graph::Graph};
-use tracing::info;
 
-use crate::network::{KnownConnection, KnownNode};
+use crate::Crawler;
 
 const LOG_PATH: &str = "crawler-log.txt";
 
@@ -19,6 +17,7 @@ pub struct NetworkSummary {
     num_known_nodes: usize,
     num_good_nodes: usize,
     num_known_connections: usize,
+    num_versions: usize,
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
@@ -29,11 +28,10 @@ pub struct NetworkSummary {
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(
-        nodes: HashMap<SocketAddr, KnownNode>,
-        connections: HashSet<KnownConnection>,
-        crawler_start_time: Instant,
-    ) -> NetworkSummary {
+    pub fn new(crawler: &Crawler) -> NetworkSummary {
+        let nodes = crawler.known_network.nodes();
+        let connections = crawler.known_network.connections();
+
         let num_known_nodes = nodes.len();
         let num_known_connections = connections.len();
 
@@ -61,7 +59,8 @@ impl NetworkSummary {
             }
         }
 
-        let crawler_runtime = crawler_start_time.elapsed();
+        let num_versions = protocol_versions.values().sum();
+        let crawler_runtime = crawler.start_time.elapsed();
 
         // Create a graph to procure its metrics
         let mut graph = Graph::new();
@@ -79,6 +78,7 @@ impl NetworkSummary {
             num_known_nodes,
             num_good_nodes,
             num_known_connections,
+            num_versions,
             protocol_versions,
             user_agents,
             crawler_runtime,
@@ -114,6 +114,7 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "Network summary:\n")?;
         writeln!(f, "Found a total of {} node(s)", self.num_known_nodes)?;
         writeln!(f, "Managed to connect to {} node(s)", self.num_good_nodes)?;
+        writeln!(f, "{} identifiend themselves with a Version", self.num_versions)?;
         writeln!(f, "Node(s) have {} known connections between them", self.num_known_connections)?;
 
         writeln!(f, "\nProtocol versions:")?;
