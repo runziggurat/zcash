@@ -66,8 +66,6 @@ impl NetworkSummary {
         // Create a graph to procure its metrics
         let mut graph = Graph::new();
 
-        info!("Constructing edges in graph");
-
         for conn in connections {
             graph.insert(Edge::new(conn.a, conn.b));
         }
