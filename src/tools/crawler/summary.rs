@@ -1,13 +1,16 @@
 use core::fmt;
 use std::{
     cmp,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     net::SocketAddr,
     time::{Duration, Instant},
 };
 
-use super::network::KnownNode;
+use spectre::{edge::Edge, graph::Graph};
+use tracing::info;
+
+use crate::network::{KnownConnection, KnownNode};
 
 const LOG_PATH: &str = "crawler-log.txt";
 
@@ -15,18 +18,24 @@ const LOG_PATH: &str = "crawler-log.txt";
 pub struct NetworkSummary {
     num_known_nodes: usize,
     num_good_nodes: usize,
+    num_known_connections: usize,
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
+    density: f64,
+    degree_centrality_delta: f64,
+    avg_degree_centrality: u64,
 }
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
     pub fn new(
         nodes: HashMap<SocketAddr, KnownNode>,
+        connections: HashSet<KnownConnection>,
         crawler_start_time: Instant,
     ) -> NetworkSummary {
         let num_known_nodes = nodes.len();
+        let num_known_connections = connections.len();
 
         let good_nodes: HashMap<_, _> = nodes
             .clone()
@@ -54,12 +63,28 @@ impl NetworkSummary {
 
         let crawler_runtime = crawler_start_time.elapsed();
 
+        // Create a graph to procure its metrics
+        let mut graph = Graph::new();
+
+        for conn in connections {
+            graph.insert(Edge::new(conn.a, conn.b));
+        }
+
+        let density = graph.density();
+        let degree_centrality_delta = graph.degree_centrality_delta();
+        let degree_centralities = graph.degree_centrality();
+        let avg_degree_centrality = degree_centralities.values().map(|v| *v as u64).sum::<u64>() / degree_centralities.len() as u64;
+
         NetworkSummary {
             num_known_nodes,
             num_good_nodes,
+            num_known_connections,
             protocol_versions,
             user_agents,
             crawler_runtime,
+            density,
+            degree_centrality_delta,
+            avg_degree_centrality,
         }
     }
 
@@ -89,11 +114,17 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "Network summary:\n")?;
         writeln!(f, "Found a total of {} node(s)", self.num_known_nodes)?;
         writeln!(f, "Managed to connect to {} node(s)", self.num_good_nodes)?;
+        writeln!(f, "Node(s) have {} known connections between them", self.num_known_connections)?;
 
         writeln!(f, "\nProtocol versions:")?;
         print_hashmap(f, &self.protocol_versions)?;
         writeln!(f, "\nUser agents:")?;
         print_hashmap(f, &self.user_agents)?;
+
+        writeln!(f, "\nNetwork graph metrics:")?;
+        writeln!(f, "Density: {:.4}", self.density)?;
+        writeln!(f, "Degree centrality delta: {}", self.degree_centrality_delta)?;
+        writeln!(f, "Average degree centrality: {:.4}", self.avg_degree_centrality)?;
 
         writeln!(
             f,

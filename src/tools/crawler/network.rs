@@ -106,7 +106,6 @@ impl KnownNetwork {
     }
 
     /// Returns the number of known connections.
-    #[allow(dead_code)]
     pub fn num_connections(&self) -> usize {
         self.connections.read().len()
     }

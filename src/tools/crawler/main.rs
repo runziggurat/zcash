@@ -113,11 +113,17 @@ async fn main() {
 
             crawler.send_broadcast(Message::GetAddr).unwrap();
 
-            // Create summary and log to file.
-            let network_summary =
-                NetworkSummary::new(crawler.known_network.nodes(), crawler_start_time);
-            network_summary.log_to_file().unwrap();
-            info!("{}", network_summary);
+            if crawler.known_network.num_connections() > 0 {
+                // Create a summary and log it to a file.
+                let network_summary = NetworkSummary::new(
+                    crawler.known_network.nodes(),
+                    crawler.known_network.connections(),
+                    crawler_start_time,
+                );
+
+                network_summary.log_to_file().unwrap();
+                info!("{}", network_summary);
+            }
 
             sleep(Duration::from_secs(args.crawl_interval)).await;
         }
