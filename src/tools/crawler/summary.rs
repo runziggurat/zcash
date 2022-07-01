@@ -70,8 +70,6 @@ impl NetworkSummary {
             graph.insert(Edge::new(conn.a, conn.b));
         }
 
-        info!("Done with that");
-
         let density = graph.density();
         let degree_centrality_delta = graph.degree_centrality_delta();
         let degree_centralities = graph.degree_centrality();
