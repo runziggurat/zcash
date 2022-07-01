@@ -26,7 +26,7 @@ use super::network::KnownNetwork;
 pub const NUM_CONN_ATTEMPTS_ON_PEERLIST: usize = 100;
 pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 100;
 pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
-pub const MAIN_LOOP_INTERVAL: u64 = 60;
+pub const MAIN_LOOP_INTERVAL: u64 = 15;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
 
 /// Represents the crawler together with network metrics it has collected.
@@ -34,6 +34,7 @@ pub const RECONNECT_INTERVAL: u64 = 5 * 60;
 pub struct Crawler {
     node: Pea2PeaNode,
     pub known_network: Arc<KnownNetwork>,
+    pub start_time: Instant,
 }
 
 impl Pea2Pea for Crawler {
@@ -55,6 +56,7 @@ impl Crawler {
         Self {
             node: Pea2PeaNode::new(Some(config)).await.unwrap(),
             known_network: Default::default(),
+            start_time: Instant::now(),
         }
     }
 

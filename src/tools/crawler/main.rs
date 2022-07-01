@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use clap::Parser;
 use pea2pea::{
@@ -84,13 +84,8 @@ async fn main() {
 
     sleep(Duration::from_secs(1)).await;
 
-    // Capture the start time of the crawler.
-    let crawler_start_time = Instant::now();
-
     tokio::spawn(async move {
         loop {
-            crawler.known_network.update_nodes();
-
             info!(parent: crawler.node().span(), "asking peers for their peers (connected to {})", crawler.node().num_connected());
             info!(parent: crawler.node().span(), "known addrs: {}", crawler.known_network.num_nodes());
 
@@ -115,14 +110,10 @@ async fn main() {
 
             if crawler.known_network.num_connections() > 0 {
                 // Create a summary and log it to a file.
-                let network_summary = NetworkSummary::new(
-                    crawler.known_network.nodes(),
-                    crawler.known_network.connections(),
-                    crawler_start_time,
-                );
+                let network_summary = NetworkSummary::new(&crawler);
 
-                network_summary.log_to_file().unwrap();
                 info!("{}", network_summary);
+                network_summary.log_to_file().unwrap();
             }
 
             sleep(Duration::from_secs(args.crawl_interval)).await;
