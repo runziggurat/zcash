@@ -96,7 +96,6 @@ impl NetworkSummary {
     pub fn log_to_file(&self) -> std::io::Result<()> {
         info!("writing to file");
         fs::write(LOG_PATH, self.to_string())?;
-        info!("wrote to file :)");
         Ok(())
     }
 }
