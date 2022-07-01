@@ -63,7 +63,7 @@ impl NetworkSummary {
 
         let crawler_runtime = crawler_start_time.elapsed();
 
-        // Spectre stuff
+        // Create a graph to procure its metrics
         let mut graph = Graph::new();
 
         info!("Constructing edges in graph");
