@@ -90,7 +90,6 @@ impl NetworkSummary {
 
     /// Logs current state of network to file.
     pub fn log_to_file(&self) -> std::io::Result<()> {
-        info!("writing to file");
         fs::write(LOG_PATH, self.to_string())?;
         Ok(())
     }
