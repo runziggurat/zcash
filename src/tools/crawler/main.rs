@@ -58,7 +58,7 @@ async fn main() {
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
 
-    let mut network_metrics = NetworkMetrics::new();
+    let mut network_metrics = NetworkMetrics::default();
 
     crawler.enable_handshake().await;
     crawler.enable_reading().await;
