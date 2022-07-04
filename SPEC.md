@@ -75,105 +75,154 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
 # Test Index
 
+The test index makes use of symbolic language in describing connection and message sending directions. As a convention, Ziggurat test nodes are to the left of the connection/message arrows, and Zebra or Zcashd instances are to the right: `A -> B` and `A <- B`. In this way, `->` signifies "Ziggurat connects to Zcashd or Zebra" and `<-` signifies the opposite. Furthermore, `-> version` signifies "Ziggurat sends a `Version` message to Zcashd or Zebra" and `<- version` signifies the opposite. Lastly, `<>` signifies a completed handshake, in either direction.
+
 ## Conformance
 
 ### ZG-CONFORMANCE-001
 
     The node correctly performs a handshake from the responder side.
 
-    1. Connect to the node under test.
-    2. Send the initial `Version` and complete handshake.
-    3. Assert the node’s peer count has increased to 1 and/or the synthetic node is an established peer (rpc: `getconnectioncount` and/or `getpeerinfo`).
+    ->
+    -> version
+    <- version
+    -> verack
+    <- verack
+
+    Assert: the node’s peer count has increased to 1 and/or the synthetic node is an established peer (rpc: `getconnectioncount` and/or `getpeerinfo`).
 
 ### ZG-CONFORMANCE-002
 
     The node correctly performs a handshake from the initiator side.
 
-    1. The node under test initiates a connection.
-    2. Receive the initial `Version` and complete handshake.
-    3. Assert the node’s peer count has increased to 1 and/or the synthetic node is an established peer.
+    <-
+    <- version
+    -> version
+    <- verack
+    -> verack
+
+    Assert: the node’s peer count has increased to 1 and/or the synthetic node is an established peer.
 
 ### ZG-CONFORMANCE-003
 
     The node ignores non-`Version` messages before the handshake has been performed.
 
-    1. Connect to the node under test.
-    2. Send non-`Version` messages.
-    3. Assert the node ignored the message by completing the handshake.
+    Let M be a `non-Version` message.
+
+    <-
+    -> M
+
+    Assert: the message was ignored (by completing the handshake).
+
+    -> version
+    <- version
+    -> verack
+    <- verack
 
 ### ZG-CONFORMANCE-004
 
     The node ignores non-`Version` messages in response to the initial `Version` it sent.
 
-    1. The node under test initiates a connection.
-    2. Respond to `Version` with non-`Version` messages.
-    3. Assert the node ignored the message by completing the handshake.
+    Let M be a `non-Version` message.
+
+    <-
+    <- version
+    -> non-version
+
+    Assert: the message was ignored (by completing the handshake).
+
+    -> version
+    <- verack
+    -> verack
 
 ### ZG-CONFORMANCE-005
 
-    The node ignores non-`Verack` message as a response to initial `Verack` it sent.
+    The node ignores non-`Verack` message as a response to initial `Version` it sent.
 
-    1. Connect to the node under test.
-    2. Send `Version`, expect `Version`.
-    3. Send non-`Verack` message.
-    4. Assert the node ignored the message by completing the handshake.
+    Let M be a non-Verack message.
+
+    ->
+    -> version
+    <- version
+    -> M
+
+    Assert: the message was ignored (by completing the handshake).
+
+    -> verack
+    <- verack
 
 ### ZG-CONFORMANCE-006
 
     The node ignores non-`Verack` message as a response to initial `Verack` it sent.
 
-    1. The node under test initiates a connection.
-    2. Respond to `Version`, expect `Verack`.
-    3. Respond to `Verack` with non-`Verack` messages.
-    4. Assert the node ignored the message by completing the handshake.
+    <-
+    <- version
+    -> version
+    <- verack
+    -> non-verack
+
+    Assert: the node ignored the message (by completing the handshake).
+
+    -> verack
 
 ### ZG-CONFORMANCE-007
 
     The node rejects connections reusing its `nonce` (usually indicative of self-connection).
 
-    1. The node under test initiates a connection.
-    2. Respond to received `Version` with the node’s nonce.
-    3. Assert the node closed the connection.
+    Let N be the node's nonce.
+
+    <-
+    <- version(N)
+    -> version(N)
+
+    Assert: the node closed the connection.
 
 ### ZG-CONFORMANCE-008
 
     The node rejects connections with obsolete node versions.
 
-    1. Initiator or responder handshake.
-    2. Peer sends `Version` with an obsolete version.
-    3. Assert the node rejected the connection.
+    Let O be an obsolete protocol version number.
+
+    ->
+    -> version(O)
+
+    or
+
+    <-
+    <- version
+    -> version(O)
+
+    Assert: the node rejected the connection.
 
 ### ZG-CONFORMANCE-009
 
     The node rejects handshake and bloom filter messages post-handshake.
-    Zcash nodes used to support this by default, without advertising this
-    bit, but no longer do as of protocol version 170004 `(= NO_BLOOM_VERSION)`.
 
-    1. Establish handshaken node and peer.
-    2. Send unsolicited message to be rejected.
-    3. Assert the node rejected the unsolicited message and dropped the connection.
+    Zcash nodes used to support this by default, without advertising this bit, but no longer do as of protocol version 170004 `(= NO_BLOOM_VERSION)`.
 
-    Messages to be tested: `Version`, `Verack`, `FilterLoad`, `FilterAdd`, `FilterClear`, `Inv` with multiple advertised blocks (multiple transactions or single block payloads don’t get rejected).
+    Let M be a `Version`, `Verack`, `FilterLoad`, `FilterAdd`, `FilterClear` or `Inv` message with multiple advertised blocks (multiple transactions or single block payloads don’t get rejected).
+
+    <>
+    -> M
+
+    Assert: the node rejected the unsolicited message and dropped the connection.
 
 ### ZG-CONFORMANCE-010
 
     The node ignore certain unsolicited messages but doesn’t disconnect.
 
-    1. Establish handshaken node and peer.
-    2. Send an unsolicited message to be ignored.
-    3. Assert the node ignored the unsolicited message and didn’t drop the connection.
+    Let M be a `Reject`, `NotFound`, `Pong`, `Tx`, `Block`, `Header` or `Addr` message.
 
-    Messages to be tested: `Reject`, `NotFound`, `Pong`, `Tx`, `Block`, `Header`, `Addr`.
+    <>
+    -> M
+
+    Assert: the node ignored the unsolicited message and didn’t drop the connection.
 
 ### ZG-CONFORMANCE-011
 
     The node responds with the correct messages. Message correctness is naively verified through successful encoding/decoding.
 
-    1. Establish handshaken node and peer.
-    2. Send message.
-    3. Receive response and assert it is correct.
-
-    Messages to be tested:
+    Let Q, R be the query and response pairs to be tested:
 
     - `Ping` expects `Pong`.
     - `GetAddr` expects `Addr`.
@@ -182,6 +231,12 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     - `GetData` expects `Tx`.
     - `GetData` expects `Blocks`.
     - `GetHeaders` expects `Headers`.
+
+    <>
+    -> Q
+    <- R
+
+    Assert: the appropriate response is sent.
 
 ### ZG-CONFORMANCE-012
 
@@ -194,51 +249,70 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
     - `Addr` with `NetworkAddr` with no timestamp.
 
 ### ZG-CONFORMANCE-013
+
     The node crawls the network for new peers and eagerly connects.
 
-    1. Node sends a `GetAddr`.
-    2. Peer responds with `Addr` containing a list of peers to connect to.
-    3. Assert peers get a connection request from the node.
+    <>
+    <- getaddr
+    -> addr(addrs)
+
+    Assert: peers (addrs) get a connection request from the node.
 
 ### ZG-CONFORMANCE-014
+
     The node responds to a `GetAddr` with a list of peers it’s connected to.
 
-    1. Establish handshaken node with multiple peers.
-    2. Peer sends `GetAddr`.
-    3. Node responds with `Addr`.
-    4. Assert the node's connected peers were included.
+    <> (with N synthetic nodes)
+    -> getaddr
+    <- addr(N addrs)
+
+    Assert: the node's connected peers were sent in the payload.
 
 ### ZG-CONFORMANCE-015
 
     The node responds to `Mempool` requests with a list of transactions in its memory pool.
 
-    1. Establish handshaken node and peer.
-    2. Peer sends `Mempool` request.
-    3. Expect an `Inv` response containing all the transaction hashes in the node's memory pool.
+    Let T be the tx hashes seeded in the node's memory pool.
+
+    <>
+    -> mempool
+    <- inv(T)
+
+    Assert: the `Inv` response contains all the tx hashes in the node's memory pool.
 
 ### ZG-CONFORMANCE-016
 
     The node responds to `GetBlocks` requests with a list of blocks based on the provided range.
 
-    1. Establish handshaken node and peer.
-    2. Peer sends `GetBlocks` request (different ranges could be tested).
-    3. Expect an `Inv` response containing the adequate data based on the requested range.
+    Let R be a block range, D the adequate data corresponding to R.
+
+    <>
+    -> getblocks(R)
+    <- inv(D)
+
+    Assert: the `Inv` response contains all the block hashes in the supplied range (if the node has them).
 
 ### ZG-CONFORMANCE-017
 
     The node responds to `GetHeaders` request with a list of block headers based on the provided range.
 
-    1. Establish handshaken node and peer.
-    2. Peer sends `GetHeaders` request (different ranges could be tested).
-    3. Expect a `Headers` response containing the adequate data based on the requested range.
+    Let R be a header range, D the adequate data corresponding to R.
+
+    <>
+    -> getheaders(R)
+    <- headers(D)
+
+    Assert: the `Headers` response contains the headers in the requested range (if the node has them).
 
 ### ZG-CONFORMANCE-018
 
     The node responds to `GetData` requests with the appropriate transaction or block as requested by the peer.
 
-    1. Establish handshaken node and peer.
-    2. Peer sends `GetData` asking for transactions or blocks.
-    3. Expect one of the following responses to be appropriate: `Tx`, `Block` and `NotFound`.
+    Let Q be a query for transactions or blocks, R a `Tx`, `Block` or `NotFound` message as appropriate based on Q.
+
+    <>
+    -> getdata(Q)
+    <- R
 
 ## Performance
 
@@ -264,41 +338,51 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
     The node rejects various random bytes pre-handshake
 
-    1. Connect to node.
-    2. Send random bytes.
-    3. Assert connection rejected.
+    -> random bytes
+
+    Assert: the connection is rejected.
 
 ### ZG-RESISTANCE-002
 
     The node rejects various random bytes during handshake responder side.
 
-    1. Connect to node and initiate handshake.
-    2. Send and receive `Version`.
-    3. Respond with random bytes in place of `Verack`.
-    4. Assert connection rejected.
+    ->
+    -> version
+    <- version
+    -> random bytes
+
+    Assert: the connection is rejected.
 
 ### ZG-RESISTANCE-003
 
     The node rejects various random bytes during handshake initiator side (`Version`).
 
-    1. Respond to Version with random bytes in place of `Version`.
-    2. Assert connection rejected.
+    <-
+    <- version
+    -> random bytes
+
+    Assert: the connection is rejected.
 
 ### ZG-RESISTANCE-004
 
     The node rejects various random bytes during handshake initiator side (`Verack`).
 
-    1. Respond to `Version` with valid `Version`.
-    2. Receive `Verack` and respond with random bytes.
-    3. Assert connection rejected.
+    <-
+    <- version
+    -> version
+    <- verack
+    -> random bytes
+
+    Assert: the connection is rejected.
 
 ### ZG-RESISTANCE-005
 
     The node rejects various random bytes post-handshake.
 
-    1. Establish handshaken node and peer.
-    2. Send random bytes.
-    3. Assert connection rejected.
+    <>
+    -> random bytes
+
+    Assert: the connection is rejected.
 
 ### ZG-RESISTANCE-006
 
