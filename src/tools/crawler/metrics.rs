@@ -21,11 +21,6 @@ pub struct NetworkMetrics {
 }
 
 impl NetworkMetrics {
-    /// Constructs a new NetworkMetrics with an empty graph.
-    pub fn new() -> NetworkMetrics {
-        NetworkMetrics::default()
-    }
-
     /// Updates the network graph with new connections.
     pub fn update_graph(&mut self, crawler: &Crawler) {
         for conn in crawler.known_network.connections() {
