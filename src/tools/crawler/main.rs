@@ -14,12 +14,12 @@ use ziggurat::{protocol::message::Message, wait_until};
 use crate::{
     protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC},
     network::KnownNode,
-    summary::NetworkSummary,
+    metrics::NetworkMetrics,
 };
 
 mod protocol;
 mod network;
-mod summary;
+mod metrics;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -57,6 +57,8 @@ async fn main() {
 
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
+
+    let mut network_metrics = NetworkMetrics::new();
 
     crawler.enable_handshake().await;
     crawler.enable_reading().await;
@@ -109,8 +111,9 @@ async fn main() {
             crawler.send_broadcast(Message::GetAddr).unwrap();
 
             if crawler.known_network.num_connections() > 0 {
-                // Create a summary and log it to a file.
-                let network_summary = NetworkSummary::new(&crawler);
+                // Update graph, then create a summary and log it to a file.
+                network_metrics.update_graph(&crawler);
+                let network_summary = network_metrics.request_summary(&crawler);
 
                 info!("{}", network_summary);
                 network_summary.log_to_file().unwrap();
