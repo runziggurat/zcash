@@ -75,7 +75,7 @@ The fuzz tests aim to buttress the message conformance tests with extra verifica
 
 # Test Index
 
-The test index makes use of symbolic language in describing connection and message sending directions. As a convention, Ziggurat test nodes are to the left of the connection/message arrows, and Zebra or Zcashd instances are to the right: `Z -> N` and `Z <- N`. In this way, `->` signifies "Ziggurat connects to Zcashd or Zebra" and `<-` signifies the opposite. Furthermore, `-> version` signifies "Ziggurat sends a `Version` message to Zcashd or Zebra" and `<- version` signifies the opposite. Lastly, `<>` signifies a completed handshake, in either direction.
+The test index makes use of symbolic language in describing connection and message sending directions. As a convention, Ziggurat test nodes are to the left of the connection/message arrows, and Zebra or Zcashd instances are to the right: `A -> B` and `A <- B`. In this way, `->` signifies "Ziggurat connects to Zcashd or Zebra" and `<-` signifies the opposite. Furthermore, `-> version` signifies "Ziggurat sends a `Version` message to Zcashd or Zebra" and `<- version` signifies the opposite. Lastly, `<>` signifies a completed handshake, in either direction.
 
 ## Conformance
 
