@@ -125,9 +125,7 @@ impl KnownNetwork {
 
         let mut nodes = self.nodes.write();
         for addr in prospect_nodes {
-            if !nodes.contains_key(&addr) {
-                nodes.insert(addr, KnownNode::default());
-            }
+            nodes.entry(addr).or_default();
         }
     }
 }

@@ -4,6 +4,7 @@ use std::{
     fs,
     collections::HashMap,
     time::Duration,
+    net::SocketAddr,
 };
 
 use spectre::{edge::Edge, graph::Graph};
@@ -11,6 +12,32 @@ use spectre::{edge::Edge, graph::Graph};
 use crate::Crawler;
 
 const LOG_PATH: &str = "crawler-log.txt";
+/// The elapsed time before a connection should be regarded as inactive.
+const LAST_SEEN_CUTOFF: u64 = 10 * 60;
+
+#[derive(Default)]
+pub struct NetworkMetrics {
+    graph: Graph<SocketAddr>,
+}
+
+impl NetworkMetrics {
+    /// Updates the network graph with new connections.
+    pub fn update_graph(&mut self, crawler: &Crawler) {
+        for conn in crawler.known_network.connections() {
+            let edge = Edge::new(conn.a, conn.b);
+            if conn.last_seen.elapsed().as_secs() > LAST_SEEN_CUTOFF {
+                self.graph.remove(&edge);
+            } else {
+                self.graph.insert(edge);
+            }
+        }
+    }
+
+    /// Requests a summary of the network metrics.
+    pub fn request_summary(&mut self, crawler: &Crawler) -> NetworkSummary {
+        NetworkSummary::new(crawler, &mut self.graph)
+    }
+}
 
 #[allow(dead_code)]
 pub struct NetworkSummary {
@@ -28,7 +55,7 @@ pub struct NetworkSummary {
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(crawler: &Crawler) -> NetworkSummary {
+    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>) -> NetworkSummary {
         let nodes = crawler.known_network.nodes();
         let connections = crawler.known_network.connections();
 
@@ -47,7 +74,7 @@ impl NetworkSummary {
         let mut user_agents = HashMap::with_capacity(num_known_nodes);
 
         for (_, node) in nodes {
-            if let Some(_) = node.protocol_version {
+            if node.protocol_version.is_some() {
                 protocol_versions
                     .entry(node.protocol_version.unwrap().0)
                     .and_modify(|count| *count += 1)
@@ -62,13 +89,7 @@ impl NetworkSummary {
         let num_versions = protocol_versions.values().sum();
         let crawler_runtime = crawler.start_time.elapsed();
 
-        // Create a graph to procure its metrics
-        let mut graph = Graph::new();
-
-        for conn in connections {
-            graph.insert(Edge::new(conn.a, conn.b));
-        }
-
+        // Procure metrics from the graph.
         let density = graph.density();
         let degree_centrality_delta = graph.degree_centrality_delta();
         let degree_centralities = graph.degree_centrality();
@@ -115,7 +136,7 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "Found a total of {} node(s)", self.num_known_nodes)?;
         writeln!(f, "Managed to connect to {} node(s)", self.num_good_nodes)?;
         writeln!(f, "{} identifiend themselves with a Version", self.num_versions)?;
-        writeln!(f, "Node(s) have {} known connections between them", self.num_known_connections)?;
+        writeln!(f, "Nodes have {} known connections between them", self.num_known_connections)?;
 
         writeln!(f, "\nProtocol versions:")?;
         print_hashmap(f, &self.protocol_versions)?;
