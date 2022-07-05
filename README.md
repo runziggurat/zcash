@@ -46,7 +46,12 @@ After completing the above, you can skip the configuration steps, i.e. creating 
 
 ```bash
 # After installing dependencies
-$ cargo +stable install --locked --git https://github.com/ZcashFoundation/zebra
+$ git clone https://github.com/ZcashFoundation/zebra
+$ cd zebra
+# Download the parameters
+$ cargo +stable run --release download
+# Run the node once before testing with Ziggurat, just to make sure all is working correctly
+$ cargo +stable run --release -- --verbose start
 ```
 
 Similarly to `zcashd`, configuration is not necessary since Ziggurat generates new configurations for each test run.
