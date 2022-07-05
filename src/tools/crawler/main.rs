@@ -12,14 +12,14 @@ use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat::{protocol::message::Message, wait_until};
 
 use crate::{
-    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC},
-    network::KnownNode,
     metrics::NetworkMetrics,
+    network::KnownNode,
+    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC},
 };
 
-mod protocol;
-mod network;
 mod metrics;
+mod network;
+mod protocol;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
