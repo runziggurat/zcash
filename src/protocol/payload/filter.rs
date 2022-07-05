@@ -7,14 +7,14 @@ use bytes::{Buf, BufMut};
 use crate::protocol::payload::{codec::Codec, read_n_bytes};
 
 /// A modification to an existing filter.
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct FilterAdd {
     /// The data element to add to the current filter.
     pub data: Vec<u8>,
 }
 
 /// A new filter on the connection.
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct FilterLoad {
     /// The filter itself.
     pub filter: Vec<u8>,

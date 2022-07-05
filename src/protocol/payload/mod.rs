@@ -32,7 +32,7 @@ pub mod filter;
 pub use filter::{FilterAdd, FilterLoad};
 
 /// A `u64`-backed nonce.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Nonce(u64);
 
 impl Default for Nonce {
@@ -59,7 +59,7 @@ impl Codec for Nonce {
 }
 
 /// Specifies the protocol version.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ProtocolVersion(pub u32);
 
 impl ProtocolVersion {
@@ -84,7 +84,7 @@ impl Codec for ProtocolVersion {
 }
 
 /// A variable length integer.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct VarInt(usize);
 
 impl VarInt {
@@ -151,7 +151,7 @@ impl Codec for VarInt {
 }
 
 /// A variable length string.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VarStr(pub String);
 
 impl VarStr {
@@ -189,7 +189,7 @@ impl VarStr {
 }
 
 /// A general purpose hash of length `32`.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Hash([u8; 32]);
 
 impl Hash {
