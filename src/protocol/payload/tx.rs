@@ -849,8 +849,8 @@ enum Zkproof {
 impl Zkproof {
     fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
         match self {
-            Self::BCTV14(bytes) => buffer.put_slice(&*bytes),
-            Self::Groth16(bytes) => buffer.put_slice(&*bytes),
+            Self::BCTV14(bytes) => buffer.put_slice(bytes),
+            Self::Groth16(bytes) => buffer.put_slice(bytes),
         }
 
         Ok(())

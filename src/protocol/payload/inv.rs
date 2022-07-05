@@ -7,7 +7,7 @@ use bytes::{Buf, BufMut};
 use crate::protocol::payload::{codec::Codec, read_n_bytes, Hash};
 
 /// An inventory vector.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Inv {
     pub inventory: Vec<InvHash>,
 }
@@ -37,7 +37,7 @@ impl Codec for Inv {
 }
 
 /// An inventory hash.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct InvHash {
     /// The object type linked to this inventory.
     kind: ObjectKind,
@@ -69,7 +69,7 @@ impl Codec for InvHash {
 }
 
 /// The inventory object kind.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ObjectKind {
     /// Any data of this kind may be ignored.
     Error,

@@ -89,7 +89,9 @@ impl Crawler {
     pub fn should_connect(&self, addr: SocketAddr) -> bool {
         if let Some(node) = self.known_network.nodes().get(&addr) {
             // Ensure that crawler is not exceeding the MAX_CONCURRENT_CONNECTIONS.
-            if self.node().num_connected() + self.node().num_connecting() >= MAX_CONCURRENT_CONNECTIONS.into() {
+            if self.node().num_connected() + self.node().num_connecting()
+                >= MAX_CONCURRENT_CONNECTIONS.into()
+            {
                 return false;
             }
 
