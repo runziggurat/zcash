@@ -10,7 +10,7 @@ use crate::protocol::payload::{
 };
 
 /// A version payload.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Version {
     /// The protocol version of the sender.
     pub version: ProtocolVersion,

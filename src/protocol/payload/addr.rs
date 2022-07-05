@@ -12,7 +12,7 @@ use time::OffsetDateTime;
 use crate::protocol::payload::{codec::Codec, read_n_bytes, read_short_timestamp};
 
 /// A list of network addresses, used for peering.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Addr {
     pub addrs: Vec<NetworkAddr>,
 }
@@ -45,7 +45,7 @@ impl Codec for Addr {
 }
 
 /// A network address.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkAddr {
     /// The last time this address was seen.
     /// Note: Present only when version is >= 31402

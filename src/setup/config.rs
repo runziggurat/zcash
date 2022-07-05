@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     ffi::OsString,
+    fmt::Write,
     fs, io,
     io::{Error, ErrorKind},
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -224,7 +225,7 @@ impl ZcashdConfigFile {
             contents.push_str("addnode=\n")
         } else {
             for peer in &config.initial_peers {
-                contents.push_str(&format!("addnode={}\n", peer))
+                let _ = writeln!(contents, "addnode={}", peer);
             }
         }
 
