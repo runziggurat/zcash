@@ -1,11 +1,5 @@
 use core::fmt;
-use std::{
-    cmp,
-    fs,
-    collections::HashMap,
-    time::Duration,
-    net::SocketAddr,
-};
+use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
 use spectre::{edge::Edge, graph::Graph};
 
@@ -93,7 +87,8 @@ impl NetworkSummary {
         let density = graph.density();
         let degree_centrality_delta = graph.degree_centrality_delta();
         let degree_centralities = graph.degree_centrality();
-        let avg_degree_centrality = degree_centralities.values().map(|v| *v as u64).sum::<u64>() / degree_centralities.len() as u64;
+        let avg_degree_centrality = degree_centralities.values().map(|v| *v as u64).sum::<u64>()
+            / degree_centralities.len() as u64;
 
         NetworkSummary {
             num_known_nodes,
@@ -135,8 +130,16 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "Network summary:\n")?;
         writeln!(f, "Found a total of {} node(s)", self.num_known_nodes)?;
         writeln!(f, "Managed to connect to {} node(s)", self.num_good_nodes)?;
-        writeln!(f, "{} identifiend themselves with a Version", self.num_versions)?;
-        writeln!(f, "Nodes have {} known connections between them", self.num_known_connections)?;
+        writeln!(
+            f,
+            "{} identifiend themselves with a Version",
+            self.num_versions
+        )?;
+        writeln!(
+            f,
+            "Nodes have {} known connections between them",
+            self.num_known_connections
+        )?;
 
         writeln!(f, "\nProtocol versions:")?;
         print_hashmap(f, &self.protocol_versions)?;
@@ -145,8 +148,16 @@ impl fmt::Display for NetworkSummary {
 
         writeln!(f, "\nNetwork graph metrics:")?;
         writeln!(f, "Density: {:.4}", self.density)?;
-        writeln!(f, "Degree centrality delta: {}", self.degree_centrality_delta)?;
-        writeln!(f, "Average degree centrality: {:.4}", self.avg_degree_centrality)?;
+        writeln!(
+            f,
+            "Degree centrality delta: {}",
+            self.degree_centrality_delta
+        )?;
+        writeln!(
+            f,
+            "Average degree centrality: {:.4}",
+            self.avg_degree_centrality
+        )?;
 
         writeln!(
             f,
