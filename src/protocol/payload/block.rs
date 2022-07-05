@@ -12,7 +12,7 @@ use crate::protocol::payload::{
 };
 
 /// The locator hash object, used to communicate chain state.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LocatorHashes {
     /// The protocol version.
     pub version: ProtocolVersion,
@@ -181,7 +181,7 @@ impl Codec for Block {
 }
 
 /// A list of block headers.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Headers {
     pub headers: Vec<Header>,
 }
@@ -213,7 +213,7 @@ impl Codec for Headers {
 
 /// A block header, see the [Zcash protocol
 /// spec](https://zips.z.cash/protocol/protocol.pdf#blockheader) for details.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Header {
     /// The block version number.
     pub version: ProtocolVersion,

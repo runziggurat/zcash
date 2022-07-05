@@ -7,7 +7,7 @@ use bytes::{Buf, BufMut};
 use crate::protocol::payload::{codec::Codec, VarStr};
 
 /// A reject message payload.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Reject {
     /// The type of message rejected.
     pub message: VarStr,
@@ -64,7 +64,7 @@ const CHECKPOINT_CODE: u8 = 0x43;
 const OTHER_CODE: u8 = 0x50;
 
 /// The code specifying the reject reason.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CCode {
     Malformed,
     Invalid,

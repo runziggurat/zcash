@@ -97,7 +97,7 @@ pub fn enable_tracing() {
 }
 
 /// Describes the handshake to be performed by a [`SyntheticNode`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HandshakeKind {
     /// [`Version`] and [`Verack`] in both directions.
     ///

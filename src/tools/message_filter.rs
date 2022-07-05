@@ -6,7 +6,7 @@ use crate::protocol::{
 };
 
 /// Controls the filter response of [`MessageFilter`] to messages it receives.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Filter {
     /// Do not filter message
     Disabled,
