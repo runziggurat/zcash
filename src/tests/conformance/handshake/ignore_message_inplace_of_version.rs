@@ -70,7 +70,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn get_headers() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
         let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
         run_test_case(Message::GetHeaders(block_loc)).await.unwrap();
@@ -79,7 +79,7 @@ mod when_node_receives_connection {
     #[tokio::test]
     async fn get_blocks() {
         // zcashd: pass
-        // zebra:  fail (disconnects)
+        // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
         let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
         run_test_case(Message::GetBlocks(block_loc)).await.unwrap();
@@ -240,8 +240,7 @@ mod when_node_initiates_connection {
     #[tokio::test]
     async fn get_headers() {
         // zcashd: pass
-        // zebra:  fail (doesn't disconnect but sends Version instead of Verack), relevant PR:
-        // https://github.com/ZcashFoundation/zebra/pull/3522
+        // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
         let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
         run_test_case(Message::GetHeaders(block_loc)).await.unwrap();
@@ -250,8 +249,7 @@ mod when_node_initiates_connection {
     #[tokio::test]
     async fn get_blocks() {
         // zcashd: pass
-        // zebra:  fail (doesn't disconnect but sends Version instead of Verack), relevant PR:
-        // https://github.com/ZcashFoundation/zebra/pull/3522
+        // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
         let block_loc = LocatorHashes::new(vec![block_hash], Hash::zeroed());
         run_test_case(Message::GetBlocks(block_loc)).await.unwrap();
