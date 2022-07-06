@@ -120,7 +120,7 @@ node.initial_action(Action::WaitForConnection)
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
 
-These results were obtained by running the test suite against [Zcashd v4.4.1](https://github.com/zcash/zcash/releases/tag/v4.4.1) (0dade79ce) and [Zebra 1.0.0-alpha.11](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-alpha.11) (6396ac2).
+These results were obtained by running the test suite against [Zcashd v5.0.0](https://github.com/zcash/zcash/releases/tag/v5.0.0) (16b49ea) and [Zebra 1.0.0-beta.12](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-beta.12) (9e277ed).
 
 | Legend |               |
 | :----: | ------------- |
@@ -134,9 +134,9 @@ These results were obtained by running the test suite against [Zcashd v4.4.1](ht
 | :-------------------------------: | :----: | :---: | :-------------------------------------------------------------------------- |
 | [001](SPEC.md#ZG-CONFORMANCE-001) |   ✓    |   ✓   |                                                                             |
 | [002](SPEC.md#ZG-CONFORMANCE-002) |   ✓    |   ✓   |                                                                             |
-| [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✖   |                                                                             |
-| [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✖   |                                                                             |
-| [005](SPEC.md#ZG-CONFORMANCE-005) |   ✓    |   ✖   |                                                                             |
+| [003](SPEC.md#ZG-CONFORMANCE-003) |   ✓    |   ✓   |                                                                             |
+| [004](SPEC.md#ZG-CONFORMANCE-004) |   ✓    |   ✓   |                                                                             |
+| [005](SPEC.md#ZG-CONFORMANCE-005) |   ✓    |   ✓   |                                                                             |
 | [006](SPEC.md#ZG-CONFORMANCE-006) |   ✓    |   ✓   |                                                                             |
 | [007](SPEC.md#ZG-CONFORMANCE-007) |   ✓    |   ✓   |                                                                             |
 | [008](SPEC.md#ZG-CONFORMANCE-008) |   ✓    |   ✖   |                                                                             |
