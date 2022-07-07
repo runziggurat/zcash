@@ -1,16 +1,10 @@
-use std::{
-    io,
-    net::SocketAddr,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{io, net::SocketAddr, sync::Arc, time::Instant};
 
 use futures_util::SinkExt;
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
     Config, Connection, ConnectionSide, Node as Pea2PeaNode, Pea2Pea,
 };
-use tokio::time::sleep;
 use tokio_util::codec::Framed;
 use tracing::*;
 use ziggurat::{
@@ -154,26 +148,22 @@ impl Reading for Crawler {
             }
             Message::Ping(nonce) => {
                 let _ = self
-                    .send_direct_message(source, Message::Pong(nonce))
-                    .unwrap()
+                    .send_direct_message(source, Message::Pong(nonce))?
                     .await;
             }
             Message::GetAddr => {
                 let _ = self
-                    .send_direct_message(source, Message::Addr(Addr::empty()))
-                    .unwrap()
+                    .send_direct_message(source, Message::Addr(Addr::empty()))?
                     .await;
             }
             Message::GetHeaders(_) => {
                 let _ = self
-                    .send_direct_message(source, Message::Headers(Headers::empty()))
-                    .unwrap()
+                    .send_direct_message(source, Message::Headers(Headers::empty()))?
                     .await;
             }
             Message::GetData(inv) => {
                 let _ = self
-                    .send_direct_message(source, Message::NotFound(inv.clone()))
-                    .unwrap()
+                    .send_direct_message(source, Message::NotFound(inv.clone()))?
                     .await;
             }
             Message::Version(ver) => {
@@ -184,10 +174,7 @@ impl Reading for Crawler {
                     known_node.services = Some(ver.services);
                 }
 
-                let _ = self
-                    .send_direct_message(source, Message::Verack)
-                    .unwrap()
-                    .await;
+                let _ = self.send_direct_message(source, Message::Verack)?.await;
             }
             _ => {}
         }

@@ -132,7 +132,7 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "Managed to connect to {} node(s)", self.num_good_nodes)?;
         writeln!(
             f,
-            "{} identifiend themselves with a Version",
+            "{} identified themselves with a Version",
             self.num_versions
         )?;
         writeln!(
