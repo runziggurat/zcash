@@ -7,7 +7,7 @@ use pea2pea::{
 };
 use rand::prelude::IteratorRandom;
 use tokio::time::sleep;
-use tracing::info;
+use tracing::{error, info};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat::{protocol::message::Message, wait_until};
 
@@ -116,7 +116,9 @@ async fn main() {
                 let network_summary = network_metrics.request_summary(&crawler);
 
                 info!("{}", network_summary);
-                network_summary.log_to_file().unwrap();
+                if let Err(e) = network_summary.log_to_file() {
+                    error!(parent: crawler.node().span(), "Couldn't write summary to file: {}", e);
+                }
             }
 
             sleep(Duration::from_secs(args.crawl_interval)).await;
