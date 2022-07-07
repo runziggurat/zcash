@@ -21,6 +21,9 @@ mod metrics;
 mod network;
 mod protocol;
 
+const SEED_WAIT_LOOP_INTERVAL_MS: u64 = 500;
+const SEED_RESPONSE_TIMEOUT_MS: u64 = 120_000;
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -64,10 +67,11 @@ async fn main() {
     crawler.enable_reading().await;
     crawler.enable_writing().await;
 
-    for addr in args.seed_addrs {
+    for addr in &args.seed_addrs {
         let crawler_clone = crawler.clone();
+        let addr = addr.parse().unwrap();
+
         tokio::spawn(async move {
-            let addr = addr.parse().unwrap();
             crawler_clone
                 .known_network
                 .nodes
@@ -81,10 +85,12 @@ async fn main() {
         });
     }
 
-    // Wait for the connection to be complete.
-    wait_until!(Duration::from_secs(3), crawler.node().num_connected() >= 1);
-
-    sleep(Duration::from_secs(1)).await;
+    // Wait for one of the seed nodes to respond with a list of addrs.
+    wait_until!(
+        Duration::from_millis(SEED_RESPONSE_TIMEOUT_MS),
+        crawler.known_network.nodes().len() > args.seed_addrs.len(),
+        Duration::from_millis(SEED_WAIT_LOOP_INTERVAL_MS)
+    );
 
     tokio::spawn(async move {
         loop {
