@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{thread, time::Duration};
 
 use clap::Parser;
 use pea2pea::{
@@ -14,7 +14,7 @@ use ziggurat::{protocol::message::Message, wait_until};
 use crate::{
     metrics::NetworkMetrics,
     network::KnownNode,
-    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC},
+    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
 };
 
 mod metrics;
@@ -85,6 +85,9 @@ async fn main() {
         });
     }
 
+    // Wait for a single successful connection before proceeding.
+    wait_until!(Duration::from_secs(3), crawler.node().num_connected() >= 1);
+
     // Wait for one of the seed nodes to respond with a list of addrs.
     wait_until!(
         Duration::from_millis(SEED_RESPONSE_TIMEOUT_MS),
@@ -92,7 +95,9 @@ async fn main() {
         Duration::from_millis(SEED_WAIT_LOOP_INTERVAL_MS)
     );
 
+    let crawler_clone = crawler.clone();
     tokio::spawn(async move {
+        let crawler = crawler_clone;
         loop {
             info!(parent: crawler.node().span(), "asking peers for their peers (connected to {})", crawler.node().num_connected());
             info!(parent: crawler.node().span(), "known addrs: {}", crawler.known_network.num_nodes());
@@ -101,6 +106,13 @@ async fn main() {
                 .known_network
                 .nodes()
                 .into_iter()
+                .filter(|(_, node)| {
+                    if let Some(i) = node.last_connected {
+                        i.elapsed().as_secs() >= RECONNECT_INTERVAL
+                    } else {
+                        true
+                    }
+                })
                 .choose_multiple(&mut rand::thread_rng(), NUM_CONN_ATTEMPTS_PERIODIC)
             {
                 if crawler.should_connect(addr) {
@@ -116,7 +128,15 @@ async fn main() {
 
             crawler.send_broadcast(Message::GetAddr).unwrap();
 
+            sleep(Duration::from_secs(args.crawl_interval)).await;
+        }
+    });
+
+    thread::spawn(move || {
+        loop {
             if crawler.known_network.num_connections() > 0 {
+                crawler.known_network.remove_old_connections();
+
                 // Update graph, then create a summary and log it to a file.
                 network_metrics.update_graph(&crawler);
                 let network_summary = network_metrics.request_summary(&crawler);
@@ -127,7 +147,7 @@ async fn main() {
                 }
             }
 
-            sleep(Duration::from_secs(args.crawl_interval)).await;
+            thread::sleep(Duration::from_secs(30));
         }
     });
 

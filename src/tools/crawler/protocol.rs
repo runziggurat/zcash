@@ -17,7 +17,7 @@ use ziggurat::{
 
 use super::network::KnownNetwork;
 
-pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 650;
+pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 500;
 pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
 pub const MAIN_LOOP_INTERVAL: u64 = 5;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
@@ -80,7 +80,7 @@ impl Crawler {
 
     /// Checks to see if crawler should connect to the given address.
     pub fn should_connect(&self, addr: SocketAddr) -> bool {
-        if let Some(node) = self.known_network.nodes().get(&addr) {
+        if self.known_network.nodes().get(&addr).is_some() {
             // Ensure that crawler is not exceeding the MAX_CONCURRENT_CONNECTIONS.
             if self.node().num_connected() + self.node().num_connecting()
                 >= MAX_CONCURRENT_CONNECTIONS.into()
@@ -91,13 +91,6 @@ impl Crawler {
             // Ensure that there are no active connections with the given addr.
             if self.node().is_connected(addr) || self.node().is_connecting(addr) {
                 return false;
-            }
-
-            // Ensure that the RECONNECT_INTERVAL is obeyed.
-            if let Some(i) = node.last_connected {
-                if i.elapsed().as_secs() < RECONNECT_INTERVAL {
-                    return false;
-                }
             }
 
             true
