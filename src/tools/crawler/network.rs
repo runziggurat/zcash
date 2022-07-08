@@ -89,14 +89,12 @@ impl KnownNetwork {
     /// Extends the list of known nodes.
     pub fn add_addrs(&self, source: SocketAddr, listening_addrs: &[SocketAddr]) {
         {
-
             let connections = &mut self.connections.write();
             for addr in listening_addrs {
                 connections.insert(KnownConnection::new(source, *addr));
             }
         }
 
-        self.update_connections();
         self.update_nodes();
     }
 

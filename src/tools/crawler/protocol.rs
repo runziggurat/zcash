@@ -17,7 +17,7 @@ use ziggurat::{
 
 use super::network::KnownNetwork;
 
-pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 650;
+pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 500;
 pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
 pub const MAIN_LOOP_INTERVAL: u64 = 5;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
