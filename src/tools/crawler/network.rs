@@ -9,6 +9,9 @@ use std::{
 use parking_lot::RwLock;
 use ziggurat::protocol::payload::{ProtocolVersion, VarStr};
 
+/// The elapsed time before a connection should be regarded as inactive.
+pub const LAST_SEEN_CUTOFF: u64 = 10 * 60;
+
 /// A node encountered in the network or obtained from one of the peers.
 #[derive(Debug, Default, Clone)]
 pub struct KnownNode {
@@ -113,6 +116,23 @@ impl KnownNetwork {
     /// Returns the number of known nodes.
     pub fn num_nodes(&self) -> usize {
         self.nodes.read().len()
+    }
+
+    /// Prunes the list of known connections by removing connections last seen long ago.
+    pub fn remove_old_connections(&self) {
+        let mut old_conns: HashSet<KnownConnection> = HashSet::new();
+        for conn in self.connections() {
+            if conn.last_seen.elapsed().as_secs() > LAST_SEEN_CUTOFF {
+                old_conns.insert(conn);
+            }
+        }
+
+        if !old_conns.is_empty() {
+            let mut conns = self.connections.write();
+            for conn in old_conns {
+                conns.remove(&conn);
+            }
+        }
     }
 
     /// Updates the list of known nodes based on the known connections.

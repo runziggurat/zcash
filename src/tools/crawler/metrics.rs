@@ -3,11 +3,9 @@ use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
 use spectre::{edge::Edge, graph::Graph};
 
-use crate::Crawler;
+use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
 const LOG_PATH: &str = "crawler-log.txt";
-/// The elapsed time before a connection should be regarded as inactive.
-const LAST_SEEN_CUTOFF: u64 = 10 * 60;
 
 #[derive(Default)]
 pub struct NetworkMetrics {
