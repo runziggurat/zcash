@@ -14,7 +14,7 @@ use ziggurat::{protocol::message::Message, wait_until};
 use crate::{
     metrics::NetworkMetrics,
     network::KnownNode,
-    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC},
+    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
 };
 
 mod metrics;
@@ -85,6 +85,9 @@ async fn main() {
         });
     }
 
+    // Wait for a single successful connection before proceeding.
+    wait_until!(Duration::from_secs(3), crawler.node().num_connected() >= 1);
+
     // Wait for one of the seed nodes to respond with a list of addrs.
     wait_until!(
         Duration::from_millis(SEED_RESPONSE_TIMEOUT_MS),
@@ -101,6 +104,13 @@ async fn main() {
                 .known_network
                 .nodes()
                 .into_iter()
+                .filter(|(_, node)| {
+                    if let Some(i) = node.last_connected {
+                        i.elapsed().as_secs() >= RECONNECT_INTERVAL
+                    } else {
+                        true
+                    }
+                })
                 .choose_multiple(&mut rand::thread_rng(), NUM_CONN_ATTEMPTS_PERIODIC)
             {
                 if crawler.should_connect(addr) {
