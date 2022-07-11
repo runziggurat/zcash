@@ -1,4 +1,7 @@
-use std::{thread, time::Duration};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use clap::Parser;
 use pea2pea::{
@@ -7,7 +10,7 @@ use pea2pea::{
 };
 use rand::prelude::IteratorRandom;
 use tokio::time::sleep;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat::{protocol::message::Message, wait_until};
 
@@ -23,6 +26,7 @@ mod protocol;
 
 const SEED_WAIT_LOOP_INTERVAL_MS: u64 = 500;
 const SEED_RESPONSE_TIMEOUT_MS: u64 = 120_000;
+const SUMMARY_LOOP_INTERVAL: u64 = 60;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -134,6 +138,8 @@ async fn main() {
 
     thread::spawn(move || {
         loop {
+            let start_time = Instant::now();
+
             if crawler.known_network.num_connections() > 0 {
                 crawler.known_network.remove_old_connections();
 
@@ -147,7 +153,14 @@ async fn main() {
                 }
             }
 
-            thread::sleep(Duration::from_secs(30));
+            let delta_time =
+                Duration::from_secs(SUMMARY_LOOP_INTERVAL).saturating_sub(start_time.elapsed());
+
+            if delta_time.is_zero() {
+                warn!(parent: crawler.node().span(), "summary calculation took more time than the loop interval");
+            }
+
+            thread::sleep(delta_time);
         }
     });
 
