@@ -1,13 +1,11 @@
 use std::{net::SocketAddr, time::Duration};
 
-use recorder::enable_simple_recorder;
-
 use crate::{
     protocol::{message::Message, payload::Nonce},
     setup::node::{Action, Node},
     tools::{
         metrics::{
-            recorder,
+            recorder::TestMetrics,
             tables::{duration_as_ms, RequestStats, RequestsTable},
         },
         synthetic_node::SyntheticNode,
@@ -149,9 +147,6 @@ async fn throughput() {
     // │   800 │     1000 │        0 │       37 │            2 │        0 │        0 │        1 │        2 │        5 │        16.25 │     5.98 │   21743.96 │
     // └───────┴──────────┴──────────┴──────────┴──────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────────┴──────────┴────────────┘
 
-    // setup metrics recorder
-    enable_simple_recorder().unwrap();
-
     // number of concurrent peers to test (zcashd hardcaps `max_peers` to 873 on my machine)
     let synth_counts = vec![
         1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 800,
@@ -170,8 +165,9 @@ async fn throughput() {
     let node_addr = node.addr();
 
     for synth_count in synth_counts {
+        // setup metrics recorder
+        let test_metrics = TestMetrics::default();
         // clear metrics and register metrics
-        recorder::clear();
         metrics::register_histogram!(METRIC_LATENCY);
 
         // create N peer nodes which send M ping's as fast as possible
@@ -188,21 +184,17 @@ async fn throughput() {
 
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
-        // get latency stats
-        let latencies = recorder::histograms()
-            .lock()
-            .get(&metrics::Key::from_name(METRIC_LATENCY))
-            .unwrap()
-            .value
-            .clone();
-
-        // add stats to table display
-        table.add_row(RequestStats::new(
-            synth_count as u16,
-            PINGS,
-            latencies,
-            time_taken_secs,
-        ));
+        if let Some(latencies) = test_metrics.construct_histogram(METRIC_LATENCY) {
+            if latencies.entries() >= 1 {
+                // add stats to table display
+                table.add_row(RequestStats::new(
+                    synth_count as u16,
+                    PINGS,
+                    latencies,
+                    time_taken_secs,
+                ));
+            }
+        }
     }
 
     node.stop().unwrap();
