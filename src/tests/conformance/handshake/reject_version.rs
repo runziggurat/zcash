@@ -40,7 +40,7 @@ async fn reusing_nonce() {
     let mut bad_version = Version::new(node.addr(), synthetic_node.listening_addr());
     bad_version.nonce = nonce;
     synthetic_node
-        .send_direct_message(source, Message::Version(bad_version))
+        .unicast(source, Message::Version(bad_version))
         .unwrap();
 
     // Assert on disconnect.
@@ -79,7 +79,7 @@ async fn with_obsolete_version_numbers() {
         // Connect to the node and send a Version with an obsolete version.
         synthetic_node.connect(node.addr()).await.unwrap();
         synthetic_node
-            .send_direct_message(
+            .unicast(
                 node.addr(),
                 Message::Version(
                     Version::new(node.addr(), synthetic_node.listening_addr())
