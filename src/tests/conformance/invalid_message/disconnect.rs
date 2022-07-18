@@ -62,7 +62,7 @@ async fn pong_with_wrong_nonce() {
     // Wait for a Ping request.
     match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {
         Ok((_, Message::Ping(_))) => synthetic_node
-            .send_direct_message(node.addr(), Message::Pong(Nonce::default()))
+            .unicast(node.addr(), Message::Pong(Nonce::default()))
             .unwrap(),
         Ok((_, message)) => {
             panic!("Unexpected message while waiting for Ping: {}", message);

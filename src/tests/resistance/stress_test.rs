@@ -488,7 +488,7 @@ async fn simulate_peer(
 
     // send the valid query messages and validate the responses
     for (query, expected) in message_pairs {
-        if synth_node.send_direct_message(node_addr, query).is_err() {
+        if synth_node.unicast(node_addr, query).is_err() {
             metrics::counter!(CONNECTION_TERMINATED, 1);
             return;
         }
@@ -511,7 +511,7 @@ async fn simulate_peer(
     //  check for termination by sending a ping -> pong (should result in a terminated connection prior to the pong)
     let nonce = Nonce::default();
     if synth_node
-        .send_direct_message(node_addr, Message::Ping(nonce))
+        .unicast(node_addr, Message::Ping(nonce))
         .is_err()
     {
         metrics::counter!(CORRUPT_TERMINATED, 1);

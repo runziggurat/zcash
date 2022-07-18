@@ -113,7 +113,7 @@ pub enum HandshakeKind {
 /// A builder for [`SyntheticNode`].
 #[derive(Debug, Clone)]
 pub struct SyntheticNodeBuilder {
-    network_config: Option<NodeConfig>,
+    network_config: NodeConfig,
     handshake: Option<HandshakeKind>,
     message_filter: MessageFilter,
 }
@@ -121,11 +121,11 @@ pub struct SyntheticNodeBuilder {
 impl Default for SyntheticNodeBuilder {
     fn default() -> Self {
         Self {
-            network_config: Some(NodeConfig {
+            network_config: NodeConfig {
                 // Set localhost as the default IP.
                 listener_ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
                 ..Default::default()
-            }),
+            },
             handshake: None,
             message_filter: MessageFilter::with_all_disabled(),
         }
@@ -252,9 +252,9 @@ impl SyntheticNode {
     }
 
     /// Sends a direct message to the target address.
-    pub fn send_direct_message(&self, target: SocketAddr, message: Message) -> io::Result<()> {
+    pub fn unicast(&self, target: SocketAddr, message: Message) -> io::Result<()> {
         self.inner_node
-            .send_direct_message(target, MessageOrBytes::Message(message.into()))?;
+            .unicast(target, MessageOrBytes::Message(message.into()))?;
 
         Ok(())
     }
@@ -262,7 +262,7 @@ impl SyntheticNode {
     /// Sends bytes directly to the target address.
     pub fn send_direct_bytes(&self, target: SocketAddr, data: Vec<u8>) -> io::Result<()> {
         self.inner_node
-            .send_direct_message(target, MessageOrBytes::Bytes(data))?;
+            .unicast(target, MessageOrBytes::Bytes(data))?;
 
         Ok(())
     }
@@ -322,7 +322,7 @@ impl SyntheticNode {
 
         let now = std::time::Instant::now();
         let ping_nonce = Nonce::default();
-        if let Err(err) = self.send_direct_message(target, Message::Ping(ping_nonce)) {
+        if let Err(err) = self.unicast(target, Message::Ping(ping_nonce)) {
             if !self.is_connected(target) {
                 return Err(PingPongError::ConnectionAborted);
             } else {
@@ -499,7 +499,7 @@ impl Reading for InnerNode {
                 let response = self.message_filter.reply_message(&message);
 
                 debug!(parent: span, "auto replying with {:?}", response);
-                self.send_direct_message(source, MessageOrBytes::Message(response.into()))?;
+                self.unicast(source, MessageOrBytes::Message(response.into()))?;
             }
 
             Filter::Disabled => {

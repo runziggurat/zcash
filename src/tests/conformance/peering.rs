@@ -87,7 +87,7 @@ async fn eagerly_crawls_network_for_peers() {
 
     // Respond with peer list.
     synthetic_node
-        .send_direct_message(node.addr(), Message::Addr(Addr::new(addrs)))
+        .unicast(node.addr(), Message::Addr(Addr::new(addrs)))
         .unwrap();
 
     // Expect the synthetic nodes to get a connection request from the node.
@@ -159,7 +159,7 @@ async fn correctly_lists_peers() {
 
         synthetic_node.connect(node.addr()).await.unwrap();
         synthetic_node
-            .send_direct_message(node.addr(), Message::GetAddr)
+            .unicast(node.addr(), Message::GetAddr)
             .unwrap();
 
         let (_, addr) = synthetic_node

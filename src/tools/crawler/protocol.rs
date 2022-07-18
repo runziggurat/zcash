@@ -141,22 +141,22 @@ impl Reading for Crawler {
             }
             Message::Ping(nonce) => {
                 let _ = self
-                    .send_direct_message(source, Message::Pong(nonce))?
+                    .unicast(source, Message::Pong(nonce))?
                     .await;
             }
             Message::GetAddr => {
                 let _ = self
-                    .send_direct_message(source, Message::Addr(Addr::empty()))?
+                    .unicast(source, Message::Addr(Addr::empty()))?
                     .await;
             }
             Message::GetHeaders(_) => {
                 let _ = self
-                    .send_direct_message(source, Message::Headers(Headers::empty()))?
+                    .unicast(source, Message::Headers(Headers::empty()))?
                     .await;
             }
             Message::GetData(inv) => {
                 let _ = self
-                    .send_direct_message(source, Message::NotFound(inv.clone()))?
+                    .unicast(source, Message::NotFound(inv.clone()))?
                     .await;
             }
             Message::Version(ver) => {
@@ -167,7 +167,7 @@ impl Reading for Crawler {
                     known_node.services = Some(ver.services);
                 }
 
-                let _ = self.send_direct_message(source, Message::Verack)?.await;
+                let _ = self.unicast(source, Message::Verack)?.await;
             }
             _ => {}
         }

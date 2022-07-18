@@ -201,7 +201,7 @@ impl Node {
                         // Reply with headers for the initial block headers
                         let headers = blocks.iter().map(|block| block.header.clone()).collect();
                         synthetic_node
-                            .send_direct_message(source, Message::Headers(Headers::new(headers)))?;
+                            .unicast(source, Message::Headers(Headers::new(headers)))?;
 
                         source
                     }
@@ -225,7 +225,7 @@ impl Node {
                         // Send the blocks
                         for block in blocks {
                             synthetic_node
-                                .send_direct_message(source, Message::Block(Box::new(block)))?;
+                                .unicast(source, Message::Block(Box::new(block)))?;
                         }
                     }
 
