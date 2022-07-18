@@ -84,7 +84,7 @@ async fn main() {
 
             if crawler_clone.connect(addr).await.is_ok() {
                 sleep(Duration::from_secs(1)).await;
-                let _ = crawler_clone.send_direct_message(addr, Message::GetAddr);
+                let _ = crawler_clone.unicast(addr, Message::GetAddr);
             }
         });
     }
@@ -124,7 +124,7 @@ async fn main() {
                     tokio::spawn(async move {
                         if crawler_clone.connect(addr).await.is_ok() {
                             sleep(Duration::from_secs(1)).await;
-                            let _ = crawler_clone.send_direct_message(addr, Message::GetAddr);
+                            let _ = crawler_clone.unicast(addr, Message::GetAddr);
                         }
                     });
                 }

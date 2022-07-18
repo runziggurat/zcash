@@ -126,7 +126,7 @@ mod node_is_seeded_with_blocks {
         synthetic_node.connect(node.addr()).await?;
 
         // Send the query.
-        synthetic_node.send_direct_message(node.addr(), query)?;
+        synthetic_node.unicast(node.addr(), query)?;
 
         // Use Ping-Pong to check node's response.
         let result = match synthetic_node
@@ -241,7 +241,7 @@ mod node_is_not_seeded_with_blocks {
         synthetic_node.connect(node.addr()).await?;
 
         // Send the query.
-        synthetic_node.send_direct_message(node.addr(), query)?;
+        synthetic_node.unicast(node.addr(), query)?;
 
         // Use Ping-Pong to check node's response.
         let result = match synthetic_node
