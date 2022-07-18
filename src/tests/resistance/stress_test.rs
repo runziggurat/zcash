@@ -510,10 +510,7 @@ async fn simulate_peer(
 
     //  check for termination by sending a ping -> pong (should result in a terminated connection prior to the pong)
     let nonce = Nonce::default();
-    if synth_node
-        .unicast(node_addr, Message::Ping(nonce))
-        .is_err()
-    {
+    if synth_node.unicast(node_addr, Message::Ping(nonce)).is_err() {
         metrics::counter!(CORRUPT_TERMINATED, 1);
         return;
     }

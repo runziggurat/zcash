@@ -140,14 +140,10 @@ impl Reading for Crawler {
                 self.node().disconnect(source).await;
             }
             Message::Ping(nonce) => {
-                let _ = self
-                    .unicast(source, Message::Pong(nonce))?
-                    .await;
+                let _ = self.unicast(source, Message::Pong(nonce))?.await;
             }
             Message::GetAddr => {
-                let _ = self
-                    .unicast(source, Message::Addr(Addr::empty()))?
-                    .await;
+                let _ = self.unicast(source, Message::Addr(Addr::empty()))?.await;
             }
             Message::GetHeaders(_) => {
                 let _ = self
@@ -155,9 +151,7 @@ impl Reading for Crawler {
                     .await;
             }
             Message::GetData(inv) => {
-                let _ = self
-                    .unicast(source, Message::NotFound(inv.clone()))?
-                    .await;
+                let _ = self.unicast(source, Message::NotFound(inv.clone()))?.await;
             }
             Message::Version(ver) => {
                 // Update source node with information from version.
