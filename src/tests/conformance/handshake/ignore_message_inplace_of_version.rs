@@ -133,11 +133,11 @@ mod when_node_receives_connection {
         synthetic_node.connect(node.addr()).await?;
 
         // Send a non-version message.
-        synthetic_node.send_direct_message(node.addr(), message)?;
+        synthetic_node.unicast(node.addr(), message)?;
 
         // Expect the node to ignore the previous message, verify by completing the handshake.
         // Send Version.
-        synthetic_node.send_direct_message(
+        synthetic_node.unicast(
             node.addr(),
             Message::Version(Version::new(synthetic_node.listening_addr(), node.addr())),
         )?;
@@ -160,7 +160,7 @@ mod when_node_receives_connection {
         }?;
 
         // Send Verack.
-        synthetic_node.send_direct_message(node.addr(), Message::Verack)?;
+        synthetic_node.unicast(node.addr(), Message::Verack)?;
 
         // Read Verack.
         match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {
@@ -307,11 +307,11 @@ mod when_node_initiates_connection {
             tokio::time::timeout(LONG_TIMEOUT, synthetic_node.wait_for_connection()).await?;
 
         // Send a non-version message.
-        synthetic_node.send_direct_message(node_addr, message)?;
+        synthetic_node.unicast(node_addr, message)?;
 
         // Expect the node to ignore the previous message, verify by completing the handshake.
         // Send Version.
-        synthetic_node.send_direct_message(
+        synthetic_node.unicast(
             node_addr,
             Message::Version(Version::new(synthetic_node.listening_addr(), node_addr)),
         )?;
@@ -334,7 +334,7 @@ mod when_node_initiates_connection {
         }?;
 
         // Send Verack.
-        synthetic_node.send_direct_message(node_addr, Message::Verack)?;
+        synthetic_node.unicast(node_addr, Message::Verack)?;
 
         // Read Verack.
         match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {

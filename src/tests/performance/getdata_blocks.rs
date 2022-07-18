@@ -135,9 +135,7 @@ async fn throughput() {
 
                 for i in 0..REQUESTS {
                     let (request, expected) = &requests[i % requests.len()];
-                    synth_node
-                        .send_direct_message(node_addr, request.clone())
-                        .unwrap();
+                    synth_node.unicast(node_addr, request.clone()).unwrap();
                     let now = tokio::time::Instant::now();
                     match synth_node.recv_message_timeout(REQUEST_TIMEOUT).await {
                         Err(_timeout) => break,

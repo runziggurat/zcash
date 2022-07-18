@@ -47,7 +47,7 @@ impl Crawler {
         };
 
         Self {
-            node: Pea2PeaNode::new(Some(config)).await.unwrap(),
+            node: Pea2PeaNode::new(config).await.unwrap(),
             known_network: Default::default(),
             start_time: Instant::now(),
         }
@@ -140,24 +140,18 @@ impl Reading for Crawler {
                 self.node().disconnect(source).await;
             }
             Message::Ping(nonce) => {
-                let _ = self
-                    .send_direct_message(source, Message::Pong(nonce))?
-                    .await;
+                let _ = self.unicast(source, Message::Pong(nonce))?.await;
             }
             Message::GetAddr => {
-                let _ = self
-                    .send_direct_message(source, Message::Addr(Addr::empty()))?
-                    .await;
+                let _ = self.unicast(source, Message::Addr(Addr::empty()))?.await;
             }
             Message::GetHeaders(_) => {
                 let _ = self
-                    .send_direct_message(source, Message::Headers(Headers::empty()))?
+                    .unicast(source, Message::Headers(Headers::empty()))?
                     .await;
             }
             Message::GetData(inv) => {
-                let _ = self
-                    .send_direct_message(source, Message::NotFound(inv.clone()))?
-                    .await;
+                let _ = self.unicast(source, Message::NotFound(inv.clone()))?.await;
             }
             Message::Version(ver) => {
                 // Update source node with information from version.
@@ -167,7 +161,7 @@ impl Reading for Crawler {
                     known_node.services = Some(ver.services);
                 }
 
-                let _ = self.send_direct_message(source, Message::Verack)?.await;
+                let _ = self.unicast(source, Message::Verack)?.await;
             }
             _ => {}
         }
