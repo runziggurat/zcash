@@ -130,7 +130,7 @@ async fn main() {
                 }
             }
 
-            crawler.send_broadcast(Message::GetAddr).unwrap();
+            crawler.broadcast(Message::GetAddr).unwrap();
 
             sleep(Duration::from_secs(args.crawl_interval)).await;
         }
