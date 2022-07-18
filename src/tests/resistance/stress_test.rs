@@ -22,7 +22,7 @@ use crate::{
             COMMANDS_WITH_PAYLOADS,
         },
         metrics::{
-            recorder,
+            recorder::TestMetrics,
             tables::{duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable},
         },
         synthetic_node::SyntheticNode,
@@ -200,9 +200,6 @@ async fn throughput() {
     // │    800│         1│         0│       772│           200│        52│       262│       433│       586│       680│        100.00│     34.23│       23.37│
     // └───────┴──────────┴──────────┴──────────┴──────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────────┴──────────┴────────────┘
 
-    // enable simple metrics recording
-    recorder::enable_simple_recorder().unwrap();
-
     const TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(20);
 
     let mut request_table = RequestsTable::default();
@@ -235,8 +232,10 @@ async fn throughput() {
     // for relative timings and state transitions in the node).
     for peers in synth_counts {
         let iteration_timer = tokio::time::Instant::now();
+
+        // enable simple metrics recording
+        let test_metrics = TestMetrics::default();
         // register metrics
-        recorder::clear();
         metrics::register_histogram!(REQUEST_LATENCY);
         metrics::register_histogram!(HANDSHAKE_LATENCY);
         metrics::register_counter!(HANDSHAKE_ACCEPTED);
@@ -299,80 +298,47 @@ async fn throughput() {
         }
         let iteration_time = iteration_timer.elapsed().as_secs_f64();
 
-        // update request latencies table
-        let request_latencies = recorder::histograms()
-            .lock()
-            .get(&metrics::Key::from_name(REQUEST_LATENCY))
-            .unwrap()
-            .value
-            .clone();
-        let row = RequestStats::new(
-            peers as u16,
-            MAX_VALID_MESSAGES as u16,
-            request_latencies,
-            iteration_time,
-        );
-        request_table.add_row(row);
-
-        // update handshake latencies table
-        let handshake_latencies = recorder::histograms()
-            .lock()
-            .get(&metrics::Key::from_name(HANDSHAKE_LATENCY))
-            .unwrap()
-            .value
-            .clone();
-        let row = RequestStats::new(peers as u16, 1, handshake_latencies, iteration_time);
-        handshake_table.add_row(row);
-
-        // update stats table
-        let mut stat = Stats {
-            peers,
-            requests: MAX_VALID_MESSAGES,
-            time: iteration_time,
-            dangling: peers as u16 - completed,
-            ..Default::default()
-        };
-        {
-            let counters = recorder::counters();
-            let locked_counters = counters.lock();
-
-            stat.handshake_accepted = locked_counters
-                .get(&metrics::Key::from_name(HANDSHAKE_ACCEPTED))
-                .unwrap()
-                .value as u16;
-            stat.handshake_rejected = locked_counters
-                .get(&metrics::Key::from_name(HANDSHAKE_REJECTED))
-                .unwrap()
-                .value as u16;
-
-            stat.corrupt_terminated = locked_counters
-                .get(&metrics::Key::from_name(CORRUPT_TERMINATED))
-                .unwrap()
-                .value as u16;
-            stat.corrupt_ignored = locked_counters
-                .get(&metrics::Key::from_name(CORRUPT_IGNORED))
-                .unwrap()
-                .value as u16;
-            stat.corrupt_rejected = locked_counters
-                .get(&metrics::Key::from_name(CORRUPT_REJECTED))
-                .unwrap()
-                .value as u16;
-            stat.corrupt_reply = locked_counters
-                .get(&metrics::Key::from_name(CORRUPT_REPLY))
-                .unwrap()
-                .value as u16;
-
-            stat.peers_dropped = locked_counters
-                .get(&metrics::Key::from_name(CONNECTION_TERMINATED))
-                .unwrap()
-                .value as u16;
-            stat.reply_errors = locked_counters
-                .get(&metrics::Key::from_name(BAD_REPLY))
-                .unwrap()
-                .value as u16;
+        if let Some(request_latencies) = test_metrics.construct_histogram(REQUEST_LATENCY) {
+            if request_latencies.entries() >= 1 {
+                let row = RequestStats::new(
+                    peers as u16,
+                    MAX_VALID_MESSAGES as u16,
+                    request_latencies,
+                    iteration_time,
+                );
+                request_table.add_row(row);
+            }
         }
 
-        stats.push(stat);
+        if let Some(handshake_latencies) = test_metrics.construct_histogram(HANDSHAKE_LATENCY) {
+            if handshake_latencies.entries() >= 1 {
+                let row = RequestStats::new(peers as u16, 1, handshake_latencies, iteration_time);
+                handshake_table.add_row(row);
+
+                // update stats table
+                let mut stat = Stats {
+                    peers,
+                    requests: MAX_VALID_MESSAGES,
+                    time: iteration_time,
+                    dangling: peers as u16 - completed,
+                    ..Default::default()
+                };
+                {
+                    stat.handshake_accepted = test_metrics.get_counter(HANDSHAKE_ACCEPTED) as u16;
+                    stat.handshake_rejected = test_metrics.get_counter(HANDSHAKE_REJECTED) as u16;
+
+                    stat.corrupt_terminated = test_metrics.get_counter(CORRUPT_TERMINATED) as u16;
+                    stat.corrupt_ignored = test_metrics.get_counter(CORRUPT_IGNORED) as u16;
+                    stat.corrupt_rejected = test_metrics.get_counter(CORRUPT_REJECTED) as u16;
+                    stat.corrupt_reply = test_metrics.get_counter(CORRUPT_REPLY) as u16;
+
+                    stat.peers_dropped = test_metrics.get_counter(CONNECTION_TERMINATED) as u16;
+                    stat.reply_errors = test_metrics.get_counter(BAD_REPLY) as u16;
+                }
+
+                stats.push(stat);
+            }
+        }
     }
 
     // Display tables

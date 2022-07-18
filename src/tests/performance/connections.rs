@@ -7,7 +7,7 @@ use crate::{
     setup::node::{Action, Node},
     tools::{
         metrics::{
-            recorder,
+            recorder::TestMetrics,
             tables::{fmt_table, table_float_display},
         },
         synthetic_node::SyntheticNode,
@@ -125,9 +125,6 @@ async fn load_bearing() {
     // │        50 │ 20000 │          0 │          0 │          0 │      20000 │          0 │    20.03 │
     // └───────────┴───────┴────────────┴────────────┴────────────┴────────────┴────────────┴──────────┘
 
-    // setup metrics recorder
-    recorder::enable_simple_recorder().unwrap();
-
     // maximum time allowed for a single iteration of the test
     const MAX_ITER_TIME: Duration = Duration::from_secs(20);
 
@@ -147,8 +144,9 @@ async fn load_bearing() {
         .unwrap();
 
     for synth_count in synth_counts {
-        // clear and register metrics
-        recorder::clear();
+        // setup metrics recorder
+        let test_metrics = TestMetrics::default();
+        // register metrics
         metrics::register_counter!(METRIC_ACCEPTED);
         metrics::register_counter!(METRIC_TERMINATED);
         metrics::register_counter!(METRIC_REJECTED);
@@ -202,24 +200,11 @@ async fn load_bearing() {
         let mut stats = Stats::new(MAX_PEERS, synth_count);
         stats.time = test_start.elapsed().as_secs_f64();
         {
-            let counters = recorder::counters();
-            let counters_lock = counters.lock();
-            stats.accepted = counters_lock
-                .get(&metrics::Key::from_name(METRIC_ACCEPTED))
-                .unwrap()
-                .value as u16;
-            stats.terminated = counters_lock
-                .get(&metrics::Key::from_name(METRIC_TERMINATED))
-                .unwrap()
-                .value as u16;
-            stats.rejected = counters_lock
-                .get(&metrics::Key::from_name(METRIC_REJECTED))
-                .unwrap()
-                .value as u16;
-            stats.conn_error = counters_lock
-                .get(&metrics::Key::from_name(METRIC_ERROR))
-                .unwrap()
-                .value as u16;
+            stats.accepted = test_metrics.get_counter(METRIC_ACCEPTED) as u16;
+            stats.terminated = test_metrics.get_counter(METRIC_TERMINATED) as u16;
+            stats.rejected = test_metrics.get_counter(METRIC_REJECTED) as u16;
+            stats.conn_error = test_metrics.get_counter(METRIC_ERROR) as u16;
+
             stats.timed_out = synth_count - stats.accepted - stats.rejected - stats.conn_error;
         }
         all_stats.push(stats);
