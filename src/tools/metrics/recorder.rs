@@ -1,153 +1,168 @@
 //! Metrics recording types and utilities.
 
-use std::{collections::HashMap, sync::Arc};
+use histogram::Histogram;
+use metrics::Key;
+use metrics_util::{
+    debugging::{DebugValue, DebuggingRecorder, Snapshotter},
+    CompositeKey, MetricKind,
+};
 
-use metrics::{GaugeValue, Key, SetRecorderError, Unit};
-use parking_lot::Mutex;
+pub fn initialize() -> Snapshotter {
+    let recorder = DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _ = recorder.install();
 
-/// A counter metric.
-#[derive(Default)]
-pub struct Counter {
-    pub value: u64,
-    pub unit: Option<Unit>,
-    pub description: Option<String>,
+    snapshotter
 }
 
-/// A gauge metric.
-#[derive(Default)]
-pub struct Gauge {
-    pub value: f64,
-    pub unit: Option<Unit>,
-    pub description: Option<String>,
-}
+pub struct TestMetrics(Snapshotter);
 
-/// A histogram metric.
-#[derive(Default)]
-pub struct Histogram {
-    pub value: histogram::Histogram,
-    pub unit: Option<Unit>,
-    pub description: Option<String>,
-}
-
-/// A simple [`metrics::Recorder`](https://docs.rs/metrics/0.16.0/metrics/trait.Recorder.html)
-/// singleton implementation, that stores metrics for all registered counters, gauges and
-/// histograms.
-///
-/// Attempts to update unregistered metrics are ignored and logged to `std::err`. These metrics can
-/// then be retrieved via the [`counters`], [`gauges`] and [`histograms`] getters. This recorder is
-/// enabled by calling [`enable_simple_recorder`].
-#[derive(Default)]
-pub struct SimpleRecorder {
-    counters: Arc<Mutex<HashMap<Key, Counter>>>,
-    gauges: Arc<Mutex<HashMap<Key, Gauge>>>,
-    histograms: Arc<Mutex<HashMap<Key, Histogram>>>,
-}
-
-impl metrics::Recorder for SimpleRecorder {
-    fn register_counter(&self, key: &Key, unit: Option<Unit>, description: Option<&'static str>) {
-        let new_counter = Counter {
-            value: 0,
-            unit,
-            description: description.map(|str| str.to_owned()),
-        };
-        self.counters.lock().insert(key.clone(), new_counter);
+impl Default for TestMetrics {
+    fn default() -> Self {
+        Self(initialize())
     }
+}
 
-    fn register_gauge(&self, key: &Key, unit: Option<Unit>, description: Option<&'static str>) {
-        let new_gauge = Gauge {
-            value: 0f64,
-            unit,
-            description: description.map(|str| str.to_owned()),
-        };
-        self.gauges.lock().insert(key.clone(), new_gauge);
-    }
+impl TestMetrics {
+    pub fn get_val_for(&self, kind: MetricKind, metric: &'static str) -> MetricVal {
+        let key = CompositeKey::new(kind, Key::from_name(metric));
 
-    fn register_histogram(&self, key: &Key, unit: Option<Unit>, description: Option<&'static str>) {
-        let new_histogram = Histogram {
-            value: histogram::Histogram::new(),
-            unit,
-            description: description.map(|str| str.to_owned()),
-        };
-        self.histograms.lock().insert(key.clone(), new_histogram);
-    }
-
-    fn increment_counter(&self, key: &Key, value: u64) {
-        if let Some(counter) = self.counters.lock().get_mut(key) {
-            match counter.value.checked_add(value) {
-                Some(new_value) => counter.value = new_value,
-                None => {
-                    counter.value = u64::MAX;
-                    eprintln!("Warning: counter {} saturated!", key);
-                }
+        match &self.0.snapshot().into_hashmap().get(&key).unwrap().2 {
+            DebugValue::Counter(val) => MetricVal::Counter(*val),
+            DebugValue::Gauge(val) => MetricVal::Gauge(val.into_inner()),
+            DebugValue::Histogram(vals) => {
+                MetricVal::Histogram(vals.iter().map(|val| val.into_inner()).collect())
             }
-        } else {
-            eprintln!("Warning: counter {} not registered!", key);
         }
     }
 
-    fn update_gauge(&self, key: &Key, value: GaugeValue) {
-        if let Some(gauge) = self.gauges.lock().get_mut(key) {
-            match value {
-                GaugeValue::Absolute(new_value) => gauge.value = new_value,
-                GaugeValue::Increment(inc) => gauge.value += inc,
-                GaugeValue::Decrement(dec) => gauge.value -= dec,
+    pub fn get_counter(&self, metric: &'static str) -> u64 {
+        if let MetricVal::Counter(val) = self.get_val_for(MetricKind::Counter, metric) {
+            val
+        } else {
+            0
+        }
+    }
+
+    pub fn get_gauge(&self, metric: &'static str) -> f64 {
+        if let MetricVal::Gauge(val) = self.get_val_for(MetricKind::Gauge, metric) {
+            val
+        } else {
+            0.0
+        }
+    }
+
+    pub fn get_histogram(&self, metric: &'static str) -> Option<Vec<f64>> {
+        if let MetricVal::Histogram(vals) = self.get_val_for(MetricKind::Histogram, metric) {
+            Some(vals)
+        } else {
+            None
+        }
+    }
+
+    pub fn construct_histogram(&self, metric: &'static str) -> Option<Histogram> {
+        if let Some(metric_histogram) = self.get_histogram(metric) {
+            let mut histogram = Histogram::new();
+
+            for value in metric_histogram.iter() {
+                let _ = histogram.increment(value.round() as u64);
             }
-        } else {
-            eprintln!("Warning: gauge {} not registered!", key);
-        }
-    }
 
-    fn record_histogram(&self, key: &Key, value: f64) {
-        assert!(value.is_sign_positive());
-        assert!(value.is_finite());
-
-        if let Some(histogram) = self.histograms.lock().get_mut(key) {
-            // We know it cannot be negative, NaN or infinite so this is safe (albeit lossy)
-            let value = value.round() as u64;
-            // Can't pass on the Error here, so we will have to see if this becomes an issue.
-            histogram.value.increment(value).unwrap();
+            Some(histogram)
         } else {
-            eprintln!("Warning: histogram {} not registered!", key);
+            None
         }
     }
 }
 
-lazy_static::lazy_static! {
-    static ref SIMPLE_RECORDER: SimpleRecorder = SimpleRecorder::default();
+impl Drop for TestMetrics {
+    fn drop(&mut self) {
+        // Clear the recorder to avoid the global state bleeding into other tests.
+        // Safety: this is ok since it is only ever used in tests that are to be run sequentially
+        // on one thread.
+        unsafe {
+            metrics::clear_recorder();
+        }
+    }
 }
 
-/// Enables the [`SimpleRecorder`] as the
-/// [`metrics::Recorder`](https://docs.rs/metrics/0.16.0/metrics/trait.Recorder.html) sink.
-pub fn enable_simple_recorder() -> Result<(), SetRecorderError> {
-    // FIXME: This is a work-around while we don't have a test-runner
-    //        which can set this globally. Currently we are calling this
-    //        from every test which requires metrics. This will cause an
-    //        error when called multiple times.
-    //
-    //        The correct implementation will pass on the result of metric::set_recorder
-    //        instead of masking it.
-    let _ = metrics::set_recorder(&*SIMPLE_RECORDER);
-    Ok(())
+#[derive(Debug, PartialEq)]
+pub enum MetricVal {
+    Counter(u64),
+    Gauge(f64),
+    Histogram(Vec<f64>),
 }
 
-/// Map of all counters recorded.
-pub fn counters() -> Arc<Mutex<HashMap<Key, Counter>>> {
-    SIMPLE_RECORDER.counters.clone()
-}
+#[cfg(test)]
+mod tests {
+    use metrics::{register_counter, register_gauge, register_histogram};
 
-/// Map of all gauges recorded.
-pub fn gauges() -> Arc<Mutex<HashMap<Key, Gauge>>> {
-    SIMPLE_RECORDER.gauges.clone()
-}
+    use super::*;
 
-/// Map of all histograms recorded.
-pub fn histograms() -> Arc<Mutex<HashMap<Key, Histogram>>> {
-    SIMPLE_RECORDER.histograms.clone()
-}
+    const METRIC_NAME: &str = "test_metrics";
+    const COUNTER_INC: u64 = 25;
+    const HISTOGRAM_SIZE: usize = 50;
 
-/// Removes all previously registered metrics.
-pub fn clear() {
-    SIMPLE_RECORDER.counters.lock().clear();
-    SIMPLE_RECORDER.gauges.lock().clear();
-    SIMPLE_RECORDER.histograms.lock().clear();
+    #[test]
+    #[ignore]
+    fn can_initialize_metrics() {
+        let _ = TestMetrics::default();
+    }
+
+    #[test]
+    #[ignore]
+    fn can_get_counter_value() {
+        let metrics = TestMetrics::default();
+        let counter = register_counter!(METRIC_NAME);
+
+        counter.increment(COUNTER_INC);
+
+        assert_eq!(metrics.get_counter(METRIC_NAME), COUNTER_INC);
+    }
+
+    #[test]
+    #[ignore]
+    fn can_get_gauge_value() {
+        let metrics = TestMetrics::default();
+        let gauge = register_gauge!(METRIC_NAME);
+
+        gauge.set(1000.0);
+        gauge.decrement(500.0);
+        gauge.increment(25.0);
+
+        assert_eq!(metrics.get_gauge(METRIC_NAME), 525.0);
+    }
+
+    #[test]
+    #[ignore]
+    fn can_get_histogram_values() {
+        let metrics = TestMetrics::default();
+        let histogram = register_histogram!(METRIC_NAME);
+
+        let mut values = Vec::with_capacity(HISTOGRAM_SIZE);
+        for i in 0..HISTOGRAM_SIZE {
+            histogram.record(i as f64);
+            values.push(i as f64);
+        }
+
+        assert_eq!(metrics.get_histogram(METRIC_NAME), Some(values));
+    }
+
+    #[test]
+    #[ignore]
+    fn can_construct_histogram() {
+        let metrics = TestMetrics::default();
+        let histogram = register_histogram!(METRIC_NAME);
+
+        histogram.record(1.0);
+        histogram.record(3.0);
+        histogram.record(5.0);
+        histogram.record(9.0);
+
+        let constructed_histogram = metrics.construct_histogram(METRIC_NAME).unwrap();
+
+        assert!(constructed_histogram.entries() == 4);
+        assert_eq!(constructed_histogram.percentile(50.0).unwrap(), 5);
+        assert_eq!(constructed_histogram.percentile(90.0).unwrap(), 9);
+    }
 }
