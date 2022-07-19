@@ -92,3 +92,77 @@ pub enum MetricVal {
     Gauge(f64),
     Histogram(Vec<f64>),
 }
+
+#[cfg(test)]
+mod tests {
+    use metrics::{register_counter, register_gauge, register_histogram};
+
+    use super::*;
+
+    const METRIC_NAME: &str = "test_metrics";
+    const COUNTER_INC: u64 = 25;
+    const HISTOGRAM_SIZE: usize = 50;
+
+    #[test]
+    #[ignore]
+    fn can_initialize_metrics() {
+        let _ = TestMetrics::default();
+    }
+
+    #[test]
+    #[ignore]
+    fn can_get_counter_value() {
+        let metrics = TestMetrics::default();
+        let counter = register_counter!(METRIC_NAME);
+
+        counter.increment(COUNTER_INC);
+
+        assert_eq!(metrics.get_counter(METRIC_NAME), COUNTER_INC);
+    }
+
+    #[test]
+    #[ignore]
+    fn can_get_gauge_value() {
+        let metrics = TestMetrics::default();
+        let gauge = register_gauge!(METRIC_NAME);
+
+        gauge.set(1000.0);
+        gauge.decrement(500.0);
+        gauge.increment(25.0);
+
+        assert_eq!(metrics.get_gauge(METRIC_NAME), 525.0);
+    }
+
+    #[test]
+    #[ignore]
+    fn can_get_histogram_values() {
+        let metrics = TestMetrics::default();
+        let histogram = register_histogram!(METRIC_NAME);
+
+        let mut values = Vec::with_capacity(HISTOGRAM_SIZE);
+        for i in 0..HISTOGRAM_SIZE {
+            histogram.record(i as f64);
+            values.push(i as f64);
+        }
+
+        assert_eq!(metrics.get_histogram(METRIC_NAME), Some(values));
+    }
+
+    #[test]
+    #[ignore]
+    fn can_construct_histogram() {
+        let metrics = TestMetrics::default();
+        let histogram = register_histogram!(METRIC_NAME);
+
+        histogram.record(1.0);
+        histogram.record(3.0);
+        histogram.record(5.0);
+        histogram.record(9.0);
+
+        let constructed_histogram = metrics.construct_histogram(METRIC_NAME).unwrap();
+
+        assert!(constructed_histogram.entries() == 4);
+        assert_eq!(constructed_histogram.percentile(50.0).unwrap(), 5);
+        assert_eq!(constructed_histogram.percentile(90.0).unwrap(), 9);
+    }
+}
