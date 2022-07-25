@@ -548,13 +548,27 @@ impl Handshake for InnerNode {
                 framed_stream.send(own_version).await?;
 
                 let peer_version = framed_stream.try_next().await?;
-                assert_matches!(peer_version, Some(Message::Version(..)));
+                match peer_version {
+                    Some(Message::Version(_)) => {
+                        // Send and receive Verack.
+                        framed_stream.send(Message::Verack).await?;
 
-                // Send and receive Verack.
-                framed_stream.send(Message::Verack).await?;
-
-                let peer_verack = framed_stream.try_next().await?;
-                assert_matches!(peer_verack, Some(Message::Verack));
+                        let peer_verack = framed_stream.try_next().await?;
+                        assert_matches!(peer_verack, Some(Message::Verack));
+                    }
+                    Some(other) => {
+                        let span = self.node().span().clone();
+                        error!(
+                            parent: span,
+                            "received non-version message during handshake: {:?}", other
+                        );
+                        panic!("Expected Version, got {:?}", other);
+                    }
+                    None => {
+                        // Connection was refused by main node, quietly abort handshake.
+                        return Err(io::ErrorKind::ConnectionRefused.into());
+                    }
+                }
             }
             (Some(HandshakeKind::Full), ConnectionSide::Responder) => {
                 // Receive and send Version.
