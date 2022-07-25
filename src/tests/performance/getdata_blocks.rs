@@ -145,6 +145,7 @@ async fn throughput() {
                         }
                     }
                 }
+                synth_node.shut_down().await;
             }));
         }
 
