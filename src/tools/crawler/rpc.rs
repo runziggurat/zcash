@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use jsonrpsee::http_server::{HttpServerBuilder, RpcModule};
+use jsonrpsee::http_server::{HttpServerBuilder, HttpServerHandle, RpcModule};
 use parking_lot::Mutex;
 use tracing::debug;
 
@@ -23,17 +23,18 @@ impl std::ops::Deref for RpcContext {
     }
 }
 
-pub async fn initialize_rpc_server(rpc_addr: SocketAddr, rpc_context: RpcContext) {
+pub async fn initialize_rpc_server(
+    rpc_addr: SocketAddr,
+    rpc_context: RpcContext,
+) -> HttpServerHandle {
     let server = HttpServerBuilder::default().build(rpc_addr).await.unwrap();
-
     let module = create_rpc_module(rpc_context);
 
     debug!("Starting RPC server at {:?}", server.local_addr().unwrap());
-    let _server_handle = server.start(module).unwrap();
+    let server_handle = server.start(module).unwrap();
 
     debug!("RPC server was successfully started");
-
-    std::future::pending::<()>().await;
+    server_handle
 }
 
 fn create_rpc_module(rpc_context: RpcContext) -> RpcModule<RpcContext> {
