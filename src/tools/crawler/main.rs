@@ -38,19 +38,15 @@ const SUMMARY_LOOP_INTERVAL: u64 = 60;
 struct Args {
     /// The initial addresses to connect to
     #[clap(short, long, value_parser, min_values = 1, required = true)]
-    seed_addrs: Vec<String>,
+    seed_addrs: Vec<SocketAddr>,
 
     /// The main crawling loop interval in seconds
     #[clap(short, long, value_parser, default_value_t = MAIN_LOOP_INTERVAL)]
     crawl_interval: u64,
 
-    /// If present, start an RPC server
+    /// If present, start an RPC server at the specified address
     #[clap(short, long, value_parser)]
-    rpc: bool,
-
-    /// The address to bind the RPC server to
-    #[clap(short, long, value_parser)]
-    bind_rpc: Option<String>,
+    rpc_addr: Option<SocketAddr>,
     // TODO
     // #[clap(short, long, value_parser, default_value = "testnet")]
     // network: String,
@@ -84,18 +80,14 @@ async fn main() {
     let mut network_metrics = NetworkMetrics::default();
     let summary_snapshot = Arc::new(Mutex::new(NetworkSummary::default()));
 
-    if args.rpc {
-        // Initialize the RPC server if address is specified.
-        if let Some(addr) = args.bind_rpc {
-            let rpc_addr: SocketAddr = addr.parse().unwrap();
-            let rpc_context = RpcContext::new(Arc::clone(&summary_snapshot));
-            tokio::spawn(async move {
-                initialize_rpc_server(rpc_addr, rpc_context).await;
-            });
-        } else {
-            error!(parent: crawler.node().span(), "no rpc address was specified, refusing to start server");
-        }
-    }
+    // Initialize the RPC server if address is specified.
+    let _rpc_handle = if let Some(addr) = args.rpc_addr {
+        let rpc_context = RpcContext::new(Arc::clone(&summary_snapshot));
+        let rpc_handle = initialize_rpc_server(addr, rpc_context).await;
+        Some(rpc_handle)
+    } else {
+        None
+    };
 
     crawler.enable_handshake().await;
     crawler.enable_reading().await;
@@ -103,7 +95,7 @@ async fn main() {
 
     for addr in &args.seed_addrs {
         let crawler_clone = crawler.clone();
-        let addr = addr.parse().unwrap();
+        let addr = *addr;
 
         tokio::spawn(async move {
             crawler_clone
@@ -178,7 +170,7 @@ async fn main() {
                 let new_summary = network_metrics.request_summary(&crawler);
 
                 // If RPC flag is supplied, disable file logging.
-                if !args.rpc {
+                if args.rpc_addr.is_none() {
                     info!("{}", new_summary);
                     if let Err(e) = new_summary.log_to_file() {
                         error!(parent: crawler.node().span(), "Couldn't write summary to file: {}", e);
@@ -186,8 +178,7 @@ async fn main() {
                 }
 
                 // Aquire lock and replace old summary snapshot with the newly generated one.
-                let mut summary_snapshot = summary_snapshot.lock();
-                *summary_snapshot = new_summary;
+                *summary_snapshot.lock() = new_summary;
             }
 
             let delta_time =
