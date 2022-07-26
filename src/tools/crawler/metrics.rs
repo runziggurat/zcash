@@ -1,6 +1,7 @@
 use core::fmt;
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
+use serde::Serialize;
 use spectre::{edge::Edge, graph::Graph};
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
@@ -32,6 +33,7 @@ impl NetworkMetrics {
 }
 
 #[allow(dead_code)]
+#[derive(Default, Clone, Serialize)]
 pub struct NetworkSummary {
     num_known_nodes: usize,
     num_good_nodes: usize,

@@ -55,10 +55,15 @@ version = "3.2.7"
 features = [ "derive" ]
 optional = true
 
+[dependencies.jsonrpsee]
+version = "0.15.0"
+features = [ "http-server" ]
+optional = true
+
 [features]
-crawler = ["clap"]
+crawler = [ "clap", "jsonrpsee" ]
 
 [[bin]]
 name = "crawler"
 path = "src/tools/crawler/main.rs"
-required-features = ["crawler"]
+required-features = [ "crawler" ]
