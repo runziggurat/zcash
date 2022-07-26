@@ -51,7 +51,6 @@ struct Args {
     /// The address to bind the RPC server to
     #[clap(short, long, value_parser)]
     bind_rpc: Option<String>,
-
     // TODO
     // #[clap(short, long, value_parser, default_value = "testnet")]
     // network: String,

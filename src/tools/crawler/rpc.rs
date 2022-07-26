@@ -39,9 +39,11 @@ pub async fn initialize_rpc_server(rpc_addr: SocketAddr, rpc_context: RpcContext
 fn create_rpc_module(rpc_context: RpcContext) -> RpcModule<RpcContext> {
     let mut module = RpcModule::new(rpc_context);
 
-    module.register_method("getmetrics", |_, rpc_context| {
-        Ok(rpc_context.lock().clone())
-    }).unwrap();
+    module
+        .register_method("getmetrics", |_, rpc_context| {
+            Ok(rpc_context.lock().clone())
+        })
+        .unwrap();
 
     module
 }
