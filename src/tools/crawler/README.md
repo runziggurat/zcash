@@ -22,7 +22,7 @@ OPTIONS:
             Print version information
 ```
 
-A sample of the data we collect and metrics we compute:
+A sample of the data we collect and metrics we compute (obtained via RPC):
 
 ```
 curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "ge
