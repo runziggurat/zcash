@@ -1,9 +1,12 @@
 use std::{
+    net::SocketAddr,
+    sync::Arc,
     thread,
     time::{Duration, Instant},
 };
 
 use clap::Parser;
+use parking_lot::Mutex;
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
     Pea2Pea,
@@ -15,14 +18,16 @@ use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat::{protocol::message::Message, wait_until};
 
 use crate::{
-    metrics::NetworkMetrics,
+    metrics::{NetworkMetrics, NetworkSummary},
     network::KnownNode,
     protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
+    rpc::{initialize_rpc_server, RpcContext},
 };
 
 mod metrics;
 mod network;
 mod protocol;
+mod rpc;
 
 const SEED_WAIT_LOOP_INTERVAL_MS: u64 = 500;
 const SEED_RESPONSE_TIMEOUT_MS: u64 = 120_000;
@@ -66,6 +71,14 @@ async fn main() {
     let crawler = Crawler::new().await;
 
     let mut network_metrics = NetworkMetrics::default();
+    let summary_snapshot = Arc::new(Mutex::new(NetworkSummary::default()));
+
+    // Initialize the RPC server.
+    let rpc_addr: SocketAddr = "127.0.0.1:54321".parse().unwrap();
+    let rpc_context = RpcContext::new(Arc::clone(&summary_snapshot));
+    tokio::spawn(async move {
+        initialize_rpc_server(rpc_addr, rpc_context).await;
+    });
 
     crawler.enable_handshake().await;
     crawler.enable_reading().await;
@@ -145,12 +158,16 @@ async fn main() {
 
                 // Update graph, then create a summary and log it to a file.
                 network_metrics.update_graph(&crawler);
-                let network_summary = network_metrics.request_summary(&crawler);
+                let new_summary = network_metrics.request_summary(&crawler);
 
-                info!("{}", network_summary);
-                if let Err(e) = network_summary.log_to_file() {
+                info!("{}", new_summary);
+                if let Err(e) = new_summary.log_to_file() {
                     error!(parent: crawler.node().span(), "Couldn't write summary to file: {}", e);
                 }
+
+                // Aquire lock and replace old summary snapshot with the newly generated one.
+                let mut summary_snapshot = summary_snapshot.lock();
+                *summary_snapshot = new_summary;
             }
 
             let delta_time =
