@@ -20,7 +20,7 @@ and [zebra](https://github.com/ZcashFoundation/zebra) devs with this reliable fo
 
 Ziggurat is written in stable Rust; you can install the Rust toolchain by following the official instructions [here](*https://www.rust-lang.org/learn/get-started).
 
-You also need to install at least one node implementation to test. Ziggurat is currently configured to test the Nu5 network protocol (version `170_015`).
+You also need to install at least one node implementation to test. Ziggurat is currently configured to test the Nu5 network protocol (version `170_100`).
 
 ### Zcashd
 
@@ -34,7 +34,6 @@ $ git clone https://github.com/zcash/zcash
 $ cd zcash
 $ git checkout v4.4.1            # optional, or use master
 $ ./zcutil/fetch-params.sh
-$ ./zcutil/clean.sh
 $ ./zcutil/build.sh -j$(nproc)   # or number of cores
 ```
 
@@ -120,7 +119,7 @@ node.initial_action(Action::WaitForConnection)
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
 
-These results were obtained by running the test suite against [Zcashd v5.0.0](https://github.com/zcash/zcash/releases/tag/v5.0.0) (16b49ea) and [Zebra 1.0.0-beta.12](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-beta.12) (9e277ed).
+These results were obtained by running the test suite against [Zcashd v5.1.0](https://github.com/zcash/zcash/releases/tag/v5.1.0) (dda0f79) and [Zebra 1.0.0-beta.12](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-beta.12) (9e277ed).
 
 | Legend |               |
 | :----: | ------------- |
