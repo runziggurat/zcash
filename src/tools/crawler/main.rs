@@ -12,8 +12,8 @@ use pea2pea::{
     Pea2Pea,
 };
 use rand::prelude::IteratorRandom;
-use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tokio::{signal, time::sleep};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat::{protocol::message::Message, wait_until};
 
@@ -71,7 +71,7 @@ fn start_logger(default_level: LevelFilter) {
 
 #[tokio::main]
 async fn main() {
-    start_logger(LevelFilter::TRACE);
+    start_logger(LevelFilter::INFO);
     let args = Args::parse();
 
     // Create the crawler with the given listener address.
@@ -122,7 +122,7 @@ async fn main() {
     );
 
     let crawler_clone = crawler.clone();
-    tokio::spawn(async move {
+    let crawling_loop_task = tokio::spawn(async move {
         let crawler = crawler_clone;
         loop {
             info!(parent: crawler.node().span(), "asking peers for their peers (connected to {})", crawler.node().num_connected());
@@ -158,6 +158,10 @@ async fn main() {
         }
     });
 
+    // Clone crawler and summary before we move them into a new thread.
+    let crawler_clone = crawler.clone();
+    let summary = Arc::clone(&summary_snapshot);
+
     thread::spawn(move || {
         loop {
             let start_time = Instant::now();
@@ -168,14 +172,6 @@ async fn main() {
                 // Update graph, then create a summary and log it to a file.
                 network_metrics.update_graph(&crawler);
                 let new_summary = network_metrics.request_summary(&crawler);
-
-                // If RPC flag is supplied, disable file logging.
-                if args.rpc_addr.is_none() {
-                    info!("{}", new_summary);
-                    if let Err(e) = new_summary.log_to_file() {
-                        error!(parent: crawler.node().span(), "Couldn't write summary to file: {}", e);
-                    }
-                }
 
                 // Aquire lock and replace old summary snapshot with the newly generated one.
                 *summary_snapshot.lock() = new_summary;
@@ -192,5 +188,18 @@ async fn main() {
         }
     });
 
-    std::future::pending::<()>().await;
+    // Wait for Ctrl-c signal, then abort crawling task.
+    let _ = signal::ctrl_c().await;
+    debug!(parent: crawler_clone.node().span(), "interrupt received, exiting process");
+
+    crawling_loop_task.abort();
+    let _ = crawling_loop_task.await;
+    crawler_clone.node().shut_down().await;
+
+    // Print out summary of network metrics.
+    let summary = summary.lock();
+    info!(parent: crawler_clone.node().span(), "{}", summary);
+    if let Err(e) = summary.log_to_file() {
+        error!(parent: crawler_clone.node().span(), "couldn't write summary to file: {}", e);
+    }
 }
