@@ -1,8 +1,12 @@
 # Network crawler
 
-Run the following command to print the command line options for the crawler:
+## Running
 
-```
+The network crawler uses optional features and dependencies, which **must** be enabled in order for the binary to compile. These can be enabled by supplying `--features crawler` when running the command. 
+
+The following command will print the command line options for the crawler:
+
+```fish
 $ cargo run --release --features crawler --bin crawler -- --help
 
 OPTIONS:
@@ -22,12 +26,23 @@ OPTIONS:
             Print version information
 ```
 
-A sample of the data we collect and metrics we compute (obtained via RPC):
+`--seed-addrs` is the only required argument and needs at least one specified address for it to run.
 
-```
-curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "ge
+## Metrics
+
+The crawler collects some data for each node it visits, then aggregates it and compiles related metrics. By default, it will only print and log these on exit (`Ctrl-C`) to a file called `crawler-log.txt`, unless the `--rpc-addr` argument is supplied, in which case these metrics will also be made available to RPC requests.
+
+Fetching metrics from the RPC via `cURL` (piping through [`jq`](https://github.com/stedolan/jq) for prettier output):
+
+```fish
+$ curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "ge
 tmetrics", "params": [] }' -H 'content-type: application/json'
  http://127.0.0.1:54321/ | jq .result
+```
+
+A sample of the data we collect and metrics we compute (obtained via RPC):
+
+```json
 {
   "num_known_nodes": 13654,
   "num_good_nodes": 2066,
