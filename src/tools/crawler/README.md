@@ -30,7 +30,7 @@ OPTIONS:
 
 ## Metrics
 
-The crawler collects some data for each node it visits and computes some metrics from that data. By default, it will only print and log these on exit (`Ctrl-C`) to a file called `crawler-log.txt`, unless the `--rpc-addr` argument is supplied, in which case these metrics will also be made available to RPC requests.
+The crawler collects some data for each node it visits, then aggregates it and compiles related metrics. By default, it will only print and log these on exit (`Ctrl-C`) to a file called `crawler-log.txt`, unless the `--rpc-addr` argument is supplied, in which case these metrics will also be made available to RPC requests.
 
 Fetching metrics from the RPC via `cURL` (piping through [`jq`](https://github.com/stedolan/jq) for prettier output):
 
