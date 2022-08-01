@@ -171,7 +171,7 @@ pub fn encode_message_with_corrupt_body_length(rng: &mut ChaCha8Rng, message: &M
     let mut vec: Vec<_> = bytes.to_vec();
 
     let invalid_body_length = random_non_valid_u32(rng, (vec.len() - HEADER_LEN) as u32);
-    (&mut vec[16..][..4]).put_u32_le(invalid_body_length); // TODO: constify
+    (&mut vec[MAGIC_LEN + COMMAND_LEN..][..4]).put_u32_le(invalid_body_length);
 
     vec
 }
@@ -182,9 +182,10 @@ pub fn encode_message_with_corrupt_checksum(rng: &mut ChaCha8Rng, message: &Mess
     message.encode(&mut bytes).unwrap();
     let mut vec: Vec<_> = bytes.to_vec();
 
-    let valid_checksum = u32::from_le_bytes(vec[20..][..4].try_into().unwrap()); // TODO: constify
+    let offset = MAGIC_LEN + COMMAND_LEN + 4; // 4 = sizeof MessageHeader.body_length
+    let valid_checksum = u32::from_le_bytes(vec[offset..][..4].try_into().unwrap());
     let invalid_checksum = random_non_valid_u32(rng, valid_checksum);
-    (&mut vec[20..][..4]).put_u32_le(invalid_checksum); // ditto
+    (&mut vec[offset..][..4]).put_u32_le(invalid_checksum);
 
     vec
 }
