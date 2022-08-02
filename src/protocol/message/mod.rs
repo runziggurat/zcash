@@ -20,9 +20,9 @@ use crate::protocol::{
 #[derive(Debug, Default, Clone)]
 pub struct MessageHeader {
     /// The network protocol version.
-    pub magic: [u8; 4],
+    pub magic: [u8; MAGIC_LEN],
     /// The message command, identifies the type of message being sent.
-    pub command: [u8; 12],
+    pub command: [u8; COMMAND_LEN],
     /// The length of the message's body.
     pub body_length: u32,
     /// The checksum of the encoded message body.
@@ -44,8 +44,8 @@ impl Codec for MessageHeader {
             return Err(io::ErrorKind::InvalidData.into());
         }
 
-        let mut magic = [0u8; 4];
-        let mut command = [0u8; 12];
+        let mut magic = [0u8; MAGIC_LEN];
+        let mut command = [0u8; COMMAND_LEN];
 
         bytes.copy_to_slice(&mut magic);
         bytes.copy_to_slice(&mut command);
@@ -61,7 +61,7 @@ impl Codec for MessageHeader {
 
 impl MessageHeader {
     /// Returns a `MessageHeader` constructed from the message body.
-    pub fn new(command: [u8; 12], body: &[u8]) -> Self {
+    pub fn new(command: [u8; COMMAND_LEN], body: &[u8]) -> Self {
         MessageHeader {
             magic: MAGIC,
             command,
