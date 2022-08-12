@@ -8,6 +8,16 @@ on:
   #   branches: [ main ]
 
 jobs:
+  install-zcashd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: build zcashd from source
+        run: |
+          git clone https://github.com/zcash/zcash
+          cd zcash
+          ./zcutil/fetch-params.sh
+          ./zcutil/build.sh -j$(nproc)
+
   check:
     runs-on: ubuntu-latest
     steps:
