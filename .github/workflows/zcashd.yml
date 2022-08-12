@@ -2,8 +2,8 @@ name: zcashd
 
 on:
   workflow_dispatch:    
-  # push:
-  #   branches: [ main ]
+  push:
+    branches: [ "zcash-ci" ]
   # pull_request:
   #   branches: [ main ]
 
