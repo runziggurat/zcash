@@ -28,6 +28,8 @@ You also need to install at least one node implementation to test. Ziggurat is c
 
 However, **please note that** **Docker is not supported** as it can theoretically produce unreliable test results and increases network complexity.
 
+**Note:** You will need to ensure that `automake` is installed when building from source e.g. `apt-get install automake`
+
 ```bash
 # After installing dependencies
 $ git clone https://github.com/zcash/zcash
