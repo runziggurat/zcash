@@ -57,4 +57,9 @@ jobs:
         with:
           name: ziggurat-executable
           path: ./ziggurat
-      - run: ls -alh .
+      - run: |
+          ./zcashd
+          $ZCASH_PID="$!"
+          echo $ZCASH_PID
+          ./ziggurat
+          kill $ZCASH_PID
