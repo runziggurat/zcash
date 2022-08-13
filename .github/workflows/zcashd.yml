@@ -24,7 +24,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: zcashd-executable
-          path: ./src/zcashd
+          path: ./zcash/src/zcashd
 
   check:
     runs-on: ubuntu-latest
@@ -40,6 +40,10 @@ jobs:
         with:
           command: test
           args: --all-targets --no-run
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ziggurat-executable
+          path: ./target/debug/deps/ziggurat-*
 
   test:
     runs-on: ubuntu-latest
@@ -49,4 +53,8 @@ jobs:
         with:
           name: zcashd-executable
           path: ./zcashd
+      - uses: actions/download-artifact@v3
+        with:
+          name: ziggurat-executable
+          path: ./ziggurat
       - run: ls -alh .
