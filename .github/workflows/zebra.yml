@@ -19,8 +19,8 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: build zcashd
-        run: cargo +stable run --release download
+      - name: build Zebra and download artifacts
+        run: cargo +stable build --release
       - uses: actions/upload-artifact@v2
         with:
           name: zebra-executable
@@ -58,6 +58,7 @@ jobs:
           name: ziggurat-executable
           path: ./ziggurat
       - run: |
+          ./zebrad download
           ./zebrad --verbose start
           $ZEBRA_PID="$!"
           echo $ZEBRA_PID
