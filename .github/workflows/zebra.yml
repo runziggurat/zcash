@@ -58,8 +58,10 @@ jobs:
           name: ziggurat-executable
           path: ./ziggurat
       - run: |
-          ./zebrad download
-          ./zebrad --verbose start
+          ls -alh
+          ls ./zebrad
+          ./zebrad/zebrad download
+          ./zebrad/zebrad --verbose start
           $ZEBRA_PID="$!"
           echo $ZEBRA_PID
           rm ./ziggurat/*.d
