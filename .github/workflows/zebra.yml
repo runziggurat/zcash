@@ -1,4 +1,4 @@
-name: zcashd
+name: Zebra
 
 on:
   workflow_dispatch:    
@@ -8,22 +8,25 @@ on:
   #   branches: [ main ]
 
 jobs:
-  install-zebra:
+  build-zebra:
     runs-on: ubuntu-latest
     steps:
-      - name: clone zebra
-        run: git clone https://github.com/ZcashFoundation/zebra
+      - uses: actions/checkout@v2
+        with:
+          repository: ZcashFoundation/zebra
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: build zcashd
-        run: |
-          cd zebra
-          cargo +stable run --release download
-          cargo +stable run --release -- --verbose start
+        run: cargo +stable run --release download
       - uses: actions/upload-artifact@v2
         with:
           name: zebra-executable
           path: ./target/release/zebrad
 
-  check:
+  build-ziggurat:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -44,7 +47,7 @@ jobs:
 
   test-zebra:
     runs-on: ubuntu-latest
-    needs: [ check, install-zebra ]
+    needs: [ build-zebra, build-ziggurat ]
     steps:
       - uses: actions/download-artifact@v3
         with:
@@ -58,5 +61,7 @@ jobs:
           ./zebrad --verbose start
           $ZEBRA_PID="$!"
           echo $ZEBRA_PID
-          ./ziggurat
+          rm ./ziggurat/*.d
+          mv ./ziggurat/ziggurat-* ziggurat_test
+          ./ziggurat_test
           kill $ZEBRA_PID
