@@ -64,6 +64,7 @@ jobs:
           $ZEBRA_PID="$!"
           echo $ZEBRA_PID
           rm ./ziggurat/*.d
+          ls ./ziggurat
           mv ./ziggurat/ziggurat-* ziggurat_test
-          ./ziggurat_test
+          ls .
           kill $ZEBRA_PID
