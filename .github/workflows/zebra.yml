@@ -60,7 +60,7 @@ jobs:
       - run: |
           chmod +x ./zebrad/zebrad
           ./zebrad/zebrad download
-          ./zebrad/zebrad --verbose start &
+          ./zebrad/zebrad start &
           $ZEBRA_PID="$!"
           echo $ZEBRA_PID
           rm ./ziggurat/*.d
