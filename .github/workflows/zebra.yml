@@ -70,7 +70,11 @@ jobs:
         run: |
           ./zebrad/zebrad download
       - run: |
+          ls ~/.ziggurat/
+          ./zebrad/zebrad start &
+          ZEBRA_PID="$!"
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
+          kill $ZEBRA_PID
           chmod +x ziggurat_test
           ./ziggurat_test
