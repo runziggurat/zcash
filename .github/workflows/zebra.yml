@@ -64,7 +64,7 @@ jobs:
       - run: |
           ./zebrad/zebrad start &
       - run: |
-          $ZEBRA_PID="$!"
+          ZEBRA_PID="$!"
       - run: |
           echo $ZEBRA_PID
       - run: |
