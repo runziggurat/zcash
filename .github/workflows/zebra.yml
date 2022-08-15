@@ -61,11 +61,12 @@ jobs:
           chmod +x ./zebrad/zebrad
       - name: Create ~/.ziggurat/config.toml
         run: |
+          git clone https://github.com/ZcashFoundation/zebra
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zebra\" >> ~/.ziggurat/config.toml
           echo path = \"./zebra\" >> ~/.ziggurat/config.toml
-          echo start_command = \"./zebrad/zebrad start\" >> ~/.ziggurat/config.toml
+          echo start_command = \"../zebrad/zebrad start\" >> ~/.ziggurat/config.toml
       - name: Download Zebra params
         run: |
           ./zebrad/zebrad download
