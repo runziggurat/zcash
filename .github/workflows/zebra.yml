@@ -59,10 +59,15 @@ jobs:
           path: ./ziggurat
       - run: |
           chmod +x ./zebrad/zebrad
+      - run: |
           ./zebrad/zebrad download
+      - run: |
           ./zebrad/zebrad start &
+      - run: |
           $ZEBRA_PID="$!"
+      - run: |
           echo $ZEBRA_PID
+      - run: |
           rm ./ziggurat/*.d
           ls ./ziggurat
           mv ./ziggurat/ziggurat-* ziggurat_test
