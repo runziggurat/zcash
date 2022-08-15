@@ -61,7 +61,15 @@ jobs:
           chmod +x ./zebrad/zebrad
       - run: |
           ./zebrad/zebrad download
+      - name: Create ~/.ziggurat/config.toml
+        run: |
+          mkdir ~/.ziggurat/
+          touch ~/.ziggurat/config.toml
+          echo kind = \"zebra\" > ~/.ziggurat/config.toml
+          echo path = \"path/to/zebra/repo\" > ~/.ziggurat/config.toml
+          echo start_command = \"cargo +stable r -- --verbose start\" > ~/.ziggurat/config.toml
       - run: |
+          ls ~/.ziggurat
           ./zebrad/zebrad start &
           ZEBRA_PID="$!"
           rm ./ziggurat/*.d
