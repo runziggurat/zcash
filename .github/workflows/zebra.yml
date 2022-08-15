@@ -63,13 +63,10 @@ jobs:
           ./zebrad/zebrad download
       - run: |
           ./zebrad/zebrad start &
-      - run: |
           ZEBRA_PID="$!"
-      - run: |
-          echo $ZEBRA_PID
-      - run: |
           rm ./ziggurat/*.d
-          ls ./ziggurat
           mv ./ziggurat/ziggurat-* ziggurat_test
-          ls .
+          chmod +x ziggurat_test
+          ./ziggurat_test
+          echo $ZEBRA_PID
           kill $ZEBRA_PID
