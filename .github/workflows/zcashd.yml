@@ -57,9 +57,16 @@ jobs:
         with:
           name: ziggurat-executable
           path: ./ziggurat
+      - name: Create ~/.ziggurat/config.toml
+        run: |
+          git clone https://github.com/zcash/zcash
+          mkdir ~/.ziggurat/
+          touch ~/.ziggurat/config.toml
+          echo kind = \"zebra\" >> ~/.ziggurat/config.toml
+          echo path = \"./zcash\" >> ~/.ziggurat/config.toml
+          echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
       - run: |
-          ./zcashd
-          $ZCASH_PID="$!"
-          echo $ZCASH_PID
-          ./ziggurat
-          kill $ZCASH_PID
+          rm ./ziggurat/*.d
+          mv ./ziggurat/ziggurat-* ziggurat_test
+          chmod +x ziggurat_test
+          ./ziggurat_test --test-threads=1
