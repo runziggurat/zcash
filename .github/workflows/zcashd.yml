@@ -69,4 +69,5 @@ jobs:
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
+          chmod +x zcashd
           ./ziggurat_test --test-threads=1
