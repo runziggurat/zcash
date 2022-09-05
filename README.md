@@ -119,7 +119,7 @@ node.initial_action(Action::WaitForConnection)
 
 Short overview of test cases and their current status. In case of failure, the behaviour observed for `zebra` and `zcashd` is usually documented in the test case.
 
-These results were obtained by running the test suite against [Zcashd v5.2.0](https://github.com/zcash/zcash/releases/tag/v5.2.0) (d6d2093) and [Zebra 1.0.0-beta.12](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-beta.12) (9e277ed).
+These results were obtained by running the test suite against [Zcashd v5.2.0](https://github.com/zcash/zcash/releases/tag/v5.2.0) (d6d2093) and [Zebra 1.0.0-beta.14](https://github.com/ZcashFoundation/zebra/releases/tag/v1.0.0-beta.14) (c3225331).
 
 | Legend |               |
 | :----: | ------------- |
