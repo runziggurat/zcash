@@ -26,6 +26,9 @@ impl Default for TestMetrics {
 }
 
 impl TestMetrics {
+    // This is a false positive, `CompositeKey` does not depend on any interior mutable
+    // types for its hashing implementation. Therefore, it is safe to use in our context.
+    #[allow(clippy::mutable_key_type)]
     pub fn take_snapshot(&self) -> HashMap<CompositeKey, MetricVal> {
         let mut snapshot = HashMap::new();
 
@@ -43,6 +46,7 @@ impl TestMetrics {
         snapshot
     }
 
+    #[allow(clippy::mutable_key_type)]
     pub fn get_counter(
         &self,
         metric: &'static str,
@@ -56,6 +60,7 @@ impl TestMetrics {
         }
     }
 
+    #[allow(clippy::mutable_key_type)]
     pub fn get_gauge(
         &self,
         metric: &'static str,
@@ -69,6 +74,7 @@ impl TestMetrics {
         }
     }
 
+    #[allow(clippy::mutable_key_type)]
     pub fn get_histogram(
         &self,
         metric: &'static str,
@@ -82,6 +88,7 @@ impl TestMetrics {
         }
     }
 
+    #[allow(clippy::mutable_key_type)]
     pub fn construct_histogram(
         &self,
         metric: &'static str,
