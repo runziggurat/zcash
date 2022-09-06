@@ -200,10 +200,12 @@ async fn load_bearing() {
         let mut stats = Stats::new(MAX_PEERS, synth_count);
         stats.time = test_start.elapsed().as_secs_f64();
         {
-            stats.accepted = test_metrics.get_counter(METRIC_ACCEPTED) as u16;
-            stats.terminated = test_metrics.get_counter(METRIC_TERMINATED) as u16;
-            stats.rejected = test_metrics.get_counter(METRIC_REJECTED) as u16;
-            stats.conn_error = test_metrics.get_counter(METRIC_ERROR) as u16;
+            let snapshot = test_metrics.take_snapshot();
+
+            stats.accepted = snapshot.get_counter(METRIC_ACCEPTED) as u16;
+            stats.terminated = snapshot.get_counter(METRIC_TERMINATED) as u16;
+            stats.rejected = snapshot.get_counter(METRIC_REJECTED) as u16;
+            stats.conn_error = snapshot.get_counter(METRIC_ERROR) as u16;
 
             stats.timed_out = synth_count - stats.accepted - stats.rejected - stats.conn_error;
         }
