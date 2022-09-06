@@ -298,7 +298,10 @@ async fn throughput() {
         }
         let iteration_time = iteration_timer.elapsed().as_secs_f64();
 
-        if let Some(request_latencies) = test_metrics.construct_histogram(REQUEST_LATENCY) {
+        let snapshot = test_metrics.take_snapshot();
+        if let Some(request_latencies) =
+            test_metrics.construct_histogram(REQUEST_LATENCY, &snapshot)
+        {
             if request_latencies.entries() >= 1 {
                 let row = RequestStats::new(
                     peers as u16,
@@ -310,34 +313,41 @@ async fn throughput() {
             }
         }
 
-        if let Some(handshake_latencies) = test_metrics.construct_histogram(HANDSHAKE_LATENCY) {
+        if let Some(handshake_latencies) =
+            test_metrics.construct_histogram(HANDSHAKE_LATENCY, &snapshot)
+        {
             if handshake_latencies.entries() >= 1 {
                 let row = RequestStats::new(peers as u16, 1, handshake_latencies, iteration_time);
                 handshake_table.add_row(row);
-
-                // update stats table
-                let mut stat = Stats {
-                    peers,
-                    requests: MAX_VALID_MESSAGES,
-                    time: iteration_time,
-                    dangling: peers as u16 - completed,
-                    ..Default::default()
-                };
-                {
-                    stat.handshake_accepted = test_metrics.get_counter(HANDSHAKE_ACCEPTED) as u16;
-                    stat.handshake_rejected = test_metrics.get_counter(HANDSHAKE_REJECTED) as u16;
-
-                    stat.corrupt_terminated = test_metrics.get_counter(CORRUPT_TERMINATED) as u16;
-                    stat.corrupt_ignored = test_metrics.get_counter(CORRUPT_IGNORED) as u16;
-                    stat.corrupt_rejected = test_metrics.get_counter(CORRUPT_REJECTED) as u16;
-                    stat.corrupt_reply = test_metrics.get_counter(CORRUPT_REPLY) as u16;
-
-                    stat.peers_dropped = test_metrics.get_counter(CONNECTION_TERMINATED) as u16;
-                    stat.reply_errors = test_metrics.get_counter(BAD_REPLY) as u16;
-                }
-
-                stats.push(stat);
             }
+
+            // update stats table
+            let mut stat = Stats {
+                peers,
+                requests: MAX_VALID_MESSAGES,
+                time: iteration_time,
+                dangling: peers as u16 - completed,
+                ..Default::default()
+            };
+            {
+                stat.handshake_accepted =
+                    test_metrics.get_counter(HANDSHAKE_ACCEPTED, &snapshot) as u16;
+                stat.handshake_rejected =
+                    test_metrics.get_counter(HANDSHAKE_REJECTED, &snapshot) as u16;
+
+                stat.corrupt_terminated =
+                    test_metrics.get_counter(CORRUPT_TERMINATED, &snapshot) as u16;
+                stat.corrupt_ignored = test_metrics.get_counter(CORRUPT_IGNORED, &snapshot) as u16;
+                stat.corrupt_rejected =
+                    test_metrics.get_counter(CORRUPT_REJECTED, &snapshot) as u16;
+                stat.corrupt_reply = test_metrics.get_counter(CORRUPT_REPLY, &snapshot) as u16;
+
+                stat.peers_dropped =
+                    test_metrics.get_counter(CONNECTION_TERMINATED, &snapshot) as u16;
+                stat.reply_errors = test_metrics.get_counter(BAD_REPLY, &snapshot) as u16;
+            }
+
+            stats.push(stat);
         }
     }
 
