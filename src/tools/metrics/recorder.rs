@@ -9,6 +9,54 @@ use metrics_util::{
     CompositeKey, MetricKind,
 };
 
+// This is a false positive, `CompositeKey` does not depend on any interior mutable
+// types for its hashing implementation. Therefore, it is safe to use in our context.
+#[allow(clippy::mutable_key_type)]
+pub struct Snapshot(HashMap<CompositeKey, MetricVal>);
+
+impl Snapshot {
+    pub fn get_counter(&self, metric: &'static str) -> u64 {
+        let key = CompositeKey::new(MetricKind::Counter, Key::from_name(metric));
+        if let MetricVal::Counter(val) = *self.0.get(&key).unwrap() {
+            val
+        } else {
+            0
+        }
+    }
+
+    pub fn get_gauge(&self, metric: &'static str) -> f64 {
+        let key = CompositeKey::new(MetricKind::Gauge, Key::from_name(metric));
+        if let MetricVal::Gauge(val) = *self.0.get(&key).unwrap() {
+            val
+        } else {
+            0.0
+        }
+    }
+
+    pub fn get_histogram(&self, metric: &'static str) -> Option<Vec<f64>> {
+        let key = CompositeKey::new(MetricKind::Histogram, Key::from_name(metric));
+        if let MetricVal::Histogram(vals) = self.0.get(&key).unwrap() {
+            Some(vals.to_vec())
+        } else {
+            None
+        }
+    }
+
+    pub fn construct_histogram(&self, metric: &'static str) -> Option<Histogram> {
+        if let Some(metric_histogram) = self.get_histogram(metric) {
+            let mut histogram = Histogram::new();
+
+            for value in metric_histogram.iter() {
+                let _ = histogram.increment(value.round() as u64);
+            }
+
+            Some(histogram)
+        } else {
+            None
+        }
+    }
+}
+
 pub fn initialize() -> Snapshotter {
     let recorder = DebuggingRecorder::new();
     let snapshotter = recorder.snapshotter();
@@ -26,10 +74,8 @@ impl Default for TestMetrics {
 }
 
 impl TestMetrics {
-    // This is a false positive, `CompositeKey` does not depend on any interior mutable
-    // types for its hashing implementation. Therefore, it is safe to use in our context.
     #[allow(clippy::mutable_key_type)]
-    pub fn take_snapshot(&self) -> HashMap<CompositeKey, MetricVal> {
+    pub fn take_snapshot(&self) -> Snapshot {
         let mut snapshot = HashMap::new();
 
         for (key, val) in self.0.snapshot().into_hashmap().into_iter() {
@@ -43,68 +89,7 @@ impl TestMetrics {
             };
         }
 
-        snapshot
-    }
-
-    #[allow(clippy::mutable_key_type)]
-    pub fn get_counter(
-        &self,
-        metric: &'static str,
-        snapshot: &HashMap<CompositeKey, MetricVal>,
-    ) -> u64 {
-        let key = CompositeKey::new(MetricKind::Counter, Key::from_name(metric));
-        if let MetricVal::Counter(val) = *snapshot.get(&key).unwrap() {
-            val
-        } else {
-            0
-        }
-    }
-
-    #[allow(clippy::mutable_key_type)]
-    pub fn get_gauge(
-        &self,
-        metric: &'static str,
-        snapshot: &HashMap<CompositeKey, MetricVal>,
-    ) -> f64 {
-        let key = CompositeKey::new(MetricKind::Gauge, Key::from_name(metric));
-        if let MetricVal::Gauge(val) = *snapshot.get(&key).unwrap() {
-            val
-        } else {
-            0.0
-        }
-    }
-
-    #[allow(clippy::mutable_key_type)]
-    pub fn get_histogram(
-        &self,
-        metric: &'static str,
-        snapshot: &HashMap<CompositeKey, MetricVal>,
-    ) -> Option<Vec<f64>> {
-        let key = CompositeKey::new(MetricKind::Histogram, Key::from_name(metric));
-        if let MetricVal::Histogram(vals) = snapshot.get(&key).unwrap() {
-            Some(vals.to_vec())
-        } else {
-            None
-        }
-    }
-
-    #[allow(clippy::mutable_key_type)]
-    pub fn construct_histogram(
-        &self,
-        metric: &'static str,
-        snapshot: &HashMap<CompositeKey, MetricVal>,
-    ) -> Option<Histogram> {
-        if let Some(metric_histogram) = self.get_histogram(metric, snapshot) {
-            let mut histogram = Histogram::new();
-
-            for value in metric_histogram.iter() {
-                let _ = histogram.increment(value.round() as u64);
-            }
-
-            Some(histogram)
-        } else {
-            None
-        }
+        Snapshot(snapshot)
     }
 }
 
@@ -153,7 +138,7 @@ mod tests {
 
         let snapshot = metrics.take_snapshot();
 
-        assert_eq!(metrics.get_counter(METRIC_NAME, &snapshot), COUNTER_INC);
+        assert_eq!(snapshot.get_counter(METRIC_NAME), COUNTER_INC);
     }
 
     #[test]
@@ -168,7 +153,7 @@ mod tests {
 
         let snapshot = metrics.take_snapshot();
 
-        assert_eq!(metrics.get_gauge(METRIC_NAME, &snapshot), 525.0);
+        assert_eq!(snapshot.get_gauge(METRIC_NAME), 525.0);
     }
 
     #[test]
@@ -185,7 +170,7 @@ mod tests {
 
         let snapshot = metrics.take_snapshot();
 
-        assert_eq!(metrics.get_histogram(METRIC_NAME, &snapshot), Some(values));
+        assert_eq!(snapshot.get_histogram(METRIC_NAME), Some(values));
     }
 
     #[test]
@@ -200,7 +185,7 @@ mod tests {
         histogram.record(9.0);
 
         let snapshot = metrics.take_snapshot();
-        let constructed_histogram = metrics.construct_histogram(METRIC_NAME, &snapshot).unwrap();
+        let constructed_histogram = snapshot.construct_histogram(METRIC_NAME).unwrap();
 
         assert!(constructed_histogram.entries() == 4);
         assert_eq!(constructed_histogram.percentile(50.0).unwrap(), 5);
@@ -218,10 +203,8 @@ mod tests {
         histogram2.record(1.0);
 
         let snapshot = metrics.take_snapshot();
-        let constructed_histogram = metrics.construct_histogram(METRIC_NAME, &snapshot).unwrap();
-        let constructed_histogram2 = metrics
-            .construct_histogram(METRIC_NAME_ALT, &snapshot)
-            .unwrap();
+        let constructed_histogram = snapshot.construct_histogram(METRIC_NAME).unwrap();
+        let constructed_histogram2 = snapshot.construct_histogram(METRIC_NAME_ALT).unwrap();
 
         assert!(constructed_histogram.entries() == 1);
         assert!(constructed_histogram2.entries() == 1);
