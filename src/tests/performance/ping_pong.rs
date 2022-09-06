@@ -184,7 +184,8 @@ async fn throughput() {
 
         let time_taken_secs = test_start.elapsed().as_secs_f64();
 
-        if let Some(latencies) = test_metrics.construct_histogram(METRIC_LATENCY) {
+        let snapshot = test_metrics.take_snapshot();
+        if let Some(latencies) = test_metrics.construct_histogram(METRIC_LATENCY, &snapshot) {
             if latencies.entries() >= 1 {
                 // add stats to table display
                 table.add_row(RequestStats::new(
