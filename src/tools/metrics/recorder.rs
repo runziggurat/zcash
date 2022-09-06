@@ -57,19 +57,21 @@ impl Snapshot {
     }
 }
 
-pub fn initialize() -> Snapshotter {
-    let recorder = DebuggingRecorder::new();
-    let snapshotter = recorder.snapshotter();
-    let _ = recorder.install();
-
-    snapshotter
-}
-
 pub struct TestMetrics(Snapshotter);
+
+impl TestMetrics {
+    fn new() -> TestMetrics {
+        let recorder = DebuggingRecorder::new();
+        let snapshotter = recorder.snapshotter();
+        let _ = recorder.install();
+
+        TestMetrics(snapshotter)
+    }
+}
 
 impl Default for TestMetrics {
     fn default() -> Self {
-        Self(initialize())
+        Self::new()
     }
 }
 
