@@ -103,7 +103,7 @@ Ziggurat currently uses rust's standard test runner, a simple `cargo test -- --t
 Logs are disabled by default, as they usually just add noise and slow down the test. They can be very useful for debugging and can be enabled on a test case level.
 
 Ziggurat's `SyntheticNode` supports `tracing` - this can be enabled by inserting a call to `synthetic_node::enable_tracing()` inside the test case.
-Use `--nocapture` option combined with the `RUST_LOG` environment variable to show logs in the `stdout`. Configure the `RUST_LOG` environment variable to select the [logging level](https://docs.rs/env_logger/latest/env_logger/#enabling-logging). For example: `RUST_LOG=trace cargo test -- --test-threads=1 --nocapture`.
+Use the `--nocapture` option combined with the `RUST_LOG` environment variable to show logs from `stdout`. Configure the `RUST_LOG` environment variable to select the [logging level](https://docs.rs/env_logger/latest/env_logger/#enabling-logging). For example: `RUST_LOG=trace cargo test -- --test-threads=1 --nocapture`.
 
 The test node's `stdout` and `stderr` logs can be piped to `stdout` by inserting a call to `node.log_to_stdout(true)` before starting the node. Note that logs will need to be enabled for the node as detailed in [Configuration](#Configuration).
 
