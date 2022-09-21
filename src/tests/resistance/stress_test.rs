@@ -72,7 +72,7 @@ const CORRUPT_REPLY: &str = "fuzz_flood_corrupt_reply";
 const CORRUPT_IGNORED: &str = "fuzz_flood_corrupt_ignored";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn throughput() {
+async fn r006_stress_test_throughput() {
     // ZG-RESISTANCE-006
     //
     // Simulate high load situations, while also sending corrupt messages.
