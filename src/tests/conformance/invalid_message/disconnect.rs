@@ -37,7 +37,8 @@ use crate::{
 };
 
 #[tokio::test]
-async fn pong_with_wrong_nonce() {
+#[allow(non_snake_case)]
+async fn c012_t1_PONG_with_wrong_nonce() {
     // zcashd: fail (message ignored)
     // zebra:  fail (message ignored)
 
@@ -88,7 +89,8 @@ async fn pong_with_wrong_nonce() {
 }
 
 #[tokio::test]
-async fn get_data_with_mixed_types() {
+#[allow(non_snake_case)]
+async fn c012_t2_GET_DATA_with_mixed_types() {
     // zcashd: fail (replies with Block)
     // zebra:  fail (replies with NotFound)
     let genesis_block = Block::testnet_genesis();
@@ -98,7 +100,8 @@ async fn get_data_with_mixed_types() {
 }
 
 #[tokio::test]
-async fn inv_with_mixed_types() {
+#[allow(non_snake_case)]
+async fn c012_t3_INV_with_mixed_types() {
     // zcashd: fail (message ignored)
     // zebra:  fail (message ignored)
 
@@ -111,7 +114,8 @@ async fn inv_with_mixed_types() {
 }
 
 #[tokio::test]
-async fn addr_without_timestamp() {
+#[allow(non_snake_case)]
+async fn c012_t4_ADDR_without_timestamp() {
     // zcashd: fail (replies with Reject(Malformed))
     // zebra:  pass
 

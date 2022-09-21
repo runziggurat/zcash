@@ -40,7 +40,8 @@ mod node_is_seeded_with_blocks {
     use super::*;
 
     #[tokio::test]
-    async fn ping() {
+    #[allow(non_snake_case)]
+    async fn c011_t1_PING() {
         // zcashd: pass
         // zebra:  fail (seeding not supported for zebra)
         let nonce = Nonce::default();
@@ -50,7 +51,8 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_addr() {
+    #[allow(non_snake_case)]
+    async fn c011_t2_GET_ADDR() {
         // zcashd: fail (query ignored)
         // zebra:  fail (seeding not supported for zebra)
         let reply = run_test_case(Message::GetAddr).await.unwrap();
@@ -58,7 +60,8 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn mempool() {
+    #[allow(non_snake_case)]
+    async fn c011_t3_MEMPOOL() {
         // zcashd: fail (query ignored)
         // zebra:  fail (seeding not supported for zebra)
         let reply = run_test_case(Message::MemPool).await.unwrap();
@@ -66,7 +69,8 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_blocks() {
+    #[allow(non_snake_case)]
+    async fn c011_t4_GET_BLOCKS() {
         // zcashd: pass
         // zebra:  fail (seeding not supported for zebra)
         let query = Message::GetBlocks(LocatorHashes::new(
@@ -78,7 +82,8 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_data_block() {
+    #[allow(non_snake_case)]
+    async fn c011_t5_GET_DATA_BLOCK() {
         // zcashd: pass
         // zebra:  fail (seeding not supported for zebra)
         let query = Message::GetData(Inv::new(vec![Block::testnet_2().inv_hash()]));
@@ -87,8 +92,9 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
+    #[allow(non_snake_case)]
     // This test should currently fail, since we have no way of seeding the Mempool of the node.
-    async fn get_data_tx() {
+    async fn c011_t6_GET_DATA_TX() {
         // zcashd: fail (NotFound), this is expected as we cannot seed the mempool of the node.
         // zebra:  fail (seeding not supported for zebra)
         let query = Message::GetData(Inv::new(vec![Block::testnet_genesis().txs[0].inv_hash()]));
@@ -97,7 +103,8 @@ mod node_is_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_headers() {
+    #[allow(non_snake_case)]
+    async fn c011_t7_GET_HEADERS() {
         // zcashd: pass
         // zebra:  fail (seeding not supported for zebra)
         let query = Message::GetHeaders(LocatorHashes::new(
@@ -150,7 +157,8 @@ mod node_is_not_seeded_with_blocks {
     use super::*;
 
     #[tokio::test]
-    async fn ping() {
+    #[allow(non_snake_case)]
+    async fn c011_t8_PING() {
         // zcashd: pass
         // zebra:  pass
         let nonce = Nonce::default();
@@ -160,7 +168,8 @@ mod node_is_not_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_addr() {
+    #[allow(non_snake_case)]
+    async fn c011_t9_GET_ADDR() {
         // zcashd: fail (query ignored)
         // zebra:  fail (query ignored, nil response internally)
         let reply = run_test_case(Message::GetAddr).await.unwrap();
@@ -168,7 +177,8 @@ mod node_is_not_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn mempool() {
+    #[allow(non_snake_case)]
+    async fn c011_t10_MEMPOOL() {
         // zcashd: fail (query ignored)
         // zebra:  fail (query ignored)
         let reply = run_test_case(Message::MemPool).await.unwrap();
@@ -176,7 +186,8 @@ mod node_is_not_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_blocks() {
+    #[allow(non_snake_case)]
+    async fn c011_t11_GET_BLOCKS() {
         // zcashd: fail (query ignored)
         // zebra:  fail (query ignored)
         let query = Message::GetBlocks(LocatorHashes::new(
@@ -188,7 +199,8 @@ mod node_is_not_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_data_block() {
+    #[allow(non_snake_case)]
+    async fn c011_t12_GET_DATA_BLOCK() {
         // zcashd: fail (query ignored)
         // zebra:  fail (query ignored), pass when timeout is used to account for node startup (10s
         // is usually enough).
@@ -200,7 +212,8 @@ mod node_is_not_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_data_tx() {
+    #[allow(non_snake_case)]
+    async fn c011_t13_GET_DATA_TX() {
         // zcashd: pass
         // zebra:  fail (query ignored), sometimes pass (flaky), reliably passes when timeout is
         // used to account for node startup (10s is usually enough).
@@ -212,7 +225,8 @@ mod node_is_not_seeded_with_blocks {
     }
 
     #[tokio::test]
-    async fn get_headers() {
+    #[allow(non_snake_case)]
+    async fn c011_t14_GET_HEADERS() {
         // zcashd: pass
         // zebra:  fail (query ignored)
         let query = Message::GetHeaders(LocatorHashes::new(
