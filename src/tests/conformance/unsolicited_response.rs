@@ -19,7 +19,8 @@ use crate::{
 };
 
 #[tokio::test]
-async fn pong() {
+#[allow(non_snake_case)]
+async fn c010_t1_PONG() {
     // zcashd: pass
     // zebra:  pass
     run_test_case(Message::Pong(Nonce::default()))
@@ -28,7 +29,8 @@ async fn pong() {
 }
 
 #[tokio::test]
-async fn headers() {
+#[allow(non_snake_case)]
+async fn c010_t2_HEADERS() {
     // zcashd: pass
     // zebra:  pass
     run_test_case(Message::Headers(Headers::empty()))
@@ -37,14 +39,16 @@ async fn headers() {
 }
 
 #[tokio::test]
-async fn addr() {
+#[allow(non_snake_case)]
+async fn c010_t3_ADDR() {
     // zcashd: pass
     // zebra:  pass
     run_test_case(Message::Addr(Addr::empty())).await.unwrap();
 }
 
 #[tokio::test]
-async fn block() {
+#[allow(non_snake_case)]
+async fn c010_t4_BLOCK() {
     // zcashd: pass
     // zebra:  pass
     run_test_case(Message::Block(Box::new(Block::testnet_genesis())))
@@ -53,7 +57,8 @@ async fn block() {
 }
 
 #[tokio::test]
-async fn not_found() {
+#[allow(non_snake_case)]
+async fn c010_t5_NOT_FOUND() {
     // zcashd: pass
     // zebra:  pass
     run_test_case(Message::NotFound(Inv::new(vec![
@@ -64,7 +69,8 @@ async fn not_found() {
 }
 
 #[tokio::test]
-async fn tx() {
+#[allow(non_snake_case)]
+async fn c010_t6_TX() {
     // zcashd: pass
     // zebra:  pass
     run_test_case(Message::Tx(Block::testnet_2().txs[0].clone()))
