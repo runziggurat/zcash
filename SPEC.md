@@ -18,6 +18,8 @@ For load testing, "reasonable load" and "heavy load" will need to be defined.
 
 The tests can be run with `cargo test` once Ziggurat is properly configured and dependencies (node instance to be tested) are satisfied. See the [README](README.md) for details.
 
+Tests are grouped into the following categories: conformance, performance, and resistance. Each test is named after the category it belongs to, in addition to what's being tested. For example, `c001_handshake_when_node_receives_connection` is the first conformance test and tests the handshake behavior on the receiving end. The full name convention is: `id_part_t(subtest_no)_(message type)_(extra_test_desc)`.
+
 # Types of Tests
 
 ## Conformance
@@ -242,7 +244,6 @@ The test index makes use of symbolic language in describing connection and messa
 
     The node disconnects for trivial (non-fuzz, non-malicious) cases.
 
-    - `Ping` timeout.
     - `Pong` with wrong nonce.
     - `GetData` with mixed types in inventory list.
     - `Inv` with mixed types in inventory list.
