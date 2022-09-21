@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[tokio::test]
-async fn instead_of_version_when_node_receives_connection() {
+async fn r001_t3_instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -47,7 +47,7 @@ async fn instead_of_version_when_node_receives_connection() {
 }
 
 #[tokio::test]
-async fn instead_of_verack_when_node_receives_connection() {
+async fn r002_t3_instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -84,7 +84,7 @@ async fn instead_of_verack_when_node_receives_connection() {
 }
 
 #[tokio::test]
-async fn instead_of_version_when_node_initiates_connection() {
+async fn r003_t3_instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -143,7 +143,7 @@ async fn instead_of_version_when_node_initiates_connection() {
 }
 
 #[tokio::test]
-async fn instead_of_verack_when_node_initiates_connection() {
+async fn r004_t3_instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 3)
     //
     // zebra: breaks with a version command in header, otherwise sends verack before closing the
@@ -206,7 +206,7 @@ async fn instead_of_verack_when_node_initiates_connection() {
 }
 
 #[tokio::test]
-async fn post_handshake() {
+async fn r005_t3_post_handshake() {
     // ZG-RESISTANCE-005 (part 3)
     //
     // zebra: breaks with a version command in header, spams getdata, doesn't disconnect.

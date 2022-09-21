@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[tokio::test]
-async fn instead_of_version_when_node_receives_connection() {
+async fn r001_t4_instead_of_version_when_node_receives_connection() {
     // ZG-RESISTANCE-001 (part 4)
     //
     // zebra: responds with a version before disconnecting (however, quite slow running).
@@ -50,7 +50,7 @@ async fn instead_of_version_when_node_receives_connection() {
 }
 
 #[tokio::test]
-async fn instead_of_verack_when_node_receives_connection() {
+async fn r002_t4_instead_of_verack_when_node_receives_connection() {
     // ZG-RESISTANCE-002 (part 4)
     //
     // zebra: responds with verack before disconnecting (however, quite slow running).
@@ -88,7 +88,7 @@ async fn instead_of_verack_when_node_receives_connection() {
 }
 
 #[tokio::test]
-async fn instead_of_version_when_node_initiates_connection() {
+async fn r003_t4_instead_of_version_when_node_initiates_connection() {
     // ZG-RESISTANCE-003 (part 4)
     //
     // zebra: disconnects immediately.
@@ -148,7 +148,7 @@ async fn instead_of_version_when_node_initiates_connection() {
 }
 
 #[tokio::test]
-async fn instead_of_verack_when_node_initiates_connection() {
+async fn r004_t4_instead_of_verack_when_node_initiates_connection() {
     // ZG-RESISTANCE-004 (part 4)
     //
     // zebra: disconnects immediately.
@@ -211,7 +211,7 @@ async fn instead_of_verack_when_node_initiates_connection() {
 }
 
 #[tokio::test]
-async fn post_handshake() {
+async fn r005_t4_post_handshake() {
     // ZG-RESISTANCE-005 (part 4)
     //
     // zebra: sends getdata and ignores message.
