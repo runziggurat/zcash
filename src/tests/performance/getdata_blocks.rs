@@ -18,7 +18,8 @@ use crate::{
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn throughput() {
+#[allow(non_snake_case)]
+async fn p001_t2_GET_DATA_BLOCKS_throughput() {
     // ZG-PERFORMANCE-001, GetData-Block latency
     //
     // The node behaves as expected under load from other peers.

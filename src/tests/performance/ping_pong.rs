@@ -16,7 +16,8 @@ const PINGS: u16 = 1000;
 const METRIC_LATENCY: &str = "ping_perf_latency";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn throughput() {
+#[allow(non_snake_case)]
+async fn p001_t1_PING_PONG_throughput() {
     // ZG-PERFORMANCE-001, Ping-Pong latency
     //
     // The node behaves as expected under load from other peers.
