@@ -86,7 +86,8 @@ mod stop_hash_is_zero {
     use super::*;
 
     #[tokio::test]
-    async fn from_block_0_onwards() {
+    #[allow(non_snake_case)]
+    async fn c016_t1_GET_BLOCKS_block_0_onwards() {
         // zcashd: pass
         let index = 0;
         let response = run_test_case(GetBlocks::from_indices(index, None))
@@ -97,7 +98,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn from_block_1_onwards() {
+    #[allow(non_snake_case)]
+    async fn c016_t2_GET_BLOCKS_from_block_1_onwards() {
         // zcashd: pass
         let index = 1;
         let response = run_test_case(GetBlocks::from_indices(index, None))
@@ -108,7 +110,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn from_block_5_onwards() {
+    #[allow(non_snake_case)]
+    async fn c016_t3_GET_BLOCKS_from_block_5_onwards() {
         // zcashd: pass
         let index = 5;
         let response = run_test_case(GetBlocks::from_indices(index, None))
@@ -119,7 +122,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn from_penultimate_block_onwards() {
+    #[allow(non_snake_case)]
+    async fn c016_t4_GET_BLOCKS_from_penultimate_block_onwards() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 2;
         let response = run_test_case(GetBlocks::from_indices(index, None))
@@ -130,7 +134,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn final_block_is_ignored() {
+    #[allow(non_snake_case)]
+    async fn c016_t5_GET_BLOCKS_final_block_is_ignored() {
         // Test that we get no response for the final block in the known-chain
         // (this is the behaviour exhibited by zcashd - a more well-formed response
         // might be sending an empty inventory instead).
@@ -145,7 +150,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn out_of_order() {
+    #[allow(non_snake_case)]
+    async fn c016_t6_GET_BLOCKS_out_of_order() {
         // Node expects the block hashes in reverse order, i.e. newest first.
         // It should latch onto the first known hash and ignore the rest.
         // In this test we swop the hash order and expect it to ignore the
@@ -167,7 +173,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn off_chain_correction() {
+    #[allow(non_snake_case)]
+    async fn c016_t7_GET_BLOCKS_off_chain_correction() {
         // Test that we get corrected if we are "off chain".
         // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
         // all known children of that block.
@@ -193,7 +200,8 @@ mod stop_hash_is_start_hash {
     use super::*;
 
     #[tokio::test]
-    async fn from_block_0_to_0() {
+    #[allow(non_snake_case)]
+    async fn c016_t8_GET_BLOCKS_from_block_0_to_0() {
         // zcashd: fail (sends all blocks[1+] - same behaviour as if query was not range limited)
         let index = 0;
         let response = run_test_case(GetBlocks::from_indices(index, Some(index)))
@@ -204,7 +212,8 @@ mod stop_hash_is_start_hash {
     }
 
     #[tokio::test]
-    async fn from_block_4_to_4() {
+    #[allow(non_snake_case)]
+    async fn c016_t9_GET_BLOCKS_from_block_4_to_4() {
         // zcashd: fail (sends all blocks[5+] - same behaviour as if query was not range limited)
         let index = 4;
         let response = run_test_case(GetBlocks::from_indices(index, Some(index)))
@@ -215,7 +224,8 @@ mod stop_hash_is_start_hash {
     }
 
     #[tokio::test]
-    async fn from_final_block_to_final_block() {
+    #[allow(non_snake_case)]
+    async fn c016_t10_GET_BLOCKS_from_final_block_to_final_block() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 1;
         let response = run_test_case(GetBlocks::from_indices(index, Some(index)))
@@ -230,7 +240,8 @@ mod ranged {
     use super::*;
 
     #[tokio::test]
-    async fn from_block_0_to_1() {
+    #[allow(non_snake_case)]
+    async fn c016_t11_GET_BLOCKS_from_block_0_to_1() {
         // zcashd: pass
         let response = run_test_case(GetBlocks::from_indices(0, Some(1)))
             .await
@@ -240,7 +251,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_block_0_to_5() {
+    #[allow(non_snake_case)]
+    async fn c016_t12_GET_BLOCKS_from_block_0_to_5() {
         // zcashd: pass
         let range = (0, 5);
         let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
@@ -251,7 +263,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_block_0_to_final_block() {
+    #[allow(non_snake_case)]
+    async fn c016_t13_GET_BLOCKS_from_block_0_to_final_block() {
         // zcashd: pass
         let range = (0, SEED_BLOCKS.len() - 1);
         let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
@@ -262,7 +275,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_block_3_to_9() {
+    #[allow(non_snake_case)]
+    async fn c016_t14_GET_BLOCKS_from_block_3_to_9() {
         // zcashd: pass
         let range = (3, 9);
         let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
@@ -273,7 +287,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_penultimate_block_to_final_block() {
+    #[allow(non_snake_case)]
+    async fn c016_t15_GET_BLOCKS_from_penultimate_block_to_final_block() {
         // zcashd: pass
         let range = (SEED_BLOCKS.len() - 2, SEED_BLOCKS.len() - 1);
         let response = run_test_case(GetBlocks::from_indices(range.0, Some(range.1)))
@@ -284,7 +299,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn off_chain_correction() {
+    #[allow(non_snake_case)]
+    async fn c016_t16_GET_BLOCKS_off_chain_correction() {
         // Test that we get corrected if we are "off chain".
         // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
         // all known children of that block.
@@ -305,7 +321,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn stop_hash_off_chain() {
+    #[allow(non_snake_case)]
+    async fn c016_t17_GET_BLOCKS_stop_hash_off_chain() {
         // Sends a query for all blocks starting from [3], but with
         // a stop_hash that does not match any block on the chain.
         // We expect the node to send all blocks from [3] onwards since the

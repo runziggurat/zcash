@@ -85,7 +85,8 @@ mod stop_hash_is_zero {
     use super::*;
 
     #[tokio::test]
-    async fn from_block_0_onwards() {
+    #[allow(non_snake_case)]
+    async fn c017_t1_GET_HEADERS_from_block_0_onwards() {
         // zcashd: pass
         let index = 0;
         let response = run_test_case(GetHeaders::from_indices(index, None))
@@ -96,7 +97,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn from_block_1_onwards() {
+    #[allow(non_snake_case)]
+    async fn c017_t2_GET_HEADERS_from_block_1_onwards() {
         // zcashd: pass
         let index = 1;
         let response = run_test_case(GetHeaders::from_indices(index, None))
@@ -107,7 +109,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn from_block_5_onwards() {
+    #[allow(non_snake_case)]
+    async fn c017_t3_GET_HEADERS_from_block_5_onwards() {
         // zcashd: pass
         let index = 5;
         let response = run_test_case(GetHeaders::from_indices(index, None))
@@ -118,7 +121,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn from_penultimate_block_onwards() {
+    #[allow(non_snake_case)]
+    async fn c017_t4_GET_HEADERS_from_penultimate_block_onwards() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 2;
         let response = run_test_case(GetHeaders::from_indices(index, None))
@@ -129,7 +133,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn final_block() {
+    #[allow(non_snake_case)]
+    async fn c017_t5_GET_HEADERS_final_block() {
         // We expect an empty Headers list.
         //
         // zcashd: pass
@@ -142,7 +147,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn out_of_order() {
+    #[allow(non_snake_case)]
+    async fn c017_t6_GET_HEADERS_out_of_order() {
         // Node expects the block hashes in reverse order, i.e. newest first.
         // It should latch onto the first known hash and ignore the rest.
         // In this test we swop the hash order and expect it to ignore the
@@ -164,7 +170,8 @@ mod stop_hash_is_zero {
     }
 
     #[tokio::test]
-    async fn off_chain_correction() {
+    #[allow(non_snake_case)]
+    async fn c017_t7_GET_HEADERS_off_chain_correction() {
         // Test that we get corrected if we are "off chain".
         // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
         // all known children of that block.
@@ -190,7 +197,8 @@ mod stop_hash_is_start_hash {
     use super::*;
 
     #[tokio::test]
-    async fn from_block_0_to_0() {
+    #[allow(non_snake_case)]
+    async fn c017_t8_GET_HEADERS_from_block_0_to_0() {
         // zcashd: fail (sends all blocks[1+] - same behaviour as if query was not range limited)
         let index = 0;
         let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
@@ -201,7 +209,8 @@ mod stop_hash_is_start_hash {
     }
 
     #[tokio::test]
-    async fn from_block_4_to_4() {
+    #[allow(non_snake_case)]
+    async fn c017_t9_GET_HEADERS_from_block_4_to_4() {
         // zcashd: fail (sends all blocks[5+] - same behaviour as if query was not range limited)
         let index = 4;
         let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
@@ -212,7 +221,8 @@ mod stop_hash_is_start_hash {
     }
 
     #[tokio::test]
-    async fn from_final_block_to_final_block() {
+    #[allow(non_snake_case)]
+    async fn c017_t10_GET_HEADERS_from_final_block_to_final_block() {
         // zcashd: pass
         let index = SEED_BLOCKS.len() - 1;
         let response = run_test_case(GetHeaders::from_indices(index, Some(index)))
@@ -227,7 +237,8 @@ mod ranged {
     use super::*;
 
     #[tokio::test]
-    async fn from_block_0_to_1() {
+    #[allow(non_snake_case)]
+    async fn c017_t11_GET_HEADERS_from_block_0_to_1() {
         // zcashd: pass
         let range = (0, 1);
         let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
@@ -238,7 +249,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_block_0_to_5() {
+    #[allow(non_snake_case)]
+    async fn c017_t12_GET_HEADERS_from_block_0_to_5() {
         // zcashd: pass
         let range = (0, 5);
         let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
@@ -249,7 +261,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_block_0_to_final_block() {
+    #[allow(non_snake_case)]
+    async fn c017_t13_GET_HEADERS_from_block_0_to_final_block() {
         // zcashd: pass
         let range = (0, SEED_BLOCKS.len() - 1);
         let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
@@ -260,7 +273,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_block_3_to_9() {
+    #[allow(non_snake_case)]
+    async fn c017_t14_GET_HEADERS_from_block_3_to_9() {
         // zcashd: pass
         let range = (3, 9);
         let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
@@ -271,7 +285,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn from_penultimate_block_to_final_block() {
+    #[allow(non_snake_case)]
+    async fn c017_t15_GET_HEADERS_from_penultimate_block_to_final_block() {
         // zcashd: pass
         let range = (SEED_BLOCKS.len() - 2, SEED_BLOCKS.len() - 1);
         let response = run_test_case(GetHeaders::from_indices(range.0, Some(range.1)))
@@ -282,7 +297,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn off_chain_correction() {
+    #[allow(non_snake_case)]
+    async fn c017_t16_GET_HEADERS_off_chain_correction() {
         // Test that we get corrected if we are "off chain".
         // We expect that unknown hashes get ignored, until it finds a known hash; it then returns
         // all known children of that block.
@@ -303,7 +319,8 @@ mod ranged {
     }
 
     #[tokio::test]
-    async fn stop_hash_off_chain() {
+    #[allow(non_snake_case)]
+    async fn c017_t17_GET_HEADERS_stop_hash_off_chain() {
         // Sends a query for all blocks starting from [3], but with
         // a stop_hash that does not match any block on the chain.
         // We expect the node to send all blocks from [3] onwards since the

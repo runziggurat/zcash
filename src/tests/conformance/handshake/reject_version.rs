@@ -11,7 +11,8 @@ use crate::{
 };
 
 #[tokio::test]
-async fn reusing_nonce() {
+#[allow(non_snake_case)]
+async fn c007_PING_reusing_nonce() {
     // ZG-CONFORMANCE-007
     //
     // The node rejects connections reusing its nonce (usually indicative of self-connection).
@@ -52,7 +53,8 @@ async fn reusing_nonce() {
 }
 
 #[tokio::test]
-async fn with_obsolete_version_numbers() {
+#[allow(non_snake_case)]
+async fn c008_VERSION_with_obsolete_number() {
     // ZG-CONFORMANCE-008
     //
     // The node rejects connections with obsolete node versions.
