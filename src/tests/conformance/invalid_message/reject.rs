@@ -25,7 +25,8 @@ use crate::{
 };
 
 #[tokio::test]
-async fn version_post_handshake() {
+#[allow(non_snake_case)]
+async fn c009_t1_VERSION_post_handshake() {
     // zcashd: pass
     // zebra:  fail (connection terminated)
     let version = Message::Version(Version::new(
@@ -37,7 +38,8 @@ async fn version_post_handshake() {
 }
 
 #[tokio::test]
-async fn verack_post_handshake() {
+#[allow(non_snake_case)]
+async fn c009_t2_VERACK_post_handshake() {
     // zcashd: fail (ignored)
     // zebra:  fail (connection terminated)
     run_test_case(Message::Verack, CCode::Duplicate)
@@ -46,7 +48,8 @@ async fn verack_post_handshake() {
 }
 
 #[tokio::test]
-async fn mixed_inventory() {
+#[allow(non_snake_case)]
+async fn c009_t3_INV_mixed_inventory() {
     // TODO: is this the desired behaviour, https://github.com/ZcashFoundation/zebra/issues/2107
     // might suggest it is.
     // zcashd: fail (ignored)
@@ -60,7 +63,8 @@ async fn mixed_inventory() {
 }
 
 #[tokio::test]
-async fn multi_block_inventory() {
+#[allow(non_snake_case)]
+async fn c009_t4_INV_multi_block_inventory() {
     // zcashd: fail (ignored)
     // zebra:  fail (ignored)
     let multi_block_inv = vec![
@@ -75,7 +79,8 @@ async fn multi_block_inventory() {
 }
 
 #[tokio::test]
-async fn bloom_filter_add() {
+#[allow(non_snake_case)]
+async fn c009_t5_BLOOM_FILTER_ADD() {
     // zcashd: fail (ccode: Malformed)
     // zebra:  fail (ignored)
     run_test_case(Message::FilterAdd(FilterAdd::default()), CCode::Obsolete)
@@ -84,7 +89,8 @@ async fn bloom_filter_add() {
 }
 
 #[tokio::test]
-async fn bloom_filter_load() {
+#[allow(non_snake_case)]
+async fn c009_t6_BLOOM_FILTER_LOAD() {
     // zcashd: fail (ccode: Malformed)
     // zebra:  fail (ignored)
     run_test_case(Message::FilterLoad(FilterLoad::default()), CCode::Obsolete)
@@ -93,7 +99,8 @@ async fn bloom_filter_load() {
 }
 
 #[tokio::test]
-async fn bloom_filter_clear() {
+#[allow(non_snake_case)]
+async fn c009_t7_BLOOM_FILTER_CLEAR() {
     // zcashd: fail (ignored)
     // zebra:  fail (ignored)
     run_test_case(Message::FilterClear, CCode::Obsolete)

@@ -22,28 +22,32 @@ mod when_node_receives_connection {
     use super::*;
 
     #[tokio::test]
-    async fn get_addr() {
+    #[allow(non_snake_case)]
+    async fn c003_t1_GET_ADDR() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::GetAddr).await.unwrap();
     }
 
     #[tokio::test]
-    async fn mempool() {
+    #[allow(non_snake_case)]
+    async fn c003_t2_MEMPOOL() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::MemPool).await.unwrap();
     }
 
     #[tokio::test]
-    async fn verack() {
+    #[allow(non_snake_case)]
+    async fn c003_t3_VERACK() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Verack).await.unwrap();
     }
 
     #[tokio::test]
-    async fn ping() {
+    #[allow(non_snake_case)]
+    async fn c003_t4_PING() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Ping(Nonce::default()))
@@ -52,7 +56,8 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn pong() {
+    #[allow(non_snake_case)]
+    async fn c003_t5_PONG() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Pong(Nonce::default()))
@@ -61,14 +66,16 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn addr() {
+    #[allow(non_snake_case)]
+    async fn c003_t6_ADDR() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Addr(Addr::empty())).await.unwrap();
     }
 
     #[tokio::test]
-    async fn get_headers() {
+    #[allow(non_snake_case)]
+    async fn c003_t7_GET_HEADERS() {
         // zcashd: pass
         // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
@@ -77,7 +84,8 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn get_blocks() {
+    #[allow(non_snake_case)]
+    async fn c003_t8_GET_BLOCKS() {
         // zcashd: pass
         // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
@@ -86,7 +94,8 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn get_data_block() {
+    #[allow(non_snake_case)]
+    async fn c003_t9_GET_DATA_BLOCK() {
         // zcashd: pass
         // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
@@ -94,7 +103,8 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn get_data_tx() {
+    #[allow(non_snake_case)]
+    async fn c003_t10_GET_DATA_TX() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::GetData(Inv::new(vec![Block::testnet_genesis()
@@ -105,7 +115,8 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn inv() {
+    #[allow(non_snake_case)]
+    async fn c003_t11_INV() {
         // zcashd: pass
         // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
@@ -113,7 +124,8 @@ mod when_node_receives_connection {
     }
 
     #[tokio::test]
-    async fn not_found() {
+    #[allow(non_snake_case)]
+    async fn c003_t12_NOT_FOUND() {
         // zcashd: pass
         // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
@@ -192,28 +204,32 @@ mod when_node_initiates_connection {
     use super::*;
 
     #[tokio::test]
-    async fn get_addr() {
+    #[allow(non_snake_case)]
+    async fn c004_t1_GET_ADDR() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::GetAddr).await.unwrap();
     }
 
     #[tokio::test]
-    async fn mempool() {
+    #[allow(non_snake_case)]
+    async fn c004_t2_MEMPOOL() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::MemPool).await.unwrap();
     }
 
     #[tokio::test]
-    async fn verack() {
+    #[allow(non_snake_case)]
+    async fn c004_t3_VERACK() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Verack).await.unwrap();
     }
 
     #[tokio::test]
-    async fn ping() {
+    #[allow(non_snake_case)]
+    async fn c004_t4_PING() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Ping(Nonce::default()))
@@ -222,7 +238,8 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn pong() {
+    #[allow(non_snake_case)]
+    async fn c004_t5_PONG() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Pong(Nonce::default()))
@@ -231,14 +248,16 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn addr() {
+    #[allow(non_snake_case)]
+    async fn c004_t6_ADDR() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::Addr(Addr::empty())).await.unwrap();
     }
 
     #[tokio::test]
-    async fn get_headers() {
+    #[allow(non_snake_case)]
+    async fn c004_t7_GET_HEADERS() {
         // zcashd: pass
         // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
@@ -247,7 +266,8 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn get_blocks() {
+    #[allow(non_snake_case)]
+    async fn c004_t8_GET_BLOCKS() {
         // zcashd: pass
         // zebra:  pass
         let block_hash = Block::testnet_genesis().double_sha256().unwrap();
@@ -256,7 +276,8 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn get_data_block() {
+    #[allow(non_snake_case)]
+    async fn c004_t9_GET_DATA_BLOCK() {
         // zcashd: pass
         // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
@@ -264,7 +285,8 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn get_data_tx() {
+    #[allow(non_snake_case)]
+    async fn c004_t10_GET_DATA_TX() {
         // zcashd: pass
         // zebra:  pass
         run_test_case(Message::GetData(Inv::new(vec![Block::testnet_genesis()
@@ -275,7 +297,8 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn inv() {
+    #[allow(non_snake_case)]
+    async fn c004_t11_INV() {
         // zcashd: pass
         // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);
@@ -283,7 +306,8 @@ mod when_node_initiates_connection {
     }
 
     #[tokio::test]
-    async fn not_found() {
+    #[allow(non_snake_case)]
+    async fn c004_t12_NOT_FOUND() {
         // zcashd: pass
         // zebra:  pass
         let block_inv = Inv::new(vec![Block::testnet_genesis().inv_hash()]);

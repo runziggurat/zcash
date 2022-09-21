@@ -21,7 +21,8 @@ mod single_block {
     use super::*;
 
     #[tokio::test]
-    async fn block_last() {
+    #[allow(non_snake_case)]
+    async fn c018_t1_GET_DATA_block_last() {
         // zcashd: pass
         let block = SEED_BLOCKS.last().unwrap().clone();
         let query = Message::GetData(Inv::new(vec![block.inv_hash()]));
@@ -31,7 +32,8 @@ mod single_block {
     }
 
     #[tokio::test]
-    async fn block_first() {
+    #[allow(non_snake_case)]
+    async fn c018_t2_GET_DATA_block_first() {
         // zcashd: pass
         let block = SEED_BLOCKS.first().unwrap().clone();
         let query = Message::GetData(Inv::new(vec![block.inv_hash()]));
@@ -41,7 +43,8 @@ mod single_block {
     }
 
     #[tokio::test]
-    async fn block_5() {
+    #[allow(non_snake_case)]
+    async fn c018_t3_GET_DATA_block_5() {
         // zcashd: pass
         let block = SEED_BLOCKS[5].clone();
         let query = Message::GetData(Inv::new(vec![block.inv_hash()]));
@@ -51,7 +54,8 @@ mod single_block {
     }
 
     #[tokio::test]
-    async fn non_existent() {
+    #[allow(non_snake_case)]
+    async fn c018_t4_GET_DATA_non_existent() {
         // zcashd: fail (ignores non-existent block)
         let inv = Inv::new(vec![InvHash::new(ObjectKind::Block, Hash::new([17; 32]))]);
         let query = Message::GetData(inv.clone());
@@ -65,7 +69,8 @@ mod multiple_blocks {
     use super::*;
 
     #[tokio::test]
-    async fn all() {
+    #[allow(non_snake_case)]
+    async fn c018_t5_GET_DATA_all() {
         // zcashd: pass
         let blocks = &SEED_BLOCKS;
         let inv_hash = blocks.iter().map(|block| block.inv_hash()).collect();
@@ -79,7 +84,8 @@ mod multiple_blocks {
     }
 
     #[tokio::test]
-    async fn out_of_order() {
+    #[allow(non_snake_case)]
+    async fn c018_t6_GET_DATA_out_of_order() {
         // zcashd: pass
         let blocks = vec![&SEED_BLOCKS[3], &SEED_BLOCKS[1], &SEED_BLOCKS[7]];
         let inv_hash = blocks.iter().map(|block| block.inv_hash()).collect();
@@ -93,7 +99,8 @@ mod multiple_blocks {
     }
 
     #[tokio::test]
-    async fn blocks_1_to_8() {
+    #[allow(non_snake_case)]
+    async fn c018_t7_GET_DATA_blocks_1_to_8() {
         // zcashd: pass
         let blocks = &SEED_BLOCKS[1..=8];
         let inv_hash = blocks.iter().map(|block| block.inv_hash()).collect();
@@ -107,7 +114,8 @@ mod multiple_blocks {
     }
 
     #[tokio::test]
-    async fn non_existent_blocks() {
+    #[allow(non_snake_case)]
+    async fn c018_t8_GET_DATA_non_existent_blocks() {
         // zcashd: fails (ignores non-existent blocks).
         let inv = Inv::new(vec![
             InvHash::new(ObjectKind::Block, Hash::new([17; 32])),
@@ -122,7 +130,8 @@ mod multiple_blocks {
     }
 
     #[tokio::test]
-    async fn mixed_existent_and_non_existent_blocks() {
+    #[allow(non_snake_case)]
+    async fn c018_t9_GET_DATA_mixed_existent_and_non_existent_blocks() {
         // Test a mixture of existent and non-existent blocks
         // interwoven together.
         //

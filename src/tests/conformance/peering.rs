@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[tokio::test]
-async fn eagerly_crawls_network_for_peers() {
+async fn c013_eagerly_crawls_network_for_peers() {
     // ZG-CONFORMANCE-013
     //
     // The node crawls the network for new peers and eagerly connects.
@@ -102,7 +102,7 @@ async fn eagerly_crawls_network_for_peers() {
 }
 
 #[tokio::test]
-async fn correctly_lists_peers() {
+async fn c014_correctly_lists_peers() {
     // ZG-CONFORMANCE-014
     //
     // The node responds to a `GetAddr` with a list of peers it’s connected to. This command
