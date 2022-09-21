@@ -51,7 +51,7 @@ const METRIC_REJECTED: &str = "perf_conn_rejected";
 const METRIC_ERROR: &str = "perf_conn_error";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn load_bearing() {
+async fn p002_connections_load_bearing() {
     // ZG-PERFORMANCE-002
     //
     // The node sheds or rejects connections when necessary.
