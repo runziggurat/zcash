@@ -33,7 +33,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
@@ -74,4 +74,4 @@ jobs:
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          ./ziggurat_test --test-threads=1
+          ./ziggurat_test --test-threads=1 -Z unstable-options --format json
