@@ -264,7 +264,7 @@ mod when_node_initiates_connection {
     }
 
     /// Checks that `message` doesn't terminate the connection when sent instead of [`Message::Verack`], when the node
-    /// initiates the connection.
+    /// initiates the connection and instead ignores the message.
     async fn run_test_case(message: Message) -> io::Result<()> {
         // Create a SyntheticNode and store its listening address.
         // Enable version-only handshake
