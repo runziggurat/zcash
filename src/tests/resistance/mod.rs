@@ -5,5 +5,5 @@ mod zeroes;
 
 use std::time::Duration;
 
-const ITERATIONS: usize = 100;
+const ITERATIONS: usize = 50;
 const DISCONNECT_TIMEOUT: Duration = Duration::from_secs(5);

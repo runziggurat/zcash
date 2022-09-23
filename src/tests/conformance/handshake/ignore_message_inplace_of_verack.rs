@@ -1,6 +1,6 @@
 //! Contains test cases which cover ZG-CONFORMANCE-005 and ZG-CONFORMANCE-006.
 //!
-//! The node ignores non-`Verack` message as a response to initial `Verack` it sent.
+//! The node doesn't terminate the connection on non-`Verack` messages as a response to initial `Verack` it sent.
 
 use std::io;
 
@@ -18,7 +18,6 @@ use crate::{
 
 mod when_node_receives_connection {
     //! Contains test cases which cover ZG-CONFORMANCE-005.
-
     use super::*;
 
     #[tokio::test]
@@ -124,7 +123,7 @@ mod when_node_receives_connection {
         run_test_case(Message::NotFound(block_inv)).await.unwrap();
     }
 
-    /// Checks that `message` gets ignored when sent instead of [`Message::Version`] when the node
+    /// Checks that `message` doesn't terminate the connection when sent instead of [`Message::Version`], when the node
     /// receives the connection.
     async fn run_test_case(message: Message) -> io::Result<()> {
         // Spin up a node instance.
@@ -133,32 +132,21 @@ mod when_node_receives_connection {
             .start()
             .await?;
         // Connect to the node, and exchange versions.
-        let mut synthetic_node = SyntheticNode::builder()
+        let synthetic_node = SyntheticNode::builder()
             .with_version_exchange_handshake()
             .build()
             .await?;
         synthetic_node.connect(node.addr()).await?;
 
         // Send a non-verack message.
+        // We expect the node to not disconnect before completing the handshake.
         synthetic_node.unicast(node.addr(), message)?;
 
-        // Expect the node to ignore the previous message, verify by completing the handshake.
         // Send Verack.
         synthetic_node.unicast(node.addr(), Message::Verack)?;
 
-        // Read Verack.
-        match synthetic_node.recv_message_timeout(RECV_TIMEOUT).await {
-            Ok((_, Message::Verack)) => Ok(()),
-            Ok((_, unexpected)) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Message was not ignored, received {}", unexpected),
-            )),
-            Err(_timeout) if !synthetic_node.is_connected(node.addr()) => Err(io::Error::new(
-                io::ErrorKind::ConnectionAborted,
-                "Connection terminated",
-            )),
-            Err(err) => Err(err),
-        }?;
+        // This is only set post-handshake (if enabled).
+        assert!(synthetic_node.is_connected(node.addr()));
 
         // Gracefully shut down the nodes.
         synthetic_node.shut_down().await;
@@ -275,8 +263,8 @@ mod when_node_initiates_connection {
         run_test_case(Message::NotFound(block_inv)).await.unwrap();
     }
 
-    /// Checks that `message` gets ignored when sent instead of [`Message::Verack`] when the node
-    /// initiates the connection.
+    /// Checks that `message` doesn't terminate the connection when sent instead of [`Message::Verack`], when the node
+    /// initiates the connection and instead ignores the message.
     async fn run_test_case(message: Message) -> io::Result<()> {
         // Create a SyntheticNode and store its listening address.
         // Enable version-only handshake
@@ -297,10 +285,10 @@ mod when_node_initiates_connection {
         let node_addr =
             tokio::time::timeout(LONG_TIMEOUT, synthetic_node.wait_for_connection()).await?;
 
-        // Send a non-version message.
+        // Send a non-verack message.
+        // We expect the node to not disconnect before completing the handshake.
         synthetic_node.unicast(node_addr, message)?;
 
-        // Expect the node to ignore the previous message, verify by completing the handshake.
         // Send Verack.
         synthetic_node.unicast(node_addr, Message::Verack)?;
 
