@@ -33,7 +33,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
@@ -65,9 +65,11 @@ jobs:
           echo kind = \"zcashd\" >> ~/.ziggurat/config.toml
           echo path = \"./zcash\" >> ~/.ziggurat/config.toml
           echo start_command = \"../zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
+          cat ~/.ziggurat/config.toml
       - run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
+          ls -R
           chmod +x ziggurat_test
           chmod +x zcashd
-          ./ziggurat_test --test-threads=1
+          sudo ./ziggurat_test --test-threads=1 -Z unstable-options --format json
