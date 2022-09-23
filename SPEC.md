@@ -335,6 +335,8 @@ The test index makes use of symbolic language in describing connection and messa
 
 ## Resistance
 
+Important note: The following tests generelly assert that a connection from an illicit node gets rejected. However, ZG-RESISTANCE-00* part-5 (`bad_checksum`) will instead assert that the connection **does not** get rejected, due to that being the canonical `zcashd` behavior.
+
 ### ZG-RESISTANCE-001
 
     The node rejects various random bytes pre-handshake
