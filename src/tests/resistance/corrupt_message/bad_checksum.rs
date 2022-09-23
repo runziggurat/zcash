@@ -44,10 +44,12 @@ async fn r001_t5_instead_of_version_when_node_receives_connection() {
 
         synth_node.send_direct_bytes(node.addr(), payload).unwrap();
 
+        // Make sure node doesn't terminate the connection.
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
-            .is_ok());
+            .is_err());
+        synth_node.shut_down().await;
     }
 
     node.stop().unwrap();
@@ -84,10 +86,12 @@ async fn r002_t5_instead_of_verack_when_node_receives_connection() {
 
         synth_node.send_direct_bytes(node.addr(), payload).unwrap();
 
+        // Make sure node doesn't terminate the connection.
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
-            .is_ok());
+            .is_err());
+        synth_node.shut_down().await;
     }
 
     node.stop().unwrap();
@@ -118,23 +122,22 @@ async fn r003_t5_instead_of_version_when_node_initiates_connection() {
     for mut synth_node in synth_nodes {
         let payload = payloads.pop().unwrap();
 
-        synth_handles.push(tokio::time::timeout(
-            tokio::time::Duration::from_secs(120),
-            tokio::spawn(async move {
-                // Await connection and receive version
-                let node_addr = synth_node.wait_for_connection().await;
-                let (_, version) = synth_node.recv_message().await;
-                assert_matches!(version, Message::Version(..));
+        synth_handles.push(tokio::spawn(async move {
+            // Await connection and receive version
+            let node_addr = synth_node.wait_for_connection().await;
+            let (_, version) = synth_node.recv_message().await;
+            assert_matches!(version, Message::Version(..));
 
-                // send bad version
-                synth_node.send_direct_bytes(node_addr, payload).unwrap();
+            // send bad version
+            synth_node.send_direct_bytes(node_addr, payload).unwrap();
 
-                assert!(synth_node
-                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
-                    .await
-                    .is_ok());
-            }),
-        ));
+            // Make sure node doesn't terminate the connection.
+            assert!(synth_node
+                .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                .await
+                .is_err());
+            synth_node.shut_down().await;
+        }));
     }
 
     let mut node = Node::new().unwrap();
@@ -146,7 +149,7 @@ async fn r003_t5_instead_of_version_when_node_initiates_connection() {
 
     // join the peer processes
     for handle in synth_handles {
-        handle.await.unwrap().unwrap();
+        handle.await.unwrap();
     }
 
     node.stop().unwrap();
@@ -179,24 +182,22 @@ async fn r004_t5_instead_of_verack_when_node_initiates_connection() {
     for mut synth_node in synth_nodes {
         let payload = payloads.pop().unwrap();
 
-        synth_handles.push(tokio::time::timeout(
-            tokio::time::Duration::from_secs(120),
-            tokio::spawn(async move {
-                // Await connection and receive verack,
-                // version's already exchanged as part of handshake
-                let node_addr = synth_node.wait_for_connection().await;
-                let (_, verack) = synth_node.recv_message().await;
-                assert_eq!(verack, Message::Verack);
+        synth_handles.push(tokio::spawn(async move {
+            // Await connection and receive version
+            let node_addr = synth_node.wait_for_connection().await;
+            let (_, verack) = synth_node.recv_message().await;
+            assert_matches!(verack, Message::Verack);
 
-                // send bad verack
-                synth_node.send_direct_bytes(node_addr, payload).unwrap();
+            // send bad verack
+            synth_node.send_direct_bytes(node_addr, payload).unwrap();
 
-                assert!(synth_node
-                    .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
-                    .await
-                    .is_ok());
-            }),
-        ));
+            // Make sure node doesn't terminate the connection.
+            assert!(synth_node
+                .wait_for_disconnect(node_addr, DISCONNECT_TIMEOUT)
+                .await
+                .is_err());
+            synth_node.shut_down().await;
+        }));
     }
 
     let mut node = Node::new().unwrap();
@@ -208,7 +209,7 @@ async fn r004_t5_instead_of_verack_when_node_initiates_connection() {
 
     // join the peer processes
     for handle in synth_handles {
-        handle.await.unwrap().unwrap();
+        handle.await.unwrap();
     }
 
     node.stop().unwrap();
@@ -245,10 +246,12 @@ async fn r005_t5_post_handshake() {
         // Write messages with wrong checksum.
         synth_node.send_direct_bytes(node.addr(), payload).unwrap();
 
+        // Make sure node doesn't terminate the connection.
         assert!(synth_node
             .wait_for_disconnect(node.addr(), DISCONNECT_TIMEOUT)
             .await
-            .is_ok());
+            .is_err());
+        synth_node.shut_down().await;
     }
 
     node.stop().unwrap();
