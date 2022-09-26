@@ -63,13 +63,13 @@ jobs:
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zcashd\" >> ~/.ziggurat/config.toml
-          echo path = \"./zcash\" >> ~/.ziggurat/config.toml
-          echo start_command = \"../zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
+          echo path = \"zcashd\" >> ~/.ziggurat/config.toml
+          echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
           cat ~/.ziggurat/config.toml
       - run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
-          ls -R
           chmod +x ziggurat_test
           chmod +x zcashd
+          ls -Rla
           sudo ./ziggurat_test --test-threads=1 -Z unstable-options --format json
