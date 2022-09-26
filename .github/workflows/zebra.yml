@@ -65,7 +65,7 @@ jobs:
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zebra\" >> ~/.ziggurat/config.toml
-          echo path = \"./zebra\" >> ~/.ziggurat/config.toml
+          echo path = \"zebra\" >> ~/.ziggurat/config.toml
           echo start_command = \"../zebrad/zebrad start\" >> ~/.ziggurat/config.toml
       - name: Download Zebra params
         run: |
