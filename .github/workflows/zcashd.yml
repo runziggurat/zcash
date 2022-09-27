@@ -59,17 +59,17 @@ jobs:
           path: ./ziggurat
       - name: Create ~/.ziggurat/config.toml
         run: |
-          git clone https://github.com/zcash/zcash
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zcashd\" >> ~/.ziggurat/config.toml
-          echo path = \"zcashd\" >> ~/.ziggurat/config.toml
+          echo path = \"/home/runner/work/ziggurat/ziggurat/zcashd\" >> ~/.ziggurat/config.toml
           echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
           cat ~/.ziggurat/config.toml
       - run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          chmod +x zcashd
+          chmod +x zcashd/zcashd
+          pwd
           ls -Rla
           sudo ./ziggurat_test --test-threads=1 -Z unstable-options --format json
