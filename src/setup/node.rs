@@ -282,7 +282,6 @@ impl Node {
 
     fn generate_config_file(&self) -> io::Result<()> {
         let config_file_path = self.meta.kind.config_filepath(&self.config.path);
-        println!("{:?}", config_file_path);
         let content = match self.meta.kind {
             NodeKind::Zebra => ZebraConfigFile::generate(&self.config)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
