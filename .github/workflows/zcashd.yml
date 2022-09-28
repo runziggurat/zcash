@@ -72,4 +72,4 @@ jobs:
           chmod +x zcashd/zcashd
           pwd
           ls -Rla
-          sudo ./ziggurat_test --test-threads=1 -Z unstable-options --format json
+          RUST_BACKTRACE=1 ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json
