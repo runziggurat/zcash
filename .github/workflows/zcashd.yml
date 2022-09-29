@@ -13,14 +13,14 @@ jobs:
     steps:
       - name: clone zcashd
         run: git clone https://github.com/zcash/zcash
-      - name: fetch params
-        run: |
-          cd zcash
-          ./zcutil/fetch-params.sh
       - name: build zcashd
         run: |
           cd zcash
           ./zcutil/build.sh -j$(nproc)
+      - uses: actions/upload-artifact@v2
+        with:
+          name: zcashd-fetch-params
+          path: ./zcash/zcutil/fetch-params.sh
       - uses: actions/upload-artifact@v2
         with:
           name: zcashd-executable
@@ -51,8 +51,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
+          name: zcashd-fetch-params
+          path: ./zcash
+      - uses: actions/download-artifact@v3
+        with:
           name: zcashd-executable
-          path: ./zcashd
+          path: ./zcash
       - uses: actions/download-artifact@v3
         with:
           name: ziggurat-executable
@@ -62,14 +66,15 @@ jobs:
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zcashd\" >> ~/.ziggurat/config.toml
-          echo path = \"/home/runner/work/ziggurat/ziggurat/zcashd\" >> ~/.ziggurat/config.toml
+          echo path = \"/home/runner/work/ziggurat/ziggurat/zcash\" >> ~/.ziggurat/config.toml
           echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
-          cat ~/.ziggurat/config.toml
+      - name: Fetch zcashd params
+        run: |
+          chmod +x zcash/fetch-params.sh
+          ./zcash/fetch-params.sh
       - run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          chmod +x zcashd/zcashd
-          pwd
-          ls -Rla
+          chmod +x zcash/zcashd
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json
