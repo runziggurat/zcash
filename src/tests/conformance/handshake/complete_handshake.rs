@@ -11,6 +11,7 @@ async fn when_node_receives_connection() {
     // Spin up a node instance.
     let mut node = Node::new().unwrap();
     node.initial_action(Action::WaitForConnection)
+        .log_to_stdout(true)
         .start()
         .await
         .unwrap();
@@ -47,6 +48,7 @@ async fn when_node_initiates_connection() {
     // Spin up a node and set the synthetic node as an initial peer.
     let mut node = Node::new().unwrap();
     node.initial_peers(vec![synthetic_node.listening_addr()])
+        .log_to_stdout(true)
         .start()
         .await
         .unwrap();
