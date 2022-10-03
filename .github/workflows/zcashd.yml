@@ -70,11 +70,29 @@ jobs:
           echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
       - name: Fetch zcashd params
         run: |
+          ls -Rla
           chmod +x zcash/fetch-params.sh
           ./zcash/fetch-params.sh
-      - run: |
+      - name: Run ziggurat suite
+        continue-on-error: true
+        env:
+          FILENAME: ${{ github.event.repository.updated_at }}
+        run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json
+          mkdir results
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json > results/$FILENAME.json
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: git
+        run: |
+          pwd
+          ls -Rla
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git status
+          git add results
+          git commit -m "ci: `zcashd` suite results"
