@@ -84,12 +84,10 @@ jobs:
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
-          mkdir results
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json > results/$FILENAME.json
+          mkdir -p results
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json > results/$FILENAME.jsonl
       - name: git
         run: |
-          pwd
-          ls -Rla
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git status
