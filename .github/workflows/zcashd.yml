@@ -85,7 +85,7 @@ jobs:
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
           mkdir -p results
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --format json > results/$FILENAME.jsonl
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/$FILENAME.jsonl
       - name: git
         run: |
           git config user.name "GitHub Actions Bot"
