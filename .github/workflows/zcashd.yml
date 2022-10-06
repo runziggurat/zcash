@@ -86,11 +86,12 @@ jobs:
           chmod +x zcash/zcashd
           mkdir -p results
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/$FILENAME.jsonl
+          rm -r results/latest.jsonl
+          cp results/$FILENAME.jsonl results/latest.jsonl
       - name: git
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
-          git status
           git add results
           git commit -m "ci: `zcashd` suite results"
           git push
