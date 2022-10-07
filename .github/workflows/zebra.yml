@@ -3,9 +3,7 @@ name: Zebra
 on:
   workflow_dispatch:    
   push:
-    branches: [ "zcash-ci" ]
-  # pull_request:
-  #   branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
   build-zebra:
