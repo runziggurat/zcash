@@ -3,7 +3,7 @@ name: zcashd-nightly
 on:
   workflow_dispatch:    
   push:
-    branches: [ "zcash-ci" ]
+    branches: [ "main" ]
   # pull_request:
   #   branches: [ main ]
 
