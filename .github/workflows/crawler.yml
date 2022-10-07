@@ -27,7 +27,6 @@ jobs:
   crawl-network:
     runs-on: ubuntu-latest
     needs: [ install-zcashd ]
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -56,6 +55,9 @@ jobs:
         run: |
           chmod +x zcash/zcashd
           ./zcash/zcashd &
-          # Wait for zcashd to finish startup sequence.
-          sleep 30s
-          cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345
+          cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 &
+          # Send SIGINT after 1 min.
+          sleep 60s
+          ps
+          killall -INT cargo
+          cat crawler-log.txt
