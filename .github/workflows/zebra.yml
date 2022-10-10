@@ -3,9 +3,7 @@ name: Zebra
 on:
   workflow_dispatch:    
   push:
-    branches: [ "zcash-ci" ]
-  # pull_request:
-  #   branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
   build-zebra:
@@ -33,7 +31,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
@@ -65,7 +63,7 @@ jobs:
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zebra\" >> ~/.ziggurat/config.toml
-          echo path = \"./zebra\" >> ~/.ziggurat/config.toml
+          echo path = \"zebra\" >> ~/.ziggurat/config.toml
           echo start_command = \"../zebrad/zebrad start\" >> ~/.ziggurat/config.toml
       - name: Download Zebra params
         run: |
@@ -74,4 +72,4 @@ jobs:
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          ./ziggurat_test --test-threads=1
+          ./ziggurat_test --test-threads=1 -Z unstable-options --format json
