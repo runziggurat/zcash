@@ -56,8 +56,7 @@ jobs:
           chmod +x zcash/zcashd
           ./zcash/zcashd &
           cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 &
-          # Send SIGINT after 1 min.
-          sleep 60s
-          ps
-          killall -INT cargo
+          # Send SIGINT after 30 min.
+          sleep 1800s
+          kill -2 $(pidof crawler)
           cat crawler-log.txt
