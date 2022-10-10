@@ -59,4 +59,6 @@ jobs:
           # Send SIGINT after 30 min.
           sleep 1800s
           kill -2 $(pidof crawler)
+          # Wait for shutdown to complete.
+          sleep 30s
           cat crawler-log.txt
