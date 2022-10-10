@@ -52,13 +52,27 @@ jobs:
           chmod +x zcash/fetch-params.sh
           ./zcash/fetch-params.sh
       - name: Begin crawling
+        continue-on-error: true
+        env:
+          FILENAME: ${{ github.event.repository.updated_at }}
         run: |
           chmod +x zcash/zcashd
           ./zcash/zcashd &
           cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 &
           # Send SIGINT after 30 min.
           sleep 1800s
-          kill -2 $(pidof crawler)
+          kill -2 $(pidof crawler) $(pidof zcashd)
           # Wait for shutdown to complete.
-          sleep 30s
-          cat crawler-log.txt
+          sleep 120s
+          mkdir -p results/crawler
+          mv crawler-log.txt results/crawler/$FILENAME.txt
+          rm -f results/crawler/latest.txt
+          cp results/crawler/$FILENAME.txt results/crawler/latest.txt
+          ls -Rla
+      - name: git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git add results
+          git commit -m "ci: crawler results"
+          git push
