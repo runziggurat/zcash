@@ -58,17 +58,18 @@ jobs:
         run: |
           chmod +x zcash/zcashd
           ./zcash/zcashd &
-          cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 &
+          cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 --rpc-addr 127.0.0.1:54321 &
           # Send SIGINT after 30 min.
           sleep 1800s
           kill -2 $(pidof crawler) $(pidof zcashd)
           # Wait for shutdown to complete.
           sleep 120s
           mkdir -p results/crawler
-          mv crawler-log.txt results/crawler/$FILENAME.txt
+          # Query rpc.
+          curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > $FILENAME.json
+          mv $FILENAME.json results/crawler
           rm -f results/crawler/latest.txt
-          cp results/crawler/$FILENAME.txt results/crawler/latest.txt
-          ls -Rla
+          cp results/crawler/$FILENAME.txt results/crawler/latest.json
       - name: git
         run: |
           git config user.name "GitHub Actions Bot"
