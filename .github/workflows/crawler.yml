@@ -52,24 +52,21 @@ jobs:
           chmod +x zcash/fetch-params.sh
           ./zcash/fetch-params.sh
       - name: Begin crawling
-        continue-on-error: true
         env:
           FILENAME: ${{ github.event.repository.updated_at }}
         run: |
           chmod +x zcash/zcashd
           ./zcash/zcashd &
           cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 --rpc-addr 127.0.0.1:54321 &
-          # Send SIGINT after 30 min.
+          # After 30 min, query rpc and send SIGINT.
           sleep 1800s
-          kill -2 $(pidof crawler) $(pidof zcashd)
-          # Wait for shutdown to complete.
-          sleep 120s
-          mkdir -p results/crawler
-          # Query rpc.
           curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > $FILENAME.json
+          kill -2 $(pidof crawler) $(pidof zcashd)
+          # Update results folder.
+          mkdir -p results/crawler
           mv $FILENAME.json results/crawler
-          rm -f results/crawler/latest.txt
-          cp results/crawler/$FILENAME.txt results/crawler/latest.json
+          rm -f results/crawler/latest.json
+          cp results/crawler/$FILENAME.json results/crawler/latest.json
       - name: git
         run: |
           git config user.name "GitHub Actions Bot"
