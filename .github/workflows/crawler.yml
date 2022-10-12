@@ -3,7 +3,7 @@ name: crawler
 on:
   workflow_dispatch:    
   push:
-    branches: [ "crawler-ci" ]
+    branches: [ "main" ]
 
 jobs:
   install-zcashd:
