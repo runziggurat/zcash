@@ -3,7 +3,7 @@ name: Zebra
 on:
   workflow_dispatch:    
   push:
-    branches: [ "main" ]
+    branches: [ "zebra-ci" ]
 
 jobs:
   build-zebra:
@@ -15,7 +15,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - name: build Zebra and download artifacts
         run: cargo +stable build --release
@@ -63,11 +63,11 @@ jobs:
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zebra\" >> ~/.ziggurat/config.toml
-          echo path = \"zebra\" >> ~/.ziggurat/config.toml
-          echo start_command = \"../zebrad/zebrad start\" >> ~/.ziggurat/config.toml
-      - name: Download Zebra params
-        run: |
-          ./zebrad/zebrad download
+          echo path = \"/home/runner/work/ziggurat/ziggurat/zebrad\" >> ~/.ziggurat/config.toml
+          echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
+      # - name: Download Zebra params
+      #   run: |
+      #     ./zebrad/zebrad download
       - run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
