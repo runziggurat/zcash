@@ -8,7 +8,7 @@ jobs:
   build-zebra:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           repository: ZcashFoundation/zebra
       - uses: actions-rs/toolchain@v1
@@ -18,7 +18,7 @@ jobs:
           override: true
       - name: build Zebra and download artifacts
         run: cargo +stable build --release
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: zebra-executable
           path: ./target/release/zebrad
@@ -26,18 +26,18 @@ jobs:
   build-ziggurat:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
           override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-targets --no-run
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ziggurat-executable
           path: ./target/debug/deps/ziggurat-*
