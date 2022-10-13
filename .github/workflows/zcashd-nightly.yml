@@ -3,7 +3,7 @@ name: zcashd-nightly
 on:
   workflow_dispatch:    
   push:
-    branches: [ "main" ]
+    branches: [ "zebra-ci" ]
 
 jobs:
   install-zcashd:
@@ -82,14 +82,15 @@ jobs:
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
-          mkdir -p results
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/$FILENAME.jsonl
-          rm -r results/latest.jsonl
-          cp results/$FILENAME.jsonl results/latest.jsonl
+          mkdir -p results/zcashd
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/$FILENAME.jsonl
+          rm -f results/zcashd/latest.jsonl
+          cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
       - name: git
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
+          git pull
           git add results
           git commit -m "ci: zcashd suite results"
           git push

@@ -47,6 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ build-zebra, build-ziggurat ]
     steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v3
         with:
           name: zebra-executable
@@ -65,11 +68,23 @@ jobs:
           echo kind = \"zebra\" >> ~/.ziggurat/config.toml
           echo path = \"/home/runner/work/ziggurat/ziggurat/zebrad\" >> ~/.ziggurat/config.toml
           echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
-      # - name: Download Zebra params
-      #   run: |
-      #     ./zebrad/zebrad download
-      - run: |
+      - name: Run ziggurat suite
+        continue-on-error: true
+        env:
+          FILENAME: ${{ github.event.repository.updated_at }}
+        run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          ./ziggurat_test --test-threads=1 -Z unstable-options --format json
+          mkdir -p results/zebra
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zebra/$FILENAME.jsonl
+          rm -f results/zebra/latest.jsonl
+          cp results/zebra/$FILENAME.jsonl results/zebra/latest.jsonl
+      - name: git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git pull
+          git add results
+          git commit -m "ci: zebra suite results"
+          git push
