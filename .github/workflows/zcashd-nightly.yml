@@ -75,17 +75,18 @@ jobs:
           ./zcash/fetch-params.sh
       - name: Run ziggurat suite
         continue-on-error: true
-        env:
-          FILENAME: ${{ github.event.repository.updated_at }}
         run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
           mkdir -p results/zcashd
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/$FILENAME.jsonl
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
       - name: git
+        env:
+          FILENAME: ${{ github.event.repository.updated_at }}
         run: |
+          mv result.jsonl results/zcashd/$FILENAME.jsonl
           rm -f results/zcashd/latest.jsonl
           cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
           git config user.name "GitHub Actions Bot"
