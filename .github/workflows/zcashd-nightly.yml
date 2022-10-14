@@ -84,10 +84,10 @@ jobs:
           chmod +x zcash/zcashd
           mkdir -p results/zcashd
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/$FILENAME.jsonl
-          rm -f results/zcashd/latest.jsonl
-          cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
       - name: git
         run: |
+          rm -f results/zcashd/latest.jsonl
+          cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git pull
