@@ -3,7 +3,7 @@ name: Zebra
 on:
   workflow_dispatch:    
   push:
-    branches: [ "zebra-ci" ]
+    branches: [ "main" ]
 
 jobs:
   build-zebra:
