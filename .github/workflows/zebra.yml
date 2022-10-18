@@ -1,9 +1,8 @@
 name: Zebra
 
 on:
-  workflow_dispatch:    
-  push:
-    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
   build-zebra:
@@ -71,7 +70,7 @@ jobs:
       - name: Run ziggurat suite
         continue-on-error: true
         env:
-          FILENAME: ${{ github.event.repository.updated_at }}
+          FILENAME: $(date +%Y-%m-%d)
         run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
