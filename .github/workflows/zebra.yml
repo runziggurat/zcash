@@ -69,8 +69,6 @@ jobs:
           echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
       - name: Run ziggurat suite
         continue-on-error: true
-        env:
-          FILENAME: $(date +%Y-%m-%d)
         run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
@@ -79,7 +77,7 @@ jobs:
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
       - name: git
         env:
-          FILENAME: ${{ github.event.repository.updated_at }}
+          FILENAME: $(date +%Y-%m-%d)
         run: |
           mv result.jsonl results/zebra/$FILENAME.jsonl
           rm -f results/zebra/latest.jsonl
