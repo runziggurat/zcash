@@ -1,9 +1,8 @@
 name: Zebra
 
 on:
-  workflow_dispatch:    
-  push:
-    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
   build-zebra:
@@ -15,7 +14,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - name: build Zebra and download artifacts
         run: cargo +stable build --release
@@ -47,6 +46,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ build-zebra, build-ziggurat ]
     steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v3
         with:
           name: zebra-executable
@@ -63,13 +65,28 @@ jobs:
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
           echo kind = \"zebra\" >> ~/.ziggurat/config.toml
-          echo path = \"zebra\" >> ~/.ziggurat/config.toml
-          echo start_command = \"../zebrad/zebrad start\" >> ~/.ziggurat/config.toml
-      - name: Download Zebra params
+          echo path = \"/home/runner/work/ziggurat/ziggurat/zebrad\" >> ~/.ziggurat/config.toml
+          echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
+      - name: Run ziggurat suite
+        continue-on-error: true
+        env:
+          FILENAME: $(date +%Y-%m-%d)
         run: |
-          ./zebrad/zebrad download
-      - run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          ./ziggurat_test --test-threads=1 -Z unstable-options --format json
+          mkdir -p results/zebra
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
+      - name: git
+        env:
+          FILENAME: ${{ github.event.repository.updated_at }}
+        run: |
+          mv result.jsonl results/zebra/$FILENAME.jsonl
+          rm -f results/zebra/latest.jsonl
+          cp results/zebra/$FILENAME.jsonl results/zebra/latest.jsonl
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git pull
+          git add results
+          git commit -m "ci: zebra suite results"
+          git push

@@ -1,9 +1,8 @@
 name: zcashd-nightly
 
 on:
-  workflow_dispatch:    
-  push:
-    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
   install-zcashd:
@@ -75,21 +74,23 @@ jobs:
           ./zcash/fetch-params.sh
       - name: Run ziggurat suite
         continue-on-error: true
-        env:
-          FILENAME: ${{ github.event.repository.updated_at }}
         run: |
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
-          mkdir -p results
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/$FILENAME.jsonl
-          rm -r results/latest.jsonl
-          cp results/$FILENAME.jsonl results/latest.jsonl
+          mkdir -p results/zcashd
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
       - name: git
+        env:
+          FILENAME: $(date +%Y-%m-%d)
         run: |
+          mv result.jsonl results/zcashd/$FILENAME.jsonl
+          rm -f results/zcashd/latest.jsonl
+          cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
+          git pull
           git add results
           git commit -m "ci: zcashd suite results"
           git push
