@@ -1,9 +1,8 @@
 name: crawler
 
 on:
-  workflow_dispatch:    
-  push:
-    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
   install-zcashd:
@@ -53,7 +52,7 @@ jobs:
           ./zcash/fetch-params.sh
       - name: Begin crawling
         env:
-          FILENAME: ${{ github.event.repository.updated_at }}
+          FILENAME: $(date +%Y-%m-%d)
         run: |
           chmod +x zcash/zcashd
           ./zcash/zcashd &
