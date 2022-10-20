@@ -14,11 +14,11 @@ jobs:
         run: |
           cd zcash
           ./zcutil/build.sh -j$(nproc)
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: zcashd-fetch-params
           path: ./zcash/zcutil/fetch-params.sh
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: zcashd-executable
           path: ./zcash/src/zcashd
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ install-zcashd ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
