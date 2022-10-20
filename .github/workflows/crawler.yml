@@ -1,0 +1,75 @@
+name: crawler
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
+
+jobs:
+  install-zcashd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: clone zcashd
+        run: git clone https://github.com/zcash/zcash
+      - name: build zcashd
+        run: |
+          cd zcash
+          ./zcutil/build.sh -j$(nproc)
+      - uses: actions/upload-artifact@v3
+        with:
+          name: zcashd-fetch-params
+          path: ./zcash/zcutil/fetch-params.sh
+      - uses: actions/upload-artifact@v3
+        with:
+          name: zcashd-executable
+          path: ./zcash/src/zcashd
+
+  crawl-network:
+    runs-on: ubuntu-latest
+    needs: [ install-zcashd ]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions/download-artifact@v3
+        with:
+          name: zcashd-fetch-params
+          path: ./zcash
+      - uses: actions/download-artifact@v3
+        with:
+          name: zcashd-executable
+          path: ./zcash
+      - name: Create ~/.zcash/zcash.conf
+        run: |
+          mkdir ~/.zcash/
+          touch ~/.zcash/zcash.conf
+          echo bind=127.0.0.1:12345 > ~/.zcash/zcash.conf
+      - name: Fetch zcashd params
+        run: |
+          chmod +x zcash/fetch-params.sh
+          ./zcash/fetch-params.sh
+      - name: Begin crawling
+        env:
+          FILENAME: $(date +%Y-%m-%d)
+        run: |
+          chmod +x zcash/zcashd
+          ./zcash/zcashd &
+          cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 --rpc-addr 127.0.0.1:54321 &
+          # After 30 min, query rpc and send SIGINT.
+          sleep 1800s
+          curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > $FILENAME.json
+          kill -2 $(pidof crawler) $(pidof zcashd)
+          # Update results folder.
+          mkdir -p results/crawler
+          mv $FILENAME.json results/crawler
+          rm -f results/crawler/latest.json
+          cp results/crawler/$FILENAME.json results/crawler/latest.json
+      - name: git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git add results
+          git commit -m "ci: crawler results"
+          git push

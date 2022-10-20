@@ -1,0 +1,90 @@
+name: Zebra
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
+
+jobs:
+  build-zebra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ZcashFoundation/zebra
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - name: build Zebra and download artifacts
+        run: cargo +stable build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: zebra-executable
+          path: ./target/release/zebrad
+
+  build-ziggurat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-targets --no-run
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ziggurat-executable
+          path: ./target/debug/deps/ziggurat-*
+
+  test-zebra:
+    runs-on: ubuntu-latest
+    needs: [ build-zebra, build-ziggurat ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v3
+        with:
+          name: zebra-executable
+          path: ./zebrad
+      - uses: actions/download-artifact@v3
+        with:
+          name: ziggurat-executable
+          path: ./ziggurat
+      - run: |
+          chmod +x ./zebrad/zebrad
+      - name: Create ~/.ziggurat/config.toml
+        run: |
+          git clone https://github.com/ZcashFoundation/zebra
+          mkdir ~/.ziggurat/
+          touch ~/.ziggurat/config.toml
+          echo kind = \"zebra\" >> ~/.ziggurat/config.toml
+          echo path = \"/home/runner/work/ziggurat/ziggurat/zebrad\" >> ~/.ziggurat/config.toml
+          echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
+      - name: Run ziggurat suite
+        continue-on-error: true
+        run: |
+          rm ./ziggurat/*.d
+          mv ./ziggurat/ziggurat-* ziggurat_test
+          chmod +x ziggurat_test
+          mkdir -p results/zebra
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
+      - name: git
+        env:
+          FILENAME: $(date +%Y-%m-%d)
+        run: |
+          mv result.jsonl results/zebra/$FILENAME.jsonl
+          rm -f results/zebra/latest.jsonl
+          cp results/zebra/$FILENAME.jsonl results/zebra/latest.jsonl
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git pull
+          git add results
+          git commit -m "ci: zebra suite results"
+          git push

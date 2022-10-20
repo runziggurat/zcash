@@ -9,9 +9,9 @@ use std::time::Duration;
 
 /// Default timeout for connection operations in seconds.
 /// TODO: move to config file.
-pub const LONG_TIMEOUT: Duration = Duration::from_secs(10);
+pub const LONG_TIMEOUT: Duration = Duration::from_secs(30);
 /// Default timeout for response-specific reads in seconds.
-pub const RECV_TIMEOUT: Duration = Duration::from_millis(100);
+pub const RECV_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// Waits until an expression is true or times out.
 ///
