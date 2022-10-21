@@ -82,9 +82,8 @@ jobs:
           mkdir -p results/zcashd
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
       - name: git
-        env:
-          FILENAME: $(date +%Y-%m-%d)
         run: |
+          FILENAME=$(date +%Y-%m-%d)
           mv result.jsonl results/zcashd/$FILENAME.jsonl
           rm -f results/zcashd/latest.jsonl
           cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
