@@ -51,9 +51,8 @@ jobs:
           chmod +x zcash/fetch-params.sh
           ./zcash/fetch-params.sh
       - name: Begin crawling
-        env:
-          FILENAME: $(date +%Y-%m-%d)
         run: |
+          FILENAME=$(date +%Y-%m-%d)
           chmod +x zcash/zcashd
           ./zcash/zcashd &
           cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 --rpc-addr 127.0.0.1:54321 &
@@ -70,6 +69,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
+          git pull
           git add results
           git commit -m "ci: crawler results"
           git push
