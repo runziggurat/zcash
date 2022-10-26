@@ -61,11 +61,10 @@ jobs:
           chmod +x ./zebrad/zebrad
       - name: Create ~/.ziggurat/config.toml
         run: |
-          git clone https://github.com/ZcashFoundation/zebra
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
-          echo kind = \"zebra\" >> ~/.ziggurat/config.toml
-          echo path = \"/home/runner/work/ziggurat/ziggurat/zebrad\" >> ~/.ziggurat/config.toml
+          echo kind = \"zebra\" > ~/.ziggurat/config.toml
+          echo path = \"/home/runner/work/zcash/zcash/zebrad\" >> ~/.ziggurat/config.toml
           echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
       - name: Run ziggurat suite
         continue-on-error: true
