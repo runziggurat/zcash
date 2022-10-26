@@ -238,7 +238,7 @@ impl std::fmt::Display for Message {
 
 fn checksum(bytes: &[u8]) -> u32 {
     let sha2 = Sha256::digest(bytes);
-    let sha2d = Sha256::digest(&sha2);
+    let sha2d = Sha256::digest(sha2);
 
     let mut checksum = [0u8; 4];
     checksum[0..4].copy_from_slice(&sha2d[0..4]);

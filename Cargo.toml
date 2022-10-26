@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["Niklas Long <niklas@equilibrium.co>, Mirko von Leipzig <mirko@equilibrium.co>", "Ziggurat contributors"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 assert_matches = "1.5"
 async-trait = "0.1.53"
@@ -21,26 +19,36 @@ pea2pea = "0.40"
 rand = "0.8"
 rand_chacha = "0.3"
 sha2 = "0.10"
+spectre = "0.4.0"
 tabled = "0.7"
 time = "0.3"
 toml = "0.5.8"
-spectre = "0.4.0"
+
+[dependencies.clap]
+version = "3.2.7"
+features = ["derive"]
+optional = true
 
 [dependencies.futures-util]
 version = "0.3"
-features = [ "sink" ]
+features = ["sink"]
+
+[dependencies.jsonrpsee]
+version = "0.15.0"
+features = ["http-server"]
+optional = true
 
 [dependencies.serde]
 version = "1"
-features = [ "derive" ]
+features = ["derive"]
 
 [dependencies.tokio]
 version = "1"
-features = [ "full" ]
+features = ["full"]
 
 [dependencies.tokio-util]
 version = "0.7"
-features = [ "codec" ]
+features = ["codec"]
 
 [dependencies.tracing]
 version = "0.1"
@@ -48,22 +56,12 @@ default-features = false
 
 [dependencies.tracing-subscriber]
 version = "0.3"
-features = [ "env-filter", "fmt" ]
-
-[dependencies.clap]
-version = "3.2.7"
-features = [ "derive" ]
-optional = true
-
-[dependencies.jsonrpsee]
-version = "0.15.0"
-features = [ "http-server" ]
-optional = true
+features = ["env-filter", "fmt"]
 
 [features]
-crawler = [ "clap", "jsonrpsee" ]
+crawler = ["clap", "jsonrpsee"]
 
 [[bin]]
 name = "crawler"
 path = "src/tools/crawler/main.rs"
-required-features = [ "crawler" ]
+required-features = ["crawler"]
