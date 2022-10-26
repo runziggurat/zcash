@@ -269,8 +269,8 @@ impl Header {
 
         self.encode_without_tx_count(&mut buffer)?;
 
-        let hash_bytes_1 = sha2::Sha256::digest(&buffer);
-        let hash_bytes_2 = sha2::Sha256::digest(&hash_bytes_1);
+        let hash_bytes_1 = sha2::Sha256::digest(buffer);
+        let hash_bytes_2 = sha2::Sha256::digest(hash_bytes_1);
 
         let hash = Hash::new(hash_bytes_2.try_into().unwrap());
 

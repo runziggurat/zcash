@@ -133,7 +133,7 @@ impl Default for SyntheticNodeBuilder {
 }
 
 impl SyntheticNodeBuilder {
-    /// Creates a [`SyntheticNode`] with the current configuration
+    /// Creates a [`SyntheticNode`] with the current configuration.
     pub async fn build(&self) -> io::Result<SyntheticNode> {
         // Create the pea2pea node from the config.
         let node = Node::new(self.network_config.clone()).await?;
@@ -234,15 +234,14 @@ impl SyntheticNode {
 
     /// Returns the list of active connections for this node. Should be preferred over [`known_peers`] when querying active connections.
     pub fn connected_peers(&self) -> Vec<SocketAddr> {
-        self.inner_node.node.connected_addrs()
+        self.inner_node.node().connected_addrs()
     }
 
-    /// Waits until the node has at least one connection, and
-    /// returns its SocketAddr
+    /// Waits until the node has at least one connection, and returns its SocketAddr.
     pub async fn wait_for_connection(&self) -> SocketAddr {
         const SLEEP: Duration = Duration::from_millis(10);
         loop {
-            // Mutating the collection is alright since this is a copy of the connections and not the actually list.
+            // Mutating the collection is alright since this is a copy of the connections and not the actual list.
             if let Some(addr) = self.connected_peers().pop() {
                 return addr;
             }
