@@ -64,8 +64,8 @@ jobs:
         run: |
           mkdir ~/.ziggurat/
           touch ~/.ziggurat/config.toml
-          echo kind = \"zcashd\" >> ~/.ziggurat/config.toml
-          echo path = \"/home/runner/work/ziggurat/ziggurat/zcash\" >> ~/.ziggurat/config.toml
+          echo kind = \"zcashd\" > ~/.ziggurat/config.toml
+          echo path = \"/home/runner/work/zcash/zcash/zcash\" >> ~/.ziggurat/config.toml
           echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
       - name: Fetch zcashd params
         run: |
