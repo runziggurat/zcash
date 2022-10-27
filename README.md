@@ -79,7 +79,7 @@ and for Zebra:
 ```toml
 kind = "zebra"
 path = "path/to/zebra/repo"
-start_command = "cargo +stable r -- --verbose start"
+start_command = "target/release/zebrad --verbose"
 # cargo +stable r   run Zebra using stable Rust
 # --                all args after this will get passed to Zebra
 # verbose           enables verbose logging
