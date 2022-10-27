@@ -80,10 +80,6 @@ and for Zebra:
 kind = "zebra"
 path = "path/to/zebra/repo"
 start_command = "target/release/zebrad --verbose"
-# cargo +stable r   run Zebra using stable Rust
-# --                all args after this will get passed to Zebra
-# verbose           enables verbose logging
-# start             starts the node
 ```
 
 | :warning: Zcashd: `-datadir` |
