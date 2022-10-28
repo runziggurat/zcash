@@ -79,7 +79,7 @@ and for Zebra:
 ```toml
 kind = "zebra"
 path = "path/to/zebra/repo"
-start_command = "target/release/zebrad --verbose"
+start_command = "target/release/zebrad start"
 ```
 
 | :warning: Zcashd: `-datadir` |
