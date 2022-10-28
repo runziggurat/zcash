@@ -79,11 +79,7 @@ and for Zebra:
 ```toml
 kind = "zebra"
 path = "path/to/zebra/repo"
-start_command = "cargo +stable r -- --verbose start"
-# cargo +stable r   run Zebra using stable Rust
-# --                all args after this will get passed to Zebra
-# verbose           enables verbose logging
-# start             starts the node
+start_command = "target/release/zebrad start"
 ```
 
 | :warning: Zcashd: `-datadir` |
