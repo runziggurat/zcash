@@ -1,95 +1,18 @@
 use core::fmt;
 use ordered_map::OrderedMap;
-use std::{cmp, collections::{BTreeMap, HashMap, HashSet}, hash::Hash, fs, net::SocketAddr, time::Duration};
+use std::{cmp, collections::{BTreeMap, HashMap}, fs, net::SocketAddr, time::Duration};
 use serde::Serialize;
 use spectre::{edge::Edge, graph::Graph};
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
+use crate::ngraph::NGraph;
 
 const LOG_PATH: &str = "crawler-log.txt";
-
-
-#[derive(Clone, Debug)]
-pub struct KGraph<T> {
-    pub edges: HashSet<Edge<T>>,
-    index: Option<BTreeMap<T, usize>>,
-}
-
-impl<T> Default for KGraph<T>
-where
-    Edge<T>: Eq + Hash,
-    T: Copy + Eq + Hash + Ord,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T> KGraph<T>
-where
-    Edge<T>: Eq + Hash,
-    T: Copy + Eq + Hash + Ord,
-{
-    pub fn new() -> Self {
-        Self {
-            edges: Default::default(),
-            index: None,
-        }
-    }
-
-    /// Inserts an edge into the graph.
-    pub fn insert(&mut self, edge: Edge<T>) -> bool {
-        let is_inserted = self.edges.insert(edge);
-
-        // Delete the cached objects if the edge was successfully inserted because we can't
-        // reliably update them from the new connection alone.
-        if is_inserted && self.index.is_some() {
-            self.clear_cache()
-        }
-
-        is_inserted
-    }
-
-    pub fn remove(&mut self, edge: &Edge<T>) -> bool {
-        let is_removed = self.edges.remove(edge);
-
-        // Delete the cached objects if the edge was successfully removed because we can't reliably
-        // update them from the new connection alone.
-        if is_removed && self.index.is_some() {
-            self.clear_cache()
-        }
-
-        is_removed
-    }
-
-    fn vertices_from_edges(&self) -> HashSet<T> {
-        let mut vertices: HashSet<T> = HashSet::new();
-        for edge in self.edges.iter() {
-            // Using a hashset guarantees uniqueness.
-            vertices.insert(*edge.source());
-            vertices.insert(*edge.target());
-        }
-
-        vertices
-    }
-
-    pub fn vertex_count(&self) -> usize {
-        self.vertices_from_edges().len()
-    }
-
-    pub fn edge_count(&self) -> usize {
-        self.edges.len()
-    }
-    fn clear_cache(&mut self) {
-        self.index = None;
-    }
-
-}
 
 #[derive(Default)]
 pub struct NetworkMetrics {
     graph: Graph<SocketAddr>,
-    kgraph: KGraph<SocketAddr>,
+    ngraph: NGraph<SocketAddr>,
 }
 
 impl NetworkMetrics {
@@ -99,9 +22,9 @@ impl NetworkMetrics {
             let edge = Edge::new(conn.a, conn.b);
             if conn.last_seen.elapsed().as_secs() > LAST_SEEN_CUTOFF {
                 self.graph.remove(&edge);
-                self.kgraph.remove(&edge);
+                self.ngraph.remove(&edge);
             } else {
-                self.kgraph.insert(edge.clone());
+                self.ngraph.insert(edge.clone());
                 self.graph.insert(edge);
             }
         }
@@ -109,7 +32,7 @@ impl NetworkMetrics {
 
     /// Requests a summary of the network metrics.
     pub fn request_summary(&mut self, crawler: &Crawler) -> NetworkSummary {
-        NetworkSummary::new(crawler, &mut self.graph, &mut self.kgraph)
+        NetworkSummary::new(crawler, &mut self.graph, &mut self.ngraph)
     }
 }
 
@@ -139,7 +62,7 @@ pub struct NetworkSummary {
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>, kgraph: &mut KGraph<SocketAddr>) -> NetworkSummary {
+    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>, ngraph: &mut NGraph<SocketAddr>) -> NetworkSummary {
         let nodes = crawler.known_network.nodes();
         let connections = crawler.known_network.connections();
 
@@ -147,8 +70,8 @@ impl NetworkSummary {
         let num_known_connections = connections.len();
         let num_edges = graph.edge_count();
         let num_vertices = graph.vertex_count();
-        let num_kedges = kgraph.edge_count();
-        let num_kvertices = kgraph.vertex_count();
+        let num_kedges = ngraph.edge_count();
+        let num_kvertices = ngraph.vertex_count();
 
         let good_nodes: HashMap<_, _> = nodes
             .clone()
