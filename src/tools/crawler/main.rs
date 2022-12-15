@@ -25,6 +25,7 @@ use crate::{
 };
 
 mod metrics;
+mod ngraph;
 mod network;
 mod protocol;
 mod rpc;
