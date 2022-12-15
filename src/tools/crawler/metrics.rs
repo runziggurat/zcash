@@ -1,6 +1,6 @@
 use core::fmt;
-use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
-
+use ordered_map::OrderedMap;
+use std::{cmp, collections::{BTreeMap, HashMap, HashSet}, hash::Hash, fs, net::SocketAddr, time::Duration};
 use serde::Serialize;
 use spectre::{edge::Edge, graph::Graph};
 
@@ -8,9 +8,88 @@ use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
 const LOG_PATH: &str = "crawler-log.txt";
 
+
+#[derive(Clone, Debug)]
+pub struct KGraph<T> {
+    pub edges: HashSet<Edge<T>>,
+    index: Option<BTreeMap<T, usize>>,
+}
+
+impl<T> Default for KGraph<T>
+where
+    Edge<T>: Eq + Hash,
+    T: Copy + Eq + Hash + Ord,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> KGraph<T>
+where
+    Edge<T>: Eq + Hash,
+    T: Copy + Eq + Hash + Ord,
+{
+    pub fn new() -> Self {
+        Self {
+            edges: Default::default(),
+            index: None,
+        }
+    }
+
+    /// Inserts an edge into the graph.
+    pub fn insert(&mut self, edge: Edge<T>) -> bool {
+        let is_inserted = self.edges.insert(edge);
+
+        // Delete the cached objects if the edge was successfully inserted because we can't
+        // reliably update them from the new connection alone.
+        if is_inserted && self.index.is_some() {
+            self.clear_cache()
+        }
+
+        is_inserted
+    }
+
+    pub fn remove(&mut self, edge: &Edge<T>) -> bool {
+        let is_removed = self.edges.remove(edge);
+
+        // Delete the cached objects if the edge was successfully removed because we can't reliably
+        // update them from the new connection alone.
+        if is_removed && self.index.is_some() {
+            self.clear_cache()
+        }
+
+        is_removed
+    }
+
+    fn vertices_from_edges(&self) -> HashSet<T> {
+        let mut vertices: HashSet<T> = HashSet::new();
+        for edge in self.edges.iter() {
+            // Using a hashset guarantees uniqueness.
+            vertices.insert(*edge.source());
+            vertices.insert(*edge.target());
+        }
+
+        vertices
+    }
+
+    pub fn vertex_count(&self) -> usize {
+        self.vertices_from_edges().len()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+    fn clear_cache(&mut self) {
+        self.index = None;
+    }
+
+}
+
 #[derive(Default)]
 pub struct NetworkMetrics {
     graph: Graph<SocketAddr>,
+    kgraph: KGraph<SocketAddr>,
 }
 
 impl NetworkMetrics {
@@ -20,7 +99,9 @@ impl NetworkMetrics {
             let edge = Edge::new(conn.a, conn.b);
             if conn.last_seen.elapsed().as_secs() > LAST_SEEN_CUTOFF {
                 self.graph.remove(&edge);
+                self.kgraph.remove(&edge);
             } else {
+                self.kgraph.insert(edge.clone());
                 self.graph.insert(edge);
             }
         }
@@ -28,7 +109,7 @@ impl NetworkMetrics {
 
     /// Requests a summary of the network metrics.
     pub fn request_summary(&mut self, crawler: &Crawler) -> NetworkSummary {
-        NetworkSummary::new(crawler, &mut self.graph)
+        NetworkSummary::new(crawler, &mut self.graph, &mut self.kgraph)
     }
 }
 
@@ -45,16 +126,29 @@ pub struct NetworkSummary {
     density: f64,
     degree_centrality_delta: f64,
     avg_degree_centrality: u64,
+    num_edges: usize,
+    num_vertices: usize,
+    num_kedges: usize,
+    num_kvertices: usize,
+    degree_centralities: HashMap<SocketAddr, u32>,
+    good_addresses: Vec<SocketAddr>,
+    good_centralities: HashMap<SocketAddr, u32>,
+    sorted_centralities: BTreeMap<SocketAddr, u32>,
+    sorted_degrees: Vec<u32>,
 }
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>) -> NetworkSummary {
+    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>, kgraph: &mut KGraph<SocketAddr>) -> NetworkSummary {
         let nodes = crawler.known_network.nodes();
         let connections = crawler.known_network.connections();
 
         let num_known_nodes = nodes.len();
         let num_known_connections = connections.len();
+        let num_edges = graph.edge_count();
+        let num_vertices = graph.vertex_count();
+        let num_kedges = kgraph.edge_count();
+        let num_kvertices = kgraph.vertex_count();
 
         let good_nodes: HashMap<_, _> = nodes
             .clone()
@@ -63,6 +157,7 @@ impl NetworkSummary {
             .collect();
 
         let num_good_nodes = good_nodes.len();
+        let good_addresses = good_nodes.keys().cloned().collect();
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
         let mut user_agents = HashMap::with_capacity(num_known_nodes);
@@ -90,6 +185,32 @@ impl NetworkSummary {
         let avg_degree_centrality = degree_centralities.values().map(|v| *v as u64).sum::<u64>()
             / degree_centralities.len() as u64;
 
+        fn degree_compare (a: &u32) -> u32 {
+            *a
+        }
+        let mut sorted_centralities : BTreeMap<SocketAddr, u32> = BTreeMap::new();
+        let mut ordered : OrderedMap<SocketAddr, u32, u32> = OrderedMap::new(degree_compare);
+        for (key, value) in &degree_centralities {
+            sorted_centralities.insert(*key, *value);
+            ordered.insert(*key, *value);
+        }
+        //sorted_centralities.sort_by(|a, b| b.1.cmp(a.1));
+        let mut sorted_degrees : Vec<u32> = Vec::new();
+        //for  (key, value) in ordered {
+        //    //sorted_degrees.insert(key, v: value);
+        //}
+        let descending = ordered.descending_values();
+        for  key in descending.into_iter() {
+           sorted_degrees.push(*key);
+        }
+
+
+        let mut good_centralities: HashMap<SocketAddr, u32> = HashMap::new();
+        for  (key, _value) in good_nodes.into_iter() {
+            let centrality = degree_centralities.get(&key);
+            good_centralities.insert(key, *centrality.unwrap());
+        }
+
         NetworkSummary {
             num_known_nodes,
             num_good_nodes,
@@ -101,6 +222,15 @@ impl NetworkSummary {
             density,
             degree_centrality_delta,
             avg_degree_centrality,
+            num_edges,
+            num_vertices,
+            num_kedges,
+            num_kvertices,
+            degree_centralities,
+            good_addresses,
+            good_centralities,
+            sorted_centralities,
+            sorted_degrees,
         }
     }
 
