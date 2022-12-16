@@ -58,6 +58,7 @@ pub struct NetworkSummary {
     good_centralities: HashMap<SocketAddr, u32>,
     sorted_centralities: BTreeMap<SocketAddr, u32>,
     sorted_degrees: Vec<u32>,
+    betweenness: Vec<u32>
 }
 
 impl NetworkSummary {
@@ -80,7 +81,8 @@ impl NetworkSummary {
             .collect();
 
         let num_good_nodes = good_nodes.len();
-        let good_addresses = good_nodes.keys().cloned().collect();
+        let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
+        // let (betweenness, _closeness) = ngraph.compute_betweenness_and_closeness(&good_addresses);
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
         let mut user_agents = HashMap::with_capacity(num_known_nodes);
@@ -129,10 +131,24 @@ impl NetworkSummary {
 
 
         let mut good_centralities: HashMap<SocketAddr, u32> = HashMap::new();
-        for  (key, _value) in good_nodes.into_iter() {
+        for  (key, _value) in good_nodes.clone().into_iter() {
             let centrality = degree_centralities.get(&key);
             good_centralities.insert(key, *centrality.unwrap());
         }
+
+        println!("asdf: calling compute, with addresses len {}", good_addresses.len());
+        println!("asdf: calling compute, with good nodes len {}", good_nodes.len());
+        let betweenness;
+        let _closeness: Vec<f64>;
+        if good_addresses.len() < 4 {
+            betweenness = Vec::new();
+        } else {
+            (betweenness, _closeness) = ngraph.compute_betweenness_and_closeness(&good_addresses);
+        }
+//        if 
+        // let (betweenness, _closeness) = ngraph.compute_betweenness_and_closeness(&good_addresses);
+        println!("asdf: back bertweenness len: {}", betweenness.len());
+
 
         NetworkSummary {
             num_known_nodes,
@@ -154,6 +170,7 @@ impl NetworkSummary {
             good_centralities,
             sorted_centralities,
             sorted_degrees,
+            betweenness
         }
     }
 
