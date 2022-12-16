@@ -83,6 +83,8 @@ where
         }
 
         // For all our edges, check if the nodes are in the good list
+        // We use the value of the addresses to find the index
+        // From then on, it's all integer indices
         for edge in self.edges.iter() {
             let source = *edge.source();
             let target = *edge.target();
@@ -106,7 +108,6 @@ where
         println!("agraph: {:?}", agraph);
         for i in 0..num_nodes-1 {
             println!("loop i: {}", i);
-            // let v = &agraph[i];
             let mut visited: Vec<bool> = vec!(false; num_nodes);
             let mut found: Vec<bool> = vec!(false; num_nodes);
             let mut search_list: Vec<usize> = Vec::new();
@@ -127,29 +128,32 @@ where
                 // 3. along the way, we appropriately mark any between nodes
                 let mut done = false;
                 let j = search_list[0];
-                println!("  search_list i: {:?}, looking for j: {}", search_list, j);
+                println!("loop j: {}", j);
+                // println!("  search_list i: {:?}, looking for j: {}", search_list, j);
                 for x in 0..num_nodes {
                     visited[x] = x == i;
                 }
                 let mut pathlen: u32 = 1;
 
                 // mark node i and all those before i as visited
-                for x in 0..i+1 {
-                    found[x] = true;
-                }
+                // for x in 0..i+1 {
+                //     found[x] = true;
+                // }
                 let mut queue_list = Vec::new();
                 queue_list.push(i);
 
                 while !done {
                     let mut this_round_found: Vec<usize> = Vec::new();
                     let mut topush = Vec::new();
+                    let mut tovisit = Vec::new();
                     for q in queue_list.as_slice() {
                         let v = &agraph[*q];
                         for x in v {
+                            println!("x {} in q {}", *x, *q);
                             // We collect all shortest paths for this length, as there may be multiple paths
                             if !visited[*x] {
                                 topush.push(*x);
-                                visited[*x] = true;
+                                tovisit.push(*x);
                                 if !found[*x] {
                                     println!("    push this round found: {}", *x);
                                     this_round_found.push(*x);
@@ -161,24 +165,30 @@ where
                         }
                     }
 
+                    queue_list.clear();
                     for x in topush {
+                        println!("quest list push: {}", x);
                         queue_list.push(x);
                     }
+                    for x in tovisit {
+                        println!("tovisit set: {}", x);
+                        visited[x] = true;
+                     }
 
-                    for found in this_round_found {
-                        num_paths[found] = num_paths[found] + 1;
-                        total_path_length[found] = total_path_length[found] + pathlen;
+                    for f in this_round_found {
+                        println!("add path i j: {} {}, len {}", i, f, pathlen);
+                        num_paths[f] = num_paths[f] + 1;
+                        total_path_length[f] = total_path_length[f] + pathlen;
                         num_paths[i] = num_paths[i] + 1;
                         total_path_length[i] = total_path_length[i] + pathlen;
-                        search_list.retain(|&x| x != found);
-                        println!("    new search_list i: {:?}", search_list);
-                        if found == j {
-                            println!("    done");
+                        search_list.retain(|&x| x != f);
+                        found[f] = true;
+                        if f == j {
                             done = true;
                         }
                     }
                     pathlen = pathlen + 1;
-                    println!("    pathlen {}", pathlen);
+                    println!("pathlen now {}\n", pathlen);
                 }
             }
         }
