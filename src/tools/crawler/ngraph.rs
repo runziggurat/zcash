@@ -1,12 +1,6 @@
 use std::{collections::{BTreeMap, HashSet}, hash::Hash};
 use spectre::{edge::Edge};
 
-
-// pub struct NGraphNode<T> {
-//     pub node: T,
-//     pub nodes: Vec<u32>
-// }
-
 pub struct NGraph<T> {
     pub edges: HashSet<Edge<T>>,
     index: Option<BTreeMap<T, usize>>,
@@ -71,20 +65,22 @@ where
     }
 
     pub fn compute_betweenness_and_closeness (&self, addresses: &Vec<T>) ->  (Vec<u32>, Vec<f64>) {
-        //nodes = Vec::new(addresses.len());
         let num_nodes = addresses.len();
         println!("asdf: num_nodes {}", num_nodes);
-        let mut node_list: Vec<Vec<usize>> = Vec::new();
-        for _ in 0..num_nodes {
-            node_list.push(Vec::new());
-        }
-        // for addr in addresses {
-        //     nodes.push(new NGraphNode(addr, Vec::new()));
-        // }
+
         let mut betweenness: Vec<u32> = vec!(0; num_nodes);
-        let _total_path_length: Vec<u32> = vec!(0; num_nodes);
-        let closeness: Vec<f64> = Vec::new();
-        println!("asdf: two");
+        let mut closeness: Vec<f64> = vec!(0.0; num_nodes);
+        let mut total_path_length: Vec<u32> = vec!(0; num_nodes);
+        let mut num_paths: Vec<u32> = vec!(0; num_nodes);
+
+        // use a simple adjacency graph
+        type Vertex = Vec<usize>;
+        type AGraph = Vec<Vertex>;
+
+        let mut agraph: AGraph = AGraph::new();
+        for _ in 0..num_nodes {
+            agraph.push(Vertex::new());
+        }
 
         // For all our edges, check if the nodes are in the good list
         for edge in self.edges.iter() {
@@ -103,37 +99,99 @@ where
 
             let src_index = src_result.unwrap();
             let tgt_index = tgt_result.unwrap();
-            node_list[src_index].push(tgt_index);
-            node_list[tgt_index].push(src_index);
-        }
-        println!("asdf: three");
-
-        for _i in 0..num_nodes-1 {
-            // 1.  for node i, find the shortest path to all nodes i+1 to num_nodes - 1
-
-            // 2.  add this number in the to the appropriate pair of indices
-            //     in the total_path_length vector
-
-            // 3. for each path found, in length is greater than 1 (i.e., there are
-            //    nodes between the two nodes in question), each one gets their
-            //    betweenness value incremented
-
-
-            // for j in i+1..num_nodes {
-            //     // 
-
-            // }
-  
+            agraph[src_index].push(tgt_index);
+            agraph[tgt_index].push(src_index);
         }
 
-        println!("asdf: four");
-        println!("node_list len: {}", node_list.len());
-        println!("bertweenness len: {}", betweenness.len());
+        println!("agraph: {:?}", agraph);
+        for i in 0..num_nodes-1 {
+            println!("loop i: {}", i);
+            // let v = &agraph[i];
+            let mut visited: Vec<bool> = vec!(false; num_nodes);
+            let mut found: Vec<bool> = vec!(false; num_nodes);
+            let mut search_list: Vec<usize> = Vec::new();
+            // mark node i and all those before i as visited
+            for j in 0..i+1 {
+                found[j] = true;
+            }
+            for j in i+1..num_nodes {
+                search_list.push(j);
+                found[j] = false;
+            }
+
+            while search_list.len() > 0 {
+                // 0. OUR MAIN SEARCH LOOP:  I and J
+                //
+                // 1. we search for path between i and j.  We're done when we find j
+                // 2. any short paths we find along the way, get handled, and removed from search list
+                // 3. along the way, we appropriately mark any between nodes
+                let mut done = false;
+                let j = search_list[0];
+                println!("  search_list i: {:?}, looking for j: {}", search_list, j);
+                for x in 0..num_nodes {
+                    visited[x] = x == i;
+                }
+                let mut pathlen: u32 = 1;
+
+                // mark node i and all those before i as visited
+                for x in 0..i+1 {
+                    found[x] = true;
+                }
+                let mut queue_list = Vec::new();
+                queue_list.push(i);
+
+                while !done {
+                    let mut this_round_found: Vec<usize> = Vec::new();
+                    let mut topush = Vec::new();
+                    for q in queue_list.as_slice() {
+                        let v = &agraph[*q];
+                        for x in v {
+                            // We collect all shortest paths for this length, as there may be multiple paths
+                            if !visited[*x] {
+                                topush.push(*x);
+                                visited[*x] = true;
+                                if !found[*x] {
+                                    println!("    push this round found: {}", *x);
+                                    this_round_found.push(*x);
+                                    if pathlen > 1 {
+                                        betweenness[*q] = betweenness[*q] + 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    for x in topush {
+                        queue_list.push(x);
+                    }
+
+                    for found in this_round_found {
+                        num_paths[found] = num_paths[found] + 1;
+                        total_path_length[found] = total_path_length[found] + pathlen;
+                        num_paths[i] = num_paths[i] + 1;
+                        total_path_length[i] = total_path_length[i] + pathlen;
+                        search_list.retain(|&x| x != found);
+                        println!("    new search_list i: {:?}", search_list);
+                        if found == j {
+                            println!("    done");
+                            done = true;
+                        }
+                    }
+                    pathlen = pathlen + 1;
+                    println!("    pathlen {}", pathlen);
+                }
+            }
+        }
+
+        println!("agraph len: {}", agraph.len());
+        println!("betweenness len: {}", betweenness.len());
+        println!("total_path_length: {:?}", total_path_length);
+        println!("num_paths: {:?}", num_paths);
         for i in 0..num_nodes {
-            println!("asdf: set between for {}, len is {}", i, node_list[i].len());
-            betweenness[i] = node_list[i].len() as u32;
+            closeness[i] = total_path_length[i] as f64 / num_paths[i] as f64;
         }
         (betweenness, closeness)
+
 
     }
     pub fn vertex_count(&self) -> usize {
@@ -145,6 +203,77 @@ where
     }
     fn clear_cache(&mut self) {
         self.index = None;
+    }
+
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new() {
+        let _: NGraph<()> = NGraph::new();
+    }
+
+    #[test]
+    fn doit() {
+        let (s0, s1, s2, s3, s4, s5, s6) = ("0", "1", "2", "3", "4", "5", "6");
+        let addresses = vec!["0", "1", "2", "3", "4", "5", "6"];
+        let mut ngraph: NGraph<&str> = NGraph::new();
+        // this graph reproduces the image at:
+        // https://www.sotr.blog/articles/breadth-first-search
+        ngraph.insert(Edge::new(s0, s3));
+        ngraph.insert(Edge::new(s0, s5));
+        ngraph.insert(Edge::new(s5, s1));
+        ngraph.insert(Edge::new(s1, s2));
+        ngraph.insert(Edge::new(s2, s4));
+        ngraph.insert(Edge::new(s2, s6));
+        ngraph.insert(Edge::new(s1, s3));
+
+        let (betweenness, closeness) = ngraph.compute_betweenness_and_closeness(&addresses);
+        println!("1: betweenness: {:?}", betweenness);
+        println!("1: closeness: {:?}", closeness);
+    }
+
+    #[test]
+    fn star_graph_a() {
+        // center is 0
+        let (s0, s1, s2, s3, s4, s5, s6, s7) = ("0", "1", "2", "3", "4", "5", "6", "7");
+        let addresses = vec!["0", "1", "2", "3", "4", "5", "6", "7"];
+        let mut ngraph: NGraph<&str> = NGraph::new();
+        ngraph.insert(Edge::new(s0, s1));
+        ngraph.insert(Edge::new(s0, s2));
+        ngraph.insert(Edge::new(s0, s3));
+        ngraph.insert(Edge::new(s0, s4));
+        ngraph.insert(Edge::new(s0, s5));
+        ngraph.insert(Edge::new(s0, s6));
+        ngraph.insert(Edge::new(s0, s7));
+
+        let (betweenness, closeness) = ngraph.compute_betweenness_and_closeness(&addresses);
+        println!("2: betweenness: {:?}", betweenness);
+        println!("2: closeness: {:?}", closeness);
+    }
+
+    #[test]
+    fn star_graph_b() {
+        // center is 7
+        let (s0, s1, s2, s3, s4, s5, s6, s7) = ("0", "1", "2", "3", "4", "5", "6", "7");
+        let addresses = vec!["0", "1", "2", "3", "4", "5", "6", "7"];
+        let mut ngraph: NGraph<&str> = NGraph::new();
+        ngraph.insert(Edge::new(s0, s7));
+        ngraph.insert(Edge::new(s1, s7));
+        ngraph.insert(Edge::new(s2, s7));
+        ngraph.insert(Edge::new(s3, s7));
+        ngraph.insert(Edge::new(s4, s7));
+        ngraph.insert(Edge::new(s5, s7));
+        ngraph.insert(Edge::new(s6, s7));
+
+        let (betweenness, closeness) = ngraph.compute_betweenness_and_closeness(&addresses);
+        println!("3: betweenness: {:?}", betweenness);
+        println!("3: closeness: {:?}", closeness);
     }
 
 }
