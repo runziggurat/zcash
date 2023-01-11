@@ -2,6 +2,7 @@ use core::fmt;
 use serde::Serialize;
 use spectre::{edge::Edge, graph::AGraph, graph::Graph};
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
+use md5;
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
@@ -41,7 +42,7 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    good_addresses: Vec<SocketAddr>,
+    ids_48: Vec<String>,
     agraph: AGraph,
 }
 
@@ -62,6 +63,12 @@ impl NetworkSummary {
 
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
+        let mut ids_48: Vec<String> = Vec::new();
+        for addr in &good_addresses {
+            let digest = md5::compute(addr.to_string());
+            let hex: String = format!("{:x}", digest);
+            ids_48.push(hex[..12].to_string());
+        }
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
         let mut user_agents = HashMap::with_capacity(num_known_nodes);
@@ -81,7 +88,6 @@ impl NetworkSummary {
 
         let num_versions = protocol_versions.values().sum();
         let crawler_runtime = crawler.start_time.elapsed();
-
         let agraph = graph.create_agraph(&good_addresses);
 
         NetworkSummary {
@@ -92,7 +98,7 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            good_addresses,
+            ids_48,
             agraph,
         }
     }
