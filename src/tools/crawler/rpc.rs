@@ -28,7 +28,7 @@ pub async fn initialize_rpc_server(
     rpc_context: RpcContext,
 ) -> HttpServerHandle {
     let server = HttpServerBuilder::default()
-        .max_response_body_size(24000000)
+        .max_response_body_size(20000000)
         .build(rpc_addr)
         .await
         .unwrap();
