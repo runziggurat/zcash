@@ -1,18 +1,18 @@
 use core::fmt;
-use ordered_map::OrderedMap;
-use std::{cmp, collections::{BTreeMap, HashMap}, fs, net::SocketAddr, time::Duration};
+use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 use serde::Serialize;
-use spectre::{edge::Edge, graph::Graph};
+use spectre::{edge::Edge, graph::Graph, graph::AGraph};
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
-use crate::ngraph::NGraph;
+// use crate::ngraph::NGraph;
+// use crate::ngraph::AGraph;
 
 const LOG_PATH: &str = "crawler-log.txt";
 
 #[derive(Default)]
 pub struct NetworkMetrics {
     graph: Graph<SocketAddr>,
-    ngraph: NGraph<SocketAddr>,
+    // ngraph: NGraph<SocketAddr>,
 }
 
 impl NetworkMetrics {
@@ -22,9 +22,9 @@ impl NetworkMetrics {
             let edge = Edge::new(conn.a, conn.b);
             if conn.last_seen.elapsed().as_secs() > LAST_SEEN_CUTOFF {
                 self.graph.remove(&edge);
-                self.ngraph.remove(&edge);
+                // self.ngraph.remove(&edge);
             } else {
-                self.ngraph.insert(edge.clone());
+                // self.ngraph.insert(edge.clone());
                 self.graph.insert(edge);
             }
         }
@@ -32,7 +32,7 @@ impl NetworkMetrics {
 
     /// Requests a summary of the network metrics.
     pub fn request_summary(&mut self, crawler: &Crawler) -> NetworkSummary {
-        NetworkSummary::new(crawler, &mut self.graph, &mut self.ngraph)
+        NetworkSummary::new(crawler, &mut self.graph)
     }
 }
 
@@ -46,33 +46,34 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    density: f64,
-    degree_centrality_delta: f64,
-    avg_degree_centrality: u64,
-    num_edges: usize,
-    num_vertices: usize,
-    num_kedges: usize,
-    num_kvertices: usize,
-    degree_centralities: HashMap<SocketAddr, u32>,
+    //density: f64,
+    //degree_centrality_delta: f64,
+    //avg_degree_centrality: u64,
+    //num_edges: usize,
+   // num_vertices: usize,
+    //num_kedges: usize,
+    //num_kvertices: usize,
+    //degree_centralities: HashMap<SocketAddr, u32>,
     good_addresses: Vec<SocketAddr>,
-    good_centralities: HashMap<SocketAddr, u32>,
-    sorted_centralities: BTreeMap<SocketAddr, u32>,
-    sorted_degrees: Vec<u32>,
-    betweenness: Vec<u32>
+    //good_centralities: HashMap<SocketAddr, u32>,
+    //sorted_centralities: BTreeMap<SocketAddr, u32>,
+    //sorted_degrees: Vec<u32>,
+    // betweenness: Vec<u32>
+    agraph: AGraph
 }
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>, ngraph: &mut NGraph<SocketAddr>) -> NetworkSummary {
+    pub fn new(crawler: &Crawler, _graph: &mut Graph<SocketAddr>) -> NetworkSummary {
         let nodes = crawler.known_network.nodes();
         let connections = crawler.known_network.connections();
 
         let num_known_nodes = nodes.len();
         let num_known_connections = connections.len();
-        let num_edges = graph.edge_count();
-        let num_vertices = graph.vertex_count();
-        let num_kedges = ngraph.edge_count();
-        let num_kvertices = ngraph.vertex_count();
+        // let num_edges = graph.edge_count();
+        // let num_vertices = graph.vertex_count();
+        // let num_kedges = ngraph.edge_count();
+        // let num_kvertices = ngraph.vertex_count();
 
         let good_nodes: HashMap<_, _> = nodes
             .clone()
@@ -103,51 +104,7 @@ impl NetworkSummary {
         let num_versions = protocol_versions.values().sum();
         let crawler_runtime = crawler.start_time.elapsed();
 
-        // Procure metrics from the graph.
-        let density = graph.density();
-        let degree_centrality_delta = graph.degree_centrality_delta();
-        let degree_centralities = graph.degree_centrality();
-        let avg_degree_centrality = degree_centralities.values().map(|v| *v as u64).sum::<u64>()
-            / degree_centralities.len() as u64;
-
-        fn degree_compare (a: &u32) -> u32 {
-            *a
-        }
-        let mut sorted_centralities : BTreeMap<SocketAddr, u32> = BTreeMap::new();
-        let mut ordered : OrderedMap<SocketAddr, u32, u32> = OrderedMap::new(degree_compare);
-        for (key, value) in &degree_centralities {
-            sorted_centralities.insert(*key, *value);
-            ordered.insert(*key, *value);
-        }
-        //sorted_centralities.sort_by(|a, b| b.1.cmp(a.1));
-        let mut sorted_degrees : Vec<u32> = Vec::new();
-        //for  (key, value) in ordered {
-        //    //sorted_degrees.insert(key, v: value);
-        //}
-        let descending = ordered.descending_values();
-        for  key in descending.into_iter() {
-           sorted_degrees.push(*key);
-        }
-
-
-        let mut good_centralities: HashMap<SocketAddr, u32> = HashMap::new();
-        for  (key, _value) in good_nodes.clone().into_iter() {
-            let centrality = degree_centralities.get(&key);
-            good_centralities.insert(key, *centrality.unwrap());
-        }
-
-        println!("asdf: calling compute, with addresses len {}", good_addresses.len());
-        println!("asdf: calling compute, with good nodes len {}", good_nodes.len());
-        let betweenness;
-        let _closeness: Vec<f64>;
-        if good_addresses.len() < 4 {
-            betweenness = Vec::new();
-        } else {
-            (betweenness, _closeness) = ngraph.compute_betweenness_and_closeness(&good_addresses);
-        }
-//        if 
-        // let (betweenness, _closeness) = ngraph.compute_betweenness_and_closeness(&good_addresses);
-        println!("asdf: back bertweenness len: {}", betweenness.len());
+        let agraph = _graph.create_agraph(&good_addresses);
 
 
         NetworkSummary {
@@ -158,19 +115,8 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            density,
-            degree_centrality_delta,
-            avg_degree_centrality,
-            num_edges,
-            num_vertices,
-            num_kedges,
-            num_kvertices,
-            degree_centralities,
             good_addresses,
-            good_centralities,
-            sorted_centralities,
-            sorted_degrees,
-            betweenness
+            agraph
         }
     }
 
@@ -216,18 +162,18 @@ impl fmt::Display for NetworkSummary {
         writeln!(f, "\nUser agents:")?;
         print_hashmap(f, &self.user_agents)?;
 
-        writeln!(f, "\nNetwork graph metrics:")?;
-        writeln!(f, "Density: {:.4}", self.density)?;
-        writeln!(
-            f,
-            "Degree centrality delta: {}",
-            self.degree_centrality_delta
-        )?;
-        writeln!(
-            f,
-            "Average degree centrality: {:.4}",
-            self.avg_degree_centrality
-        )?;
+        // writeln!(f, "\nNetwork graph metrics:")?;
+        // writeln!(f, "Density: {:.4}", self.density)?;
+        // writeln!(
+        //     f,
+        //     "Degree centrality delta: {}",
+        //     self.degree_centrality_delta
+        // )?;
+        // writeln!(
+        //     f,
+        //     "Average degree centrality: {:.4}",
+        //     self.avg_degree_centrality
+        // )?;
 
         writeln!(
             f,

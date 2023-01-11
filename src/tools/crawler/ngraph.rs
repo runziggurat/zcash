@@ -1,6 +1,9 @@
 use std::{collections::{BTreeMap, HashSet}, hash::Hash};
 use spectre::{edge::Edge};
 
+pub type Vertex = Vec<usize>;
+pub type AGraph = Vec<Vertex>;
+
 pub struct NGraph<T> {
     pub edges: HashSet<Edge<T>>,
     index: Option<BTreeMap<T, usize>>,
@@ -53,164 +56,50 @@ where
         is_removed
     }
 
-    fn vertices_from_edges(&self) -> HashSet<T> {
-        let mut vertices: HashSet<T> = HashSet::new();
-        for edge in self.edges.iter() {
-            // Using a hashset guarantees uniqueness.
-            vertices.insert(*edge.source());
-            vertices.insert(*edge.target());
-        }
+    // fn vertices_from_edges(&self) -> HashSet<T> {
+    //     let mut vertices: HashSet<T> = HashSet::new();
+    //     for edge in self.edges.iter() {
+    //         // Using a hashset guarantees uniqueness.
+    //         vertices.insert(*edge.source());
+    //         vertices.insert(*edge.target());
+    //     }
 
-        vertices
-    }
+    //     vertices
+    // }
 
-    pub fn compute_betweenness_and_closeness (&self, addresses: &Vec<T>) ->  (Vec<u32>, Vec<f64>) {
-        let num_nodes = addresses.len();
-        println!("asdf: num_nodes {}", num_nodes);
+    // pub fn create_agraph(&self, addresses: &Vec<T>) -> AGraph {
+    //     let num_nodes = addresses.len();
+    //     let mut agraph: AGraph = AGraph::new();
+    //     for _ in 0..num_nodes {
+    //         agraph.push(Vertex::new());
+    //     }
 
-        let mut betweenness: Vec<u32> = vec!(0; num_nodes);
-        let mut closeness: Vec<f64> = vec!(0.0; num_nodes);
-        let mut total_path_length: Vec<u32> = vec!(0; num_nodes);
-        let mut num_paths: Vec<u32> = vec!(0; num_nodes);
+    //     // For all our edges, check if the nodes are in the good list
+    //     // We use the value of the addresses to find the index
+    //     // From then on, it's all integer indices
+    //     for edge in self.edges.iter() {
+    //         let source = *edge.source();
+    //         let target = *edge.target();
 
-        // use a simple adjacency graph
-        type Vertex = Vec<usize>;
-        type AGraph = Vec<Vertex>;
+    //         let src_result = addresses.iter().position(|&r| r == source);
+    //         if src_result == None {
+    //             continue;
+    //         }
 
-        let mut agraph: AGraph = AGraph::new();
-        for _ in 0..num_nodes {
-            agraph.push(Vertex::new());
-        }
+    //         let tgt_result = addresses.iter().position(|&r| r == target);
+    //         if tgt_result == None {
+    //             continue;
+    //         }
 
-        // For all our edges, check if the nodes are in the good list
-        // We use the value of the addresses to find the index
-        // From then on, it's all integer indices
-        for edge in self.edges.iter() {
-            let source = *edge.source();
-            let target = *edge.target();
+    //         let src_index = src_result.unwrap();
+    //         let tgt_index = tgt_result.unwrap();
+    //         agraph[src_index].push(tgt_index);
+    //         agraph[tgt_index].push(src_index);
+    //     }
+    //     agraph
 
-            let src_result = addresses.iter().position(|&r| r == source);
-            if src_result == None {
-                continue;
-            }
+    // }
 
-            let tgt_result = addresses.iter().position(|&r| r == target);
-            if tgt_result == None {
-                continue;
-            }
-
-            let src_index = src_result.unwrap();
-            let tgt_index = tgt_result.unwrap();
-            agraph[src_index].push(tgt_index);
-            agraph[tgt_index].push(src_index);
-        }
-
-        println!("agraph: {:?}", agraph);
-        for i in 0..num_nodes-1 {
-            println!("loop i: {}", i);
-            let mut visited: Vec<bool> = vec!(false; num_nodes);
-            let mut found: Vec<bool> = vec!(false; num_nodes);
-            let mut search_list: Vec<usize> = Vec::new();
-            // mark node i and all those before i as visited
-            for j in 0..i+1 {
-                found[j] = true;
-            }
-            for j in i+1..num_nodes {
-                search_list.push(j);
-                found[j] = false;
-            }
-
-            while search_list.len() > 0 {
-                // 0. OUR MAIN SEARCH LOOP:  I and J
-                //
-                // 1. we search for path between i and j.  We're done when we find j
-                // 2. any short paths we find along the way, get handled, and removed from search list
-                // 3. along the way, we appropriately mark any between nodes
-                let mut done = false;
-                let j = search_list[0];
-                println!("loop j: {}", j);
-                // println!("  search_list i: {:?}, looking for j: {}", search_list, j);
-                for x in 0..num_nodes {
-                    visited[x] = x == i;
-                }
-                let mut pathlen: u32 = 1;
-
-                // mark node i and all those before i as visited
-                // for x in 0..i+1 {
-                //     found[x] = true;
-                // }
-                let mut queue_list = Vec::new();
-                queue_list.push(i);
-
-                while !done {
-                    let mut this_round_found: Vec<usize> = Vec::new();
-                    let mut topush = Vec::new();
-                    let mut tovisit = Vec::new();
-                    for q in queue_list.as_slice() {
-                        let v = &agraph[*q];
-                        for x in v {
-                            println!("x {} in q {}", *x, *q);
-                            // We collect all shortest paths for this length, as there may be multiple paths
-                            if !visited[*x] {
-                                topush.push(*x);
-                                tovisit.push(*x);
-                                if !found[*x] {
-                                    println!("    push this round found: {}", *x);
-                                    this_round_found.push(*x);
-                                    if pathlen > 1 {
-                                        betweenness[*q] = betweenness[*q] + 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    queue_list.clear();
-                    for x in topush {
-                        println!("quest list push: {}", x);
-                        queue_list.push(x);
-                    }
-                    for x in tovisit {
-                        println!("tovisit set: {}", x);
-                        visited[x] = true;
-                     }
-
-                    for f in this_round_found {
-                        println!("add path i j: {} {}, len {}", i, f, pathlen);
-                        num_paths[f] = num_paths[f] + 1;
-                        total_path_length[f] = total_path_length[f] + pathlen;
-                        num_paths[i] = num_paths[i] + 1;
-                        total_path_length[i] = total_path_length[i] + pathlen;
-                        search_list.retain(|&x| x != f);
-                        found[f] = true;
-                        if f == j {
-                            done = true;
-                        }
-                    }
-                    pathlen = pathlen + 1;
-                    println!("pathlen now {}\n", pathlen);
-                }
-            }
-        }
-
-        println!("agraph len: {}", agraph.len());
-        println!("betweenness len: {}", betweenness.len());
-        println!("total_path_length: {:?}", total_path_length);
-        println!("num_paths: {:?}", num_paths);
-        for i in 0..num_nodes {
-            closeness[i] = total_path_length[i] as f64 / num_paths[i] as f64;
-        }
-        (betweenness, closeness)
-
-
-    }
-    pub fn vertex_count(&self) -> usize {
-        self.vertices_from_edges().len()
-    }
-
-    pub fn edge_count(&self) -> usize {
-        self.edges.len()
-    }
     fn clear_cache(&mut self) {
         self.index = None;
     }
