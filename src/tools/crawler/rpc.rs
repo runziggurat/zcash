@@ -27,7 +27,11 @@ pub async fn initialize_rpc_server(
     rpc_addr: SocketAddr,
     rpc_context: RpcContext,
 ) -> HttpServerHandle {
-    let server = HttpServerBuilder::default().max_response_body_size(24000000).build(rpc_addr).await.unwrap();
+    let server = HttpServerBuilder::default()
+        .max_response_body_size(24000000)
+        .build(rpc_addr)
+        .await
+        .unwrap();
     let module = create_rpc_module(rpc_context);
 
     debug!("Starting RPC server at {:?}", server.local_addr().unwrap());

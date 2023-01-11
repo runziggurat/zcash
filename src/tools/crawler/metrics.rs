@@ -1,18 +1,15 @@
 use core::fmt;
-use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 use serde::Serialize;
-use spectre::{edge::Edge, graph::Graph, graph::AGraph};
+use spectre::{edge::Edge, graph::AGraph, graph::Graph};
+use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
-// use crate::ngraph::NGraph;
-// use crate::ngraph::AGraph;
 
 const LOG_PATH: &str = "crawler-log.txt";
 
 #[derive(Default)]
 pub struct NetworkMetrics {
     graph: Graph<SocketAddr>,
-    // ngraph: NGraph<SocketAddr>,
 }
 
 impl NetworkMetrics {
@@ -22,9 +19,7 @@ impl NetworkMetrics {
             let edge = Edge::new(conn.a, conn.b);
             if conn.last_seen.elapsed().as_secs() > LAST_SEEN_CUTOFF {
                 self.graph.remove(&edge);
-                // self.ngraph.remove(&edge);
             } else {
-                // self.ngraph.insert(edge.clone());
                 self.graph.insert(edge);
             }
         }
@@ -46,20 +41,8 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    //density: f64,
-    //degree_centrality_delta: f64,
-    //avg_degree_centrality: u64,
-    //num_edges: usize,
-   // num_vertices: usize,
-    //num_kedges: usize,
-    //num_kvertices: usize,
-    //degree_centralities: HashMap<SocketAddr, u32>,
     good_addresses: Vec<SocketAddr>,
-    //good_centralities: HashMap<SocketAddr, u32>,
-    //sorted_centralities: BTreeMap<SocketAddr, u32>,
-    //sorted_degrees: Vec<u32>,
-    // betweenness: Vec<u32>
-    agraph: AGraph
+    agraph: AGraph,
 }
 
 impl NetworkSummary {
@@ -70,10 +53,6 @@ impl NetworkSummary {
 
         let num_known_nodes = nodes.len();
         let num_known_connections = connections.len();
-        // let num_edges = graph.edge_count();
-        // let num_vertices = graph.vertex_count();
-        // let num_kedges = ngraph.edge_count();
-        // let num_kvertices = ngraph.vertex_count();
 
         let good_nodes: HashMap<_, _> = nodes
             .clone()
@@ -83,7 +62,6 @@ impl NetworkSummary {
 
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
-        // let (betweenness, _closeness) = ngraph.compute_betweenness_and_closeness(&good_addresses);
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
         let mut user_agents = HashMap::with_capacity(num_known_nodes);
@@ -106,7 +84,6 @@ impl NetworkSummary {
 
         let agraph = _graph.create_agraph(&good_addresses);
 
-
         NetworkSummary {
             num_known_nodes,
             num_good_nodes,
@@ -116,7 +93,7 @@ impl NetworkSummary {
             user_agents,
             crawler_runtime,
             good_addresses,
-            agraph
+            agraph,
         }
     }
 
@@ -161,19 +138,6 @@ impl fmt::Display for NetworkSummary {
         print_hashmap(f, &self.protocol_versions)?;
         writeln!(f, "\nUser agents:")?;
         print_hashmap(f, &self.user_agents)?;
-
-        // writeln!(f, "\nNetwork graph metrics:")?;
-        // writeln!(f, "Density: {:.4}", self.density)?;
-        // writeln!(
-        //     f,
-        //     "Degree centrality delta: {}",
-        //     self.degree_centrality_delta
-        // )?;
-        // writeln!(
-        //     f,
-        //     "Average degree centrality: {:.4}",
-        //     self.avg_degree_centrality
-        // )?;
 
         writeln!(
             f,
