@@ -47,7 +47,7 @@ pub struct NetworkSummary {
 
 impl NetworkSummary {
     /// Constructs a new NetworkSummary from given nodes.
-    pub fn new(crawler: &Crawler, _graph: &mut Graph<SocketAddr>) -> NetworkSummary {
+    pub fn new(crawler: &Crawler, graph: &mut Graph<SocketAddr>) -> NetworkSummary {
         let nodes = crawler.known_network.nodes();
         let connections = crawler.known_network.connections();
 
@@ -82,7 +82,7 @@ impl NetworkSummary {
         let num_versions = protocol_versions.values().sum();
         let crawler_runtime = crawler.start_time.elapsed();
 
-        let agraph = _graph.create_agraph(&good_addresses);
+        let agraph = graph.create_agraph(&good_addresses);
 
         NetworkSummary {
             num_known_nodes,
