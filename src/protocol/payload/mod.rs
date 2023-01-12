@@ -133,7 +133,7 @@ impl Codec for VarInt {
             len @ 0x00..=0xfc => len as u64,
             0xfd => u16::from_le_bytes(read_n_bytes(bytes)?) as u64,
             0xfe => u32::from_le_bytes(read_n_bytes(bytes)?) as u64,
-            0xff => u64::from_le_bytes(read_n_bytes(bytes)?) as u64,
+            0xff => u64::from_le_bytes(read_n_bytes(bytes)?),
         };
 
         if len > MAX_MESSAGE_LEN as u64 {
