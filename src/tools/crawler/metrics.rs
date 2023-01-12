@@ -67,6 +67,9 @@ impl NetworkSummary {
         for addr in &good_addresses {
             let digest = md5::compute(addr.to_string());
             let hex: String = format!("{:x}", digest);
+            // write out 48 bits for id, 12 chars
+            // is enough for our purposes, and can be
+            // handled as int in JavaScript
             node_ids.push(hex[..12].to_string());
         }
 
