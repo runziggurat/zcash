@@ -1,6 +1,11 @@
 use std::collections::VecDeque;
 
 use tokio::time::Duration;
+use ziggurat_core_metrics::{
+    latency_tables::{LatencyRequestStats, LatencyRequestsTable},
+    recorder::TestMetrics,
+    tables::duration_as_ms,
+};
 
 use crate::{
     protocol::{
@@ -8,13 +13,7 @@ use crate::{
         payload::{block::Block, Inv},
     },
     setup::node::{Action, Node},
-    tools::{
-        metrics::{
-            recorder::TestMetrics,
-            tables::{duration_as_ms, RequestStats, RequestsTable},
-        },
-        synthetic_node::SyntheticNode,
-    },
+    tools::synthetic_node::SyntheticNode,
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
@@ -83,7 +82,7 @@ async fn p001_t2_GET_DATA_BLOCKS_throughput() {
         1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 800,
     ];
 
-    let mut table = RequestsTable::default();
+    let mut table = LatencyRequestsTable::default();
     const METRIC_LATENCY: &str = "block_test_latency";
 
     // Start node seeded with initial testnet blocks,
@@ -161,7 +160,7 @@ async fn p001_t2_GET_DATA_BLOCKS_throughput() {
         if let Some(latencies) = snapshot.construct_histogram(METRIC_LATENCY) {
             if latencies.entries() >= 1 {
                 // add stats to table display
-                table.add_row(RequestStats::new(
+                table.add_row(LatencyRequestStats::new(
                     synth_count as u16,
                     REQUESTS as u16,
                     latencies,
