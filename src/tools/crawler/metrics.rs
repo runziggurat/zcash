@@ -1,8 +1,8 @@
 use core::fmt;
+use md5;
 use serde::Serialize;
 use spectre::{edge::Edge, graph::AGraph, graph::Graph};
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
-use md5;
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
