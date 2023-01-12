@@ -42,7 +42,7 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    ids_48: Vec<String>,
+    node_ids: Vec<String>,
     agraph: AGraph,
 }
 
@@ -63,11 +63,11 @@ impl NetworkSummary {
 
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
-        let mut ids_48: Vec<String> = Vec::new();
+        let mut node_ids: Vec<String> = Vec::new();
         for addr in &good_addresses {
             let digest = md5::compute(addr.to_string());
             let hex: String = format!("{:x}", digest);
-            ids_48.push(hex[..12].to_string());
+            node_ids.push(hex[..12].to_string());
         }
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
@@ -98,7 +98,7 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            ids_48,
+            node_ids,
             agraph,
         }
     }
