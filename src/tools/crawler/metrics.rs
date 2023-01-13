@@ -1,8 +1,12 @@
 use core::fmt;
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
+use md5;
 use serde::Serialize;
-use spectre::{edge::Edge, graph::Graph};
+use spectre::{
+    edge::Edge,
+    graph::{AGraph, Graph},
+};
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
@@ -42,9 +46,8 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    density: f64,
-    degree_centrality_delta: f64,
-    avg_degree_centrality: u64,
+    node_ids: Vec<String>,
+    agraph: AGraph,
 }
 
 impl NetworkSummary {
@@ -63,6 +66,16 @@ impl NetworkSummary {
             .collect();
 
         let num_good_nodes = good_nodes.len();
+        let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
+        let mut node_ids: Vec<String> = Vec::new();
+        for addr in &good_addresses {
+            let digest = md5::compute(addr.to_string());
+            let hex: String = format!("{:x}", digest);
+            // write out 48 bits for id, 12 chars
+            // is enough for our purposes, and can be
+            // handled as int in JavaScript
+            node_ids.push(hex[..12].to_string());
+        }
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
         let mut user_agents = HashMap::with_capacity(num_known_nodes);
@@ -82,13 +95,7 @@ impl NetworkSummary {
 
         let num_versions = protocol_versions.values().sum();
         let crawler_runtime = crawler.start_time.elapsed();
-
-        // Procure metrics from the graph.
-        let density = graph.density();
-        let degree_centrality_delta = graph.degree_centrality_delta();
-        let degree_centralities = graph.degree_centrality();
-        let avg_degree_centrality = degree_centralities.values().map(|v| *v as u64).sum::<u64>()
-            / degree_centralities.len() as u64;
+        let agraph = graph.create_agraph(&good_addresses);
 
         NetworkSummary {
             num_known_nodes,
@@ -98,9 +105,8 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            density,
-            degree_centrality_delta,
-            avg_degree_centrality,
+            node_ids,
+            agraph,
         }
     }
 
@@ -145,19 +151,6 @@ impl fmt::Display for NetworkSummary {
         print_hashmap(f, &self.protocol_versions)?;
         writeln!(f, "\nUser agents:")?;
         print_hashmap(f, &self.user_agents)?;
-
-        writeln!(f, "\nNetwork graph metrics:")?;
-        writeln!(f, "Density: {:.4}", self.density)?;
-        writeln!(
-            f,
-            "Degree centrality delta: {}",
-            self.degree_centrality_delta
-        )?;
-        writeln!(
-            f,
-            "Average degree centrality: {:.4}",
-            self.avg_degree_centrality
-        )?;
 
         writeln!(
             f,
