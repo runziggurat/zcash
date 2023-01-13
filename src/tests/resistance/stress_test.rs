@@ -3,6 +3,11 @@ use std::{net::SocketAddr, time::Duration};
 use rand::prelude::SliceRandom;
 use rand_chacha::ChaCha8Rng;
 use tabled::{Table, Tabled};
+use ziggurat_core_metrics::{
+    latency_tables::{LatencyRequestStats, LatencyRequestsTable},
+    recorder::TestMetrics,
+    tables::{duration_as_ms, fmt_table, table_float_display},
+};
 
 use crate::{
     protocol::{
@@ -20,10 +25,6 @@ use crate::{
             encode_messages_with_corrupt_checksum, encode_slightly_corrupted_messages,
             metadata_compliant_random_bytes, random_bytes, seeded_rng, zeroes,
             COMMANDS_WITH_PAYLOADS,
-        },
-        metrics::{
-            recorder::TestMetrics,
-            tables::{duration_as_ms, fmt_table, table_float_display, RequestStats, RequestsTable},
         },
         synthetic_node::SyntheticNode,
     },
@@ -202,8 +203,8 @@ async fn r006_stress_test_throughput() {
 
     const TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(20);
 
-    let mut request_table = RequestsTable::default();
-    let mut handshake_table = RequestsTable::default();
+    let mut request_table = LatencyRequestsTable::default();
+    let mut handshake_table = LatencyRequestsTable::default();
     let mut stats = Vec::<Stats>::new();
 
     // Create a pool of valid and invalid message types
@@ -301,7 +302,7 @@ async fn r006_stress_test_throughput() {
         let snapshot = test_metrics.take_snapshot();
         if let Some(request_latencies) = snapshot.construct_histogram(REQUEST_LATENCY) {
             if request_latencies.entries() >= 1 {
-                let row = RequestStats::new(
+                let row = LatencyRequestStats::new(
                     peers as u16,
                     MAX_VALID_MESSAGES as u16,
                     request_latencies,
@@ -313,7 +314,8 @@ async fn r006_stress_test_throughput() {
 
         if let Some(handshake_latencies) = snapshot.construct_histogram(HANDSHAKE_LATENCY) {
             if handshake_latencies.entries() >= 1 {
-                let row = RequestStats::new(peers as u16, 1, handshake_latencies, iteration_time);
+                let row =
+                    LatencyRequestStats::new(peers as u16, 1, handshake_latencies, iteration_time);
                 handshake_table.add_row(row);
             }
 

@@ -1,49 +1,15 @@
 use std::{net::SocketAddr, time::Duration};
 
-use tabled::{Table, Tabled};
+use tabled::Table;
 use tokio::sync::mpsc::Sender;
+use ziggurat_core_metrics::{
+    connection_tables::ConnectionStats, recorder::TestMetrics, tables::fmt_table,
+};
 
 use crate::{
     setup::node::{Action, Node},
-    tools::{
-        metrics::{
-            recorder::TestMetrics,
-            tables::{fmt_table, table_float_display},
-        },
-        synthetic_node::SyntheticNode,
-    },
+    tools::synthetic_node::SyntheticNode,
 };
-
-#[derive(Tabled, Default, Debug, Clone)]
-struct Stats {
-    #[tabled(rename = "\n max peers ")]
-    pub max_peers: u16,
-    #[tabled(rename = "\n peers ")]
-    pub peers: u16,
-    #[tabled(rename = " connection \n accepted ")]
-    pub accepted: u16,
-    #[tabled(rename = " connection \n rejected ")]
-    pub rejected: u16,
-    #[tabled(rename = " connection \n terminated ")]
-    pub terminated: u16,
-    #[tabled(rename = " connection \n error ")]
-    pub conn_error: u16,
-    #[tabled(rename = " connection \n timed out ")]
-    pub timed_out: u16,
-    #[tabled(rename = "\n time (s) ")]
-    #[tabled(display_with = "table_float_display")]
-    pub time: f64,
-}
-
-impl Stats {
-    fn new(max_peers: u16, peers: u16) -> Self {
-        Self {
-            max_peers,
-            peers,
-            ..Default::default()
-        }
-    }
-}
 
 const METRIC_ACCEPTED: &str = "perf_conn_accepted";
 const METRIC_TERMINATED: &str = "perf_conn_terminated";
@@ -197,7 +163,7 @@ async fn p002_connections_load_bearing() {
         }
 
         // Collect stats for this run
-        let mut stats = Stats::new(MAX_PEERS, synth_count);
+        let mut stats = ConnectionStats::new(MAX_PEERS, synth_count);
         stats.time = test_start.elapsed().as_secs_f64();
         {
             let snapshot = test_metrics.take_snapshot();
@@ -215,7 +181,7 @@ async fn p002_connections_load_bearing() {
     node.stop().unwrap();
 
     // Display results table
-    println!("{}", fmt_table(Table::new(&all_stats)));
+    println!("\r\n{}", fmt_table(Table::new(&all_stats)));
 
     // Check that results are okay
     for stats in all_stats.iter() {
