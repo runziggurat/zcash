@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
-use md5;
+use regex::Regex;
 use serde::Serialize;
 use spectre::{
     edge::Edge,
@@ -46,7 +46,7 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    node_ids: Vec<String>,
+    node_addrs: Vec<String>,
     agraph: AGraph,
 }
 
@@ -67,14 +67,18 @@ impl NetworkSummary {
 
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
-        let mut node_ids: Vec<String> = Vec::new();
+        let mut node_addrs: Vec<String> = Vec::new();
+
+        // remove colon and port number
+        let re = Regex::new(r"(.*):").unwrap();
         for addr in &good_addresses {
-            let digest = md5::compute(addr.to_string());
-            let hex: String = format!("{:x}", digest);
-            // write out 48 bits for id, 12 chars
-            // is enough for our purposes, and can be
-            // handled as int in JavaScript
-            node_ids.push(hex[..12].to_string());
+            let node_addr: String = addr.to_string();
+            let caps = re.captures(&node_addr).unwrap();
+            if caps.len() == 2 {
+                node_addrs.push(caps[1].to_string());
+            } else {
+                node_addrs.push(node_addr);
+            }
         }
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
@@ -105,7 +109,7 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            node_ids,
+            node_addrs,
             agraph,
         }
     }
