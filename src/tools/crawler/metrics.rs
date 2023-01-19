@@ -46,7 +46,7 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    node_addrs: Vec<String>,
+    node_ips: Vec<String>,
     agraph: AGraph,
 }
 
@@ -67,7 +67,7 @@ impl NetworkSummary {
 
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
-        let mut node_addrs: Vec<String> = Vec::new();
+        let mut node_ips: Vec<String> = Vec::new();
 
         // remove colon and port number
         let re = Regex::new(r"(.*):").unwrap();
@@ -75,9 +75,9 @@ impl NetworkSummary {
             let node_addr: String = addr.to_string();
             let caps = re.captures(&node_addr).unwrap();
             if caps.len() == 2 {
-                node_addrs.push(caps[1].to_string());
+                node_ips.push(caps[1].to_string());
             } else {
-                node_addrs.push(node_addr);
+                node_ips.push(node_addr);
             }
         }
 
@@ -109,7 +109,7 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            node_addrs,
+            node_ips,
             agraph,
         }
     }
