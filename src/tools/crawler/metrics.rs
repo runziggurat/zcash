@@ -1,7 +1,6 @@
 use core::fmt;
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
-use regex::Regex;
 use serde::Serialize;
 use spectre::{
     edge::Edge,
@@ -68,17 +67,8 @@ impl NetworkSummary {
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
         let mut node_ips: Vec<String> = Vec::new();
-
-        // remove colon and port number
-        let re = Regex::new(r"(.*):").unwrap();
         for addr in &good_addresses {
-            let node_addr: String = addr.to_string();
-            let caps = re.captures(&node_addr).unwrap();
-            if caps.len() == 2 {
-                node_ips.push(caps[1].to_string());
-            } else {
-                node_ips.push(node_addr);
-            }
+            node_ips.push(addr.ip().to_string());
         }
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
