@@ -1,7 +1,6 @@
 use core::fmt;
 use std::{cmp, collections::HashMap, fs, net::SocketAddr, time::Duration};
 
-use md5;
 use serde::Serialize;
 use spectre::{
     edge::Edge,
@@ -46,7 +45,7 @@ pub struct NetworkSummary {
     protocol_versions: HashMap<u32, usize>,
     user_agents: HashMap<String, usize>,
     crawler_runtime: Duration,
-    node_ids: Vec<String>,
+    node_ips: Vec<String>,
     agraph: AGraph,
 }
 
@@ -67,14 +66,9 @@ impl NetworkSummary {
 
         let num_good_nodes = good_nodes.len();
         let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
-        let mut node_ids: Vec<String> = Vec::new();
+        let mut node_ips: Vec<String> = Vec::new();
         for addr in &good_addresses {
-            let digest = md5::compute(addr.to_string());
-            let hex: String = format!("{:x}", digest);
-            // write out 48 bits for id, 12 chars
-            // is enough for our purposes, and can be
-            // handled as int in JavaScript
-            node_ids.push(hex[..12].to_string());
+            node_ips.push(addr.ip().to_string());
         }
 
         let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
@@ -105,7 +99,7 @@ impl NetworkSummary {
             protocol_versions,
             user_agents,
             crawler_runtime,
-            node_ids,
+            node_ips,
             agraph,
         }
     }
