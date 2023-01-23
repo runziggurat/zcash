@@ -16,9 +16,10 @@ use tokio::{signal, time::sleep};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat::{protocol::message::Message, wait_until};
+use ziggurat_core_crawler::summary::NetworkSummary;
 
 use crate::{
-    metrics::{NetworkMetrics, NetworkSummary},
+    metrics::NetworkMetrics,
     network::KnownNode,
     protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
     rpc::{initialize_rpc_server, RpcContext},
@@ -32,6 +33,7 @@ mod rpc;
 const SEED_WAIT_LOOP_INTERVAL_MS: u64 = 500;
 const SEED_RESPONSE_TIMEOUT_MS: u64 = 120_000;
 const SUMMARY_LOOP_INTERVAL: u64 = 60;
+const LOG_PATH: &str = "crawler-log.txt";
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -199,7 +201,7 @@ async fn main() {
     // Print out summary of network metrics.
     let summary = summary.lock();
     info!(parent: crawler_clone.node().span(), "{}", summary);
-    if let Err(e) = summary.log_to_file() {
+    if let Err(e) = summary.log_to_file(LOG_PATH) {
         error!(parent: crawler_clone.node().span(), "couldn't write summary to file: {}", e);
     }
 }
