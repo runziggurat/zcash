@@ -3,8 +3,7 @@ use std::{net::SocketAddr, sync::Arc};
 use jsonrpsee::http_server::{HttpServerBuilder, HttpServerHandle, RpcModule};
 use parking_lot::Mutex;
 use tracing::debug;
-
-use crate::metrics::NetworkSummary;
+use ziggurat_core_crawler::summary::NetworkSummary;
 
 pub struct RpcContext(Arc<Mutex<NetworkSummary>>);
 
