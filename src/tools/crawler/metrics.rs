@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::IpAddr};
 
 use spectre::{edge::Edge, graph::Graph};
 use ziggurat_core_crawler::summary::NetworkSummary;
@@ -7,7 +7,7 @@ use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
 #[derive(Default)]
 pub struct NetworkMetrics {
-    graph: Graph<SocketAddr>,
+    graph: Graph<IpAddr>,
 }
 
 impl NetworkMetrics {
@@ -30,25 +30,20 @@ impl NetworkMetrics {
 }
 
 /// Constructs a new NetworkSummary from given nodes.
-pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> NetworkSummary {
+pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkSummary {
     let nodes = crawler.known_network.nodes();
     let connections = crawler.known_network.connections();
 
     let num_known_nodes = nodes.len();
     let num_known_connections = connections.len();
 
-    let good_nodes: HashMap<_, _> = nodes
+    let good_nodes = nodes
         .clone()
         .into_iter()
-        .filter(|(_, node)| node.last_connected.is_some())
-        .collect();
+        .filter_map(|(addr, node)| node.last_connected.map(|_| addr.ip()))
+        .collect::<Vec<_>>();
 
     let num_good_nodes = good_nodes.len();
-    let good_addresses: Vec<SocketAddr> = good_nodes.keys().cloned().collect();
-    let mut node_ips: Vec<String> = Vec::new();
-    for addr in &good_addresses {
-        node_ips.push(addr.ip().to_string());
-    }
 
     let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
     let mut user_agents = HashMap::with_capacity(num_known_nodes);
@@ -68,7 +63,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
 
     let num_versions = protocol_versions.values().sum();
     let crawler_runtime = crawler.start_time.elapsed();
-    let agraph = graph.create_agraph(&good_addresses);
+    let agraph = graph.create_agraph(&good_nodes);
 
     NetworkSummary {
         num_known_nodes,
@@ -78,7 +73,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
         protocol_versions,
         user_agents,
         crawler_runtime,
-        node_ips,
+        node_ips: good_nodes.iter().map(IpAddr::to_string).collect(),
         agraph,
     }
 }

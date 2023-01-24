@@ -37,16 +37,19 @@ pub struct KnownNetwork {
 }
 
 impl KnownNetwork {
-    /// Extends the list of known nodes.
+    /// Extends the list of known nodes and connections.
     pub fn add_addrs(&self, source: SocketAddr, listening_addrs: &[SocketAddr]) {
         {
             let connections = &mut self.connections.write();
             for addr in listening_addrs {
-                connections.insert(KnownConnection::new(source, *addr));
+                connections.insert(KnownConnection::new(source.ip(), addr.ip()));
             }
         }
-
-        self.update_nodes();
+        let mut nodes = self.nodes.write();
+        nodes.entry(source).or_default();
+        listening_addrs.iter().for_each(|addr| {
+            nodes.entry(*addr).or_default();
+        });
     }
 
     /// Returns a snapshot of the known connections.
@@ -83,20 +86,6 @@ impl KnownNetwork {
             for conn in old_conns {
                 conns.remove(&conn);
             }
-        }
-    }
-
-    /// Updates the list of known nodes based on the known connections.
-    pub fn update_nodes(&self) {
-        let mut prospect_nodes: HashSet<SocketAddr> = HashSet::new();
-        for connection in self.connections() {
-            prospect_nodes.insert(connection.a);
-            prospect_nodes.insert(connection.b);
-        }
-
-        let mut nodes = self.nodes.write();
-        for addr in prospect_nodes {
-            nodes.entry(addr).or_default();
         }
     }
 }
