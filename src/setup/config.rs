@@ -114,7 +114,8 @@ impl NodeMetaData {
         // Read Ziggurat's configuration file.
         let path = config_path.join(CONFIG_FILE);
         let config_string = fs::read_to_string(path)?;
-        let config_file: ConfigFile = toml::from_str(&config_string)?;
+        let config_file: ConfigFile =
+            toml::from_str(&config_string).map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
 
         let args_from = |command: &str| -> Vec<OsString> {
             command.split_whitespace().map(OsString::from).collect()
