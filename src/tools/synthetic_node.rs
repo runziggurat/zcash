@@ -11,7 +11,7 @@ use bytes::{BufMut, BytesMut};
 use futures_util::{sink::SinkExt, TryStreamExt};
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
-    Config as NodeConfig, Connection, ConnectionSide, KnownPeers, Node, Pea2Pea,
+    Config as NodeConfig, Connection, ConnectionSide, Node, Pea2Pea,
 };
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -136,7 +136,7 @@ impl SyntheticNodeBuilder {
     /// Creates a [`SyntheticNode`] with the current configuration.
     pub async fn build(&self) -> io::Result<SyntheticNode> {
         // Create the pea2pea node from the config.
-        let node = Node::new(self.network_config.clone()).await?;
+        let node = Node::new(self.network_config.clone());
 
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
@@ -225,11 +225,6 @@ impl SyntheticNode {
     /// Returns the number of connected peers.
     pub fn num_connected(&self) -> usize {
         self.inner_node.node().num_connected()
-    }
-
-    /// Returns a reference to the node's known peers.
-    pub fn known_peers(&self) -> &KnownPeers {
-        self.inner_node.node().known_peers()
     }
 
     /// Returns the list of active connections for this node. Should be preferred over [`known_peers`] when querying active connections.

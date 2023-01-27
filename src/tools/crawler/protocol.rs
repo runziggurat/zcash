@@ -47,7 +47,7 @@ impl Crawler {
         };
 
         Self {
-            node: Pea2PeaNode::new(config).await.unwrap(),
+            node: Pea2PeaNode::new(config),
             known_network: Default::default(),
             start_time: Instant::now(),
         }
