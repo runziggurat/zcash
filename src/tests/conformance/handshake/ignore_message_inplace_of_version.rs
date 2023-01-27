@@ -159,10 +159,7 @@ mod when_node_receives_connection {
             Ok((_, Message::Version(..))) => Ok(()),
             Ok((_, unexpected)) => Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!(
-                    "Message was not ignored. Instead of Version received {}",
-                    unexpected
-                ),
+                format!("Message was not ignored. Instead of Version received {unexpected}"),
             )),
             Err(_timeout) if !synthetic_node.is_connected(node.addr()) => Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
@@ -179,10 +176,7 @@ mod when_node_receives_connection {
             Ok((_, Message::Verack)) => Ok(()),
             Ok((_, unexpected)) => Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!(
-                    "Message was not ignored. Instead of Verack received {}",
-                    unexpected
-                ),
+                format!("Message was not ignored. Instead of Verack received {unexpected}"),
             )),
             Err(_timeout) if !synthetic_node.is_connected(node.addr()) => Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
@@ -345,10 +339,7 @@ mod when_node_initiates_connection {
             Ok((_, Message::Version(..))) => Ok(()),
             Ok((_, unexpected)) => Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!(
-                    "Message was not ignored. Instead of Version received {}",
-                    unexpected
-                ),
+                format!("Message was not ignored. Instead of Version received {unexpected}"),
             )),
             Err(_timeout) if !synthetic_node.is_connected(node.addr()) => Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
@@ -365,10 +356,7 @@ mod when_node_initiates_connection {
             Ok((_, Message::Verack)) => Ok(()),
             Ok((_, unexpected)) => Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!(
-                    "Message was not ignored. Instead of Verack received {}",
-                    unexpected
-                ),
+                format!("Message was not ignored. Instead of Verack received {unexpected}"),
             )),
             Err(_timeout) if !synthetic_node.is_connected(node.addr()) => Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,

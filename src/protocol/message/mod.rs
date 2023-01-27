@@ -201,7 +201,7 @@ impl Message {
             cmd => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    format!("Unknown command string: {:?}", cmd),
+                    format!("Unknown command string: {cmd:?}"),
                 ))
             }
         };
@@ -215,8 +215,8 @@ impl std::fmt::Display for Message {
         match self {
             Message::Version(_) => f.write_str("Version"),
             Message::Verack => f.write_str("Verack"),
-            Message::Ping(nonce) => f.write_fmt(format_args!("Ping({:?})", nonce)),
-            Message::Pong(nonce) => f.write_fmt(format_args!("Pong({:?})", nonce)),
+            Message::Ping(nonce) => f.write_fmt(format_args!("Ping({nonce:?})")),
+            Message::Pong(nonce) => f.write_fmt(format_args!("Pong({nonce:?})")),
             Message::GetAddr => f.write_str("GetAddr"),
             Message::Addr(_) => f.write_str("Addr"),
             Message::GetHeaders(_) => f.write_str("GetHeaders"),

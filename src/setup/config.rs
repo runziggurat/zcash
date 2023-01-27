@@ -226,7 +226,7 @@ impl ZcashdConfigFile {
             contents.push_str("addnode=\n")
         } else {
             for peer in &config.initial_peers {
-                let _ = writeln!(contents, "addnode={}", peer);
+                let _ = writeln!(contents, "addnode={peer}");
             }
         }
 

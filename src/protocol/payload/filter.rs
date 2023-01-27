@@ -78,8 +78,7 @@ impl Codec for FilterLoad {
             return Err(io::Error::new(
                 ErrorKind::InvalidData,
                 format!(
-                    "Minimum FilterLoad bytes required is {} but only got {}",
-                    NON_FILTER_BYTES, bytes_read
+                    "Minimum FilterLoad bytes required is {NON_FILTER_BYTES} but only got {bytes_read}"
                 ),
             ));
         }
@@ -89,10 +88,7 @@ impl Codec for FilterLoad {
         if filter_bytes > MAX_FILTER_BYTES {
             return Err(io::Error::new(
                 ErrorKind::InvalidData,
-                format!(
-                    "Maximum filter bytes is {} but got {}",
-                    MAX_FILTER_BYTES, filter_bytes
-                ),
+                format!("Maximum filter bytes is {MAX_FILTER_BYTES} but got {filter_bytes}"),
             ));
         }
 

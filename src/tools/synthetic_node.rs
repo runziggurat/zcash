@@ -44,13 +44,13 @@ impl std::fmt::Debug for PingPongError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
             PingPongError::ConnectionAborted => "Connection aborted".to_string(),
-            PingPongError::IoErr(err) => format!("{:?}", err),
+            PingPongError::IoErr(err) => format!("{err:?}"),
             PingPongError::Timeout(duration) => {
                 format!("Timeout after {0:.3}s", duration.as_secs_f32())
             }
             PingPongError::Unexpected(msg) => match &**msg {
                 Message::Pong(_) => "Pong nonce did not match".to_string(),
-                non_pong => format!("Expected a matching Pong, but got {:?}", non_pong),
+                non_pong => format!("Expected a matching Pong, but got {non_pong:?}"),
             },
         };
 
@@ -62,7 +62,7 @@ impl std::fmt::Display for PingPongError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // FIXME: Consider specialising the longer debug strings, e.g.
         //        IoErr and Unexpected.
-        f.write_str(&format!("{:?}", self))
+        f.write_str(&format!("{self:?}"))
     }
 }
 
@@ -78,10 +78,9 @@ impl From<PingPongError> for io::Error {
                 ErrorKind::TimedOut,
                 format!("Timeout after {0:.3}s", duration.as_secs_f64()),
             ),
-            Unexpected(msg) => Error::new(
-                ErrorKind::Other,
-                format!("Expected Pong, received {:?}", msg),
-            ),
+            Unexpected(msg) => {
+                Error::new(ErrorKind::Other, format!("Expected Pong, received {msg:?}"))
+            }
         }
     }
 }
@@ -146,6 +145,9 @@ impl SyntheticNodeBuilder {
         // Enable the read and write protocols
         inner_node.enable_reading().await;
         inner_node.enable_writing().await;
+
+        // Always start listening as inner node expects `listening_addr` to be always available.
+        inner_node.node().start_listening().await?;
 
         Ok(SyntheticNode {
             inner_node,
@@ -556,7 +558,7 @@ impl Handshake for InnerNode {
                             parent: span,
                             "received non-version message during handshake: {:?}", other
                         );
-                        panic!("Expected Version, got {:?}", other);
+                        panic!("Expected Version, got {other:?}");
                     }
                     None => {
                         // Connection was refused by main node, quietly abort handshake.
@@ -575,7 +577,7 @@ impl Handshake for InnerNode {
                             parent: span,
                             "received non-version message during handshake: {:?}", other
                         );
-                        panic!("Expected Version, got {:?}", other);
+                        panic!("Expected Version, got {other:?}");
                     }
                     None => return Err(io::ErrorKind::InvalidData.into()),
                 };
@@ -607,7 +609,7 @@ impl Handshake for InnerNode {
                             parent: span,
                             "received non-version message during handshake: {:?}", other
                         );
-                        panic!("Expected Version, got {:?}", other);
+                        panic!("Expected Version, got {other:?}");
                     }
                     None => return Err(io::ErrorKind::InvalidData.into()),
                 };

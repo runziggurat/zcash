@@ -346,8 +346,8 @@ async fn r006_stress_test_throughput() {
 
     // Display tables
     println!("Stats\n{}\n", fmt_table(Table::new(stats)));
-    println!("Request latencies\n{}\n", request_table);
-    println!("Handshake latencies\n{}\n", handshake_table);
+    println!("Request latencies\n{request_table}\n");
+    println!("Handshake latencies\n{handshake_table}\n");
 
     node.stop().unwrap();
 }
@@ -504,7 +504,7 @@ async fn simulate_peer(
         }
         Ok((_, message)) => {
             metrics::counter!(CORRUPT_REPLY, 1);
-            panic!("Reply received to corrupt message: {:?}", message);
+            panic!("Reply received to corrupt message: {message:?}",);
         }
         Err(_timeout) => {
             metrics::counter!(CORRUPT_TERMINATED, 1);

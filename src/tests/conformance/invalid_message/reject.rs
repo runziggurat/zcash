@@ -144,7 +144,7 @@ async fn run_test_case(message: Message, expected_code: CCode) -> io::Result<()>
             unexpected => {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
-                    format!("Unexpected message received: {:?}", unexpected),
+                    format!("Unexpected message received: {unexpected:?}"),
                 ))
             }
         },
