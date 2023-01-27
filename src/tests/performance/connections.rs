@@ -193,23 +193,18 @@ async fn p002_connections_load_bearing() {
         // If this is no longer true, then we need to start tracking the statistics
         // over time instead of just totals. So this is a sanity check to ensure that
         // assumption still applies.
-        assert_eq!(stats.terminated, 0, "Stats: {:?}", stats);
+        assert_eq!(stats.terminated, 0, "Stats: {stats:?}");
 
         // We expect to have `MAX_PEERS` connections. This is only true if
         // `stats.terminated == 0`.
-        assert_eq!(stats.accepted, MAX_PEERS, "Stats: {:?}", stats);
+        assert_eq!(stats.accepted, MAX_PEERS, "Stats: {stats:?}");
 
         // The rest of the peers should be rejected.
-        assert_eq!(
-            stats.rejected,
-            stats.peers - MAX_PEERS,
-            "Stats: {:?}",
-            stats
-        );
+        assert_eq!(stats.rejected, stats.peers - MAX_PEERS, "Stats: {stats:?}");
 
         // And no connection timeouts or errors
-        assert_eq!(stats.timed_out, 0, "Stats: {:?}", stats);
-        assert_eq!(stats.conn_error, 0, "Stats: {:?}", stats);
+        assert_eq!(stats.timed_out, 0, "Stats: {stats:?}");
+        assert_eq!(stats.conn_error, 0, "Stats: {stats:?}");
     }
 }
 
@@ -250,7 +245,7 @@ async fn simulate_peer(node_addr: SocketAddr, handshake_complete: Sender<()>) {
             .recv_message_timeout(Duration::from_millis(100))
             .await
         {
-            Ok((_, message)) => panic!("Unexpected message: {:?}", message),
+            Ok((_, message)) => panic!("Unexpected message: {message:?}"),
             Err(_timeout) => {
                 // check for broken connection
                 if !synth_node.is_connected(node_addr) {

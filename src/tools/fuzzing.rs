@@ -47,7 +47,7 @@ pub fn seeded_rng() -> ChaCha8Rng {
     thread_rng().fill(&mut seed);
 
     // We print the seed for reproducibility.
-    println!("Seed for RNG: {:?}", seed);
+    println!("Seed for RNG: {seed:?}");
 
     // Isn't cryptographically secure but adequate enough as a general source of seeded randomness.
     ChaCha8Rng::from_seed(seed)

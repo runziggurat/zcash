@@ -113,7 +113,7 @@ impl Codec for CCode {
             OTHER_CODE => Ok(Self::Other),
             b => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Invalid CCode {:#x}", b),
+                format!("Invalid CCode {b:#x}"),
             )),
         }
     }

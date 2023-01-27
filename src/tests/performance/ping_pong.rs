@@ -202,7 +202,7 @@ async fn p001_t1_PING_PONG_throughput() {
     node.stop().unwrap();
 
     // Display results table
-    println!("\r\n{}", table);
+    println!("\r\n{table}");
 }
 
 async fn simulate_peer(node_addr: SocketAddr) {

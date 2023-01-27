@@ -297,7 +297,7 @@ mod when_node_initiates_connection {
             Ok((_, Message::Verack)) => Ok(()),
             Ok((_, unexpected)) => Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!("Message was not ignored, received {}", unexpected),
+                format!("Message was not ignored, received {unexpected}"),
             )),
             Err(_timeout) if !synthetic_node.is_connected(node.addr()) => Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,

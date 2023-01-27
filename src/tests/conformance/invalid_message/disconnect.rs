@@ -66,10 +66,10 @@ async fn c012_t1_PONG_with_wrong_nonce() {
             .unicast(node.addr(), Message::Pong(Nonce::default()))
             .unwrap(),
         Ok((_, message)) => {
-            panic!("Unexpected message while waiting for Ping: {}", message);
+            panic!("Unexpected message while waiting for Ping: {message}");
         }
         Err(err) => {
-            panic!("Error waiting for Ping: {:?}", err);
+            panic!("Error waiting for Ping: {err:?}");
         }
     }
 
@@ -81,7 +81,7 @@ async fn c012_t1_PONG_with_wrong_nonce() {
     {
         Err(PingPongError::ConnectionAborted) => {}
         Ok(_) => panic!("Message was ignored."),
-        Err(err) => panic!("Connection was not aborted: {:?}", err),
+        Err(err) => panic!("Connection was not aborted: {err:?}"),
     }
 
     synthetic_node.shut_down().await;
@@ -192,7 +192,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
         Ok(_) => Err(io::Error::new(io::ErrorKind::Other, "Message was ignored")),
         Err(Unexpected(msg)) => Err(io::Error::new(
             io::ErrorKind::Other,
-            format!("Message was replied to with {}.", msg),
+            format!("Message was replied to with {msg}."),
         )),
         Err(Timeout(_)) => Err(io::Error::new(
             io::ErrorKind::TimedOut,
@@ -200,7 +200,7 @@ async fn run_test_case_bytes(bytes: Vec<u8>) -> io::Result<()> {
         )),
         Err(err) => Err(io::Error::new(
             io::ErrorKind::Other,
-            format!("Error waiting for disconnect: {:?}", err),
+            format!("Error waiting for disconnect: {err:?}"),
         )),
     };
 
