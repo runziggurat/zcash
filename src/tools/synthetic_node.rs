@@ -11,7 +11,7 @@ use bytes::{BufMut, BytesMut};
 use futures_util::{sink::SinkExt, TryStreamExt};
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
-    Config as NodeConfig, Connection, ConnectionSide, KnownPeers, Node, Pea2Pea,
+    Config as NodeConfig, Connection, ConnectionSide, Node, Pea2Pea,
 };
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -44,13 +44,13 @@ impl std::fmt::Debug for PingPongError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
             PingPongError::ConnectionAborted => "Connection aborted".to_string(),
-            PingPongError::IoErr(err) => format!("{:?}", err),
+            PingPongError::IoErr(err) => format!("{err:?}"),
             PingPongError::Timeout(duration) => {
                 format!("Timeout after {0:.3}s", duration.as_secs_f32())
             }
             PingPongError::Unexpected(msg) => match &**msg {
                 Message::Pong(_) => "Pong nonce did not match".to_string(),
-                non_pong => format!("Expected a matching Pong, but got {:?}", non_pong),
+                non_pong => format!("Expected a matching Pong, but got {non_pong:?}"),
             },
         };
 
@@ -62,7 +62,7 @@ impl std::fmt::Display for PingPongError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // FIXME: Consider specialising the longer debug strings, e.g.
         //        IoErr and Unexpected.
-        f.write_str(&format!("{:?}", self))
+        f.write_str(&format!("{self:?}"))
     }
 }
 
@@ -78,10 +78,9 @@ impl From<PingPongError> for io::Error {
                 ErrorKind::TimedOut,
                 format!("Timeout after {0:.3}s", duration.as_secs_f64()),
             ),
-            Unexpected(msg) => Error::new(
-                ErrorKind::Other,
-                format!("Expected Pong, received {:?}", msg),
-            ),
+            Unexpected(msg) => {
+                Error::new(ErrorKind::Other, format!("Expected Pong, received {msg:?}"))
+            }
         }
     }
 }
@@ -136,7 +135,7 @@ impl SyntheticNodeBuilder {
     /// Creates a [`SyntheticNode`] with the current configuration.
     pub async fn build(&self) -> io::Result<SyntheticNode> {
         // Create the pea2pea node from the config.
-        let node = Node::new(self.network_config.clone()).await?;
+        let node = Node::new(self.network_config.clone());
 
         // Inbound channel size of 100 messages.
         let (tx, rx) = mpsc::channel(100);
@@ -146,6 +145,9 @@ impl SyntheticNodeBuilder {
         // Enable the read and write protocols
         inner_node.enable_reading().await;
         inner_node.enable_writing().await;
+
+        // Always start listening as inner node expects `listening_addr` to be always available.
+        inner_node.node().start_listening().await?;
 
         Ok(SyntheticNode {
             inner_node,
@@ -225,11 +227,6 @@ impl SyntheticNode {
     /// Returns the number of connected peers.
     pub fn num_connected(&self) -> usize {
         self.inner_node.node().num_connected()
-    }
-
-    /// Returns a reference to the node's known peers.
-    pub fn known_peers(&self) -> &KnownPeers {
-        self.inner_node.node().known_peers()
     }
 
     /// Returns the list of active connections for this node. Should be preferred over [`known_peers`] when querying active connections.
@@ -561,7 +558,7 @@ impl Handshake for InnerNode {
                             parent: span,
                             "received non-version message during handshake: {:?}", other
                         );
-                        panic!("Expected Version, got {:?}", other);
+                        panic!("Expected Version, got {other:?}");
                     }
                     None => {
                         // Connection was refused by main node, quietly abort handshake.
@@ -580,7 +577,7 @@ impl Handshake for InnerNode {
                             parent: span,
                             "received non-version message during handshake: {:?}", other
                         );
-                        panic!("Expected Version, got {:?}", other);
+                        panic!("Expected Version, got {other:?}");
                     }
                     None => return Err(io::ErrorKind::InvalidData.into()),
                 };
@@ -612,7 +609,7 @@ impl Handshake for InnerNode {
                             parent: span,
                             "received non-version message during handshake: {:?}", other
                         );
-                        panic!("Expected Version, got {:?}", other);
+                        panic!("Expected Version, got {other:?}");
                     }
                     None => return Err(io::ErrorKind::InvalidData.into()),
                 };

@@ -39,7 +39,7 @@ const LOG_PATH: &str = "crawler-log.txt";
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// The initial addresses to connect to
-    #[clap(short, long, value_parser, min_values = 1, required = true)]
+    #[clap(short, long, value_parser, num_args = 1.., required = true)]
     seed_addrs: Vec<SocketAddr>,
 
     /// The main crawling loop interval in seconds

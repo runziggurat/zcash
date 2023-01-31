@@ -85,7 +85,7 @@ impl Node {
     /// The ip used to construct the addresses can be optionally set in the configuration file and
     /// otherwise defaults to localhost.
     pub fn initial_peers(&mut self, peers: Vec<SocketAddr>) -> &mut Self {
-        self.config.initial_peers = peers.iter().map(|addr| format!("{}", addr)).collect();
+        self.config.initial_peers = peers.iter().map(|addr| format!("{addr}")).collect();
 
         self
     }
@@ -208,7 +208,7 @@ impl Node {
                     (_, msg) => {
                         return Err(io::Error::new(
                             io::ErrorKind::InvalidData,
-                            format!("Expected GetHeaders but got: {:?}", msg),
+                            format!("Expected GetHeaders but got: {msg:?}"),
                         ));
                     }
                 };
@@ -230,7 +230,7 @@ impl Node {
                     (_, msg) => {
                         return Err(io::Error::new(
                             io::ErrorKind::InvalidData,
-                            format!("Expected GetData but got: {:?}", msg),
+                            format!("Expected GetData but got: {msg:?}"),
                         ))
                     }
                 }
@@ -264,7 +264,7 @@ impl Node {
                 Some(exit_code) if exit_code.success() => {
                     Some("but exited successfully somehow".to_string())
                 }
-                Some(exit_code) => Some(format!("crashed with {}", exit_code)),
+                Some(exit_code) => Some(format!("crashed with {exit_code}")),
             };
 
             self.cleanup()?;
@@ -272,7 +272,7 @@ impl Node {
             if let Some(crash_msg) = crashed {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Node exited early, {}", crash_msg),
+                    format!("Node exited early, {crash_msg}"),
                 ));
             }
         }

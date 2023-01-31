@@ -254,7 +254,7 @@ impl Codec for Header {
         if tx_count != 0 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Message::Header.tx_count = {}, expected 0", tx_count),
+                format!("Message::Header.tx_count = {tx_count}, expected 0"),
             ));
         }
 

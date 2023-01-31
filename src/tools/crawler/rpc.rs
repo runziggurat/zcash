@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use jsonrpsee::http_server::{HttpServerBuilder, HttpServerHandle, RpcModule};
+use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use parking_lot::Mutex;
 use tracing::debug;
 use ziggurat_core_crawler::summary::NetworkSummary;
@@ -22,11 +22,8 @@ impl std::ops::Deref for RpcContext {
     }
 }
 
-pub async fn initialize_rpc_server(
-    rpc_addr: SocketAddr,
-    rpc_context: RpcContext,
-) -> HttpServerHandle {
-    let server = HttpServerBuilder::default()
+pub async fn initialize_rpc_server(rpc_addr: SocketAddr, rpc_context: RpcContext) -> ServerHandle {
+    let server = ServerBuilder::default()
         .max_response_body_size(20000000)
         .build(rpc_addr)
         .await

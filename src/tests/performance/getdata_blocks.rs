@@ -141,7 +141,7 @@ async fn p001_t2_GET_DATA_BLOCKS_throughput() {
                             metrics::histogram!(METRIC_LATENCY, duration_as_ms(now.elapsed()));
                         }
                         Ok((_, bad_reply)) => {
-                            panic!("Failed to receive Block, got {:?}", bad_reply);
+                            panic!("Failed to receive Block, got {bad_reply:?}");
                         }
                     }
                 }
@@ -173,5 +173,5 @@ async fn p001_t2_GET_DATA_BLOCKS_throughput() {
     node.stop().unwrap();
 
     // Display various percentiles
-    println!("\r\n{}", table);
+    println!("\r\n{table}");
 }

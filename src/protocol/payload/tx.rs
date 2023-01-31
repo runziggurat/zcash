@@ -97,7 +97,7 @@ impl Codec for Tx {
             (version, overwinter) => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("Couldn't decode data with version {} and overwinter {} into a known transaction version", version, overwinter),
+                    format!("Couldn't decode data with version {version} and overwinter {overwinter} into a known transaction version"),
                 ))
             }
         };

@@ -139,10 +139,7 @@ impl Codec for VarInt {
         if len > MAX_MESSAGE_LEN as u64 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!(
-                    "VarInt length of {} exceeds max message length of {}",
-                    len, MAX_MESSAGE_LEN
-                ),
+                format!("VarInt length of {len} exceeds max message length of {MAX_MESSAGE_LEN}"),
             ));
         }
 
