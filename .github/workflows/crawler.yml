@@ -28,11 +28,7 @@ jobs:
     needs: [ install-zcashd ]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - run: rustup toolchain install stable --profile minimal
       - uses: actions/download-artifact@v3
         with:
           name: zcashd-fetch-params
