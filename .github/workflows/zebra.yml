@@ -64,16 +64,17 @@ jobs:
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           mkdir -p results/zebra
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
+          rm -f results/zebra/latest.jsonl
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zebra/latest.jsonl
       - name: git
         run: |
           FILENAME=$(date +%Y-%m-%d)
-          mv result.jsonl results/zebra/$FILENAME.jsonl
-          rm -f results/zebra/latest.jsonl
-          cp results/zebra/$FILENAME.jsonl results/zebra/latest.jsonl
+          cd results/zebra
+          cp latest.jsonl $FILENAME.jsonl
+          gzip $FILENAME.jsonl
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git pull
-          git add results
+          git add ./
           git commit -m "ci: zebra suite results"
           git push

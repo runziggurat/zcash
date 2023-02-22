@@ -75,16 +75,17 @@ jobs:
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
           mkdir -p results/zcashd
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > result.jsonl
+          rm -f results/zcashd/latest.jsonl
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/latest.jsonl
       - name: git
         run: |
           FILENAME=$(date +%Y-%m-%d)
-          mv result.jsonl results/zcashd/$FILENAME.jsonl
-          rm -f results/zcashd/latest.jsonl
-          cp results/zcashd/$FILENAME.jsonl results/zcashd/latest.jsonl
+          cd results/zcashd
+          cp latest.jsonl $FILENAME.jsonl
+          gzip $FILENAME.jsonl
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git pull
-          git add results
+          git add ./
           git commit -m "ci: zcashd suite results"
           git push
