@@ -63,7 +63,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkS
 
     let num_versions = protocol_versions.values().sum();
     let crawler_runtime = crawler.start_time.elapsed();
-    let agraph = graph.create_agraph(&good_nodes);
+    let indices = graph.get_filtered_adjacency_indices(&good_nodes);
 
     NetworkSummary {
         num_known_nodes,
@@ -74,6 +74,6 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkS
         user_agents,
         crawler_runtime,
         node_ips: good_nodes.iter().map(IpAddr::to_string).collect(),
-        agraph,
+        indices,
     }
 }
