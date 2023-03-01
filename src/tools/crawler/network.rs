@@ -42,7 +42,7 @@ impl KnownNetwork {
         {
             let connections = &mut self.connections.write();
             for addr in listening_addrs {
-                connections.insert(KnownConnection::new(source.ip(), addr.ip()));
+                connections.insert(KnownConnection::new(source, *addr));
             }
         }
         let mut nodes = self.nodes.write();

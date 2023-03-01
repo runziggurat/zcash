@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr};
+use std::{collections::HashMap, net::SocketAddr};
 
 use spectre::{edge::Edge, graph::Graph};
 use ziggurat_core_crawler::summary::NetworkSummary;
@@ -7,7 +7,7 @@ use crate::{network::LAST_SEEN_CUTOFF, Crawler};
 
 #[derive(Default)]
 pub struct NetworkMetrics {
-    graph: Graph<IpAddr>,
+    graph: Graph<SocketAddr>,
 }
 
 impl NetworkMetrics {
@@ -30,7 +30,7 @@ impl NetworkMetrics {
 }
 
 /// Constructs a new NetworkSummary from given nodes.
-pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkSummary {
+pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> NetworkSummary {
     let nodes = crawler.known_network.nodes();
     let connections = crawler.known_network.connections();
 
@@ -40,7 +40,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkS
     let good_nodes = nodes
         .clone()
         .into_iter()
-        .filter_map(|(addr, node)| node.last_connected.map(|_| addr.ip()))
+        .filter_map(|(addr, node)| node.last_connected.map(|_| addr))
         .collect::<Vec<_>>();
 
     let num_good_nodes = good_nodes.len();
@@ -63,7 +63,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkS
 
     let num_versions = protocol_versions.values().sum();
     let crawler_runtime = crawler.start_time.elapsed();
-    let indices = graph.get_filtered_adjacency_indices(&good_nodes);
+    let nodes_indices = graph.get_filtered_adjacency_indices(&good_nodes);
 
     NetworkSummary {
         num_known_nodes,
@@ -73,7 +73,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<IpAddr>) -> NetworkS
         protocol_versions,
         user_agents,
         crawler_runtime,
-        node_ips: good_nodes.iter().map(IpAddr::to_string).collect(),
-        indices,
+        node_addrs: good_nodes,
+        nodes_indices,
     }
 }
