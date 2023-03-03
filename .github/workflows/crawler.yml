@@ -56,16 +56,17 @@ jobs:
           sleep 30m
           curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > $FILENAME.json
           kill -2 $(pidof crawler) $(pidof zcashd)
+          cat $FILENAME.json
           # Update results folder.
           mkdir -p results/crawler
           mv $FILENAME.json results/crawler
           rm -f results/crawler/latest.json
           cp results/crawler/$FILENAME.json results/crawler/latest.json
           gzip results/crawler/$FILENAME.json
-      - name: git
+      - name: Git
         run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git pull
           git add results
           git commit -m "ci: crawler results"
