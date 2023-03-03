@@ -66,14 +66,15 @@ jobs:
           mkdir -p results/zebra
           rm -f results/zebra/latest.jsonl
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zebra/latest.jsonl
-      - name: git
+          cat results/zebra/latest.jsonl
+      - name: Git
         run: |
           FILENAME=$(date +%Y-%m-%d)
           cd results/zebra
           cp latest.jsonl $FILENAME.jsonl
           gzip $FILENAME.jsonl
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git pull
           git add ./
           git commit -m "ci: zebra suite results"
