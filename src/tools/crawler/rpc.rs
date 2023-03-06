@@ -7,6 +7,9 @@ use ziggurat_core_crawler::summary::NetworkSummary;
 
 pub struct RpcContext(Arc<Mutex<NetworkSummary>>);
 
+/// Allow JSON-RPC response size to be up to 200MB
+pub const MAX_RESPONSE_SIZE: u32 = 200_000_000;
+
 impl RpcContext {
     /// Creates a new RpcContext.
     pub fn new(known_network: Arc<Mutex<NetworkSummary>>) -> RpcContext {
@@ -24,7 +27,7 @@ impl std::ops::Deref for RpcContext {
 
 pub async fn initialize_rpc_server(rpc_addr: SocketAddr, rpc_context: RpcContext) -> ServerHandle {
     let server = ServerBuilder::default()
-        .max_response_body_size(20000000)
+        .max_response_body_size(MAX_RESPONSE_SIZE)
         .build(rpc_addr)
         .await
         .unwrap();
