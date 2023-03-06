@@ -185,6 +185,7 @@ async fn main() {
             if delta_time.is_zero() {
                 warn!(parent: crawler.node().span(), "summary calculation took more time than the loop interval");
             }
+            info!(parent: crawler.node().span(), "summary calculation took: {:?}", start_time.elapsed());
 
             thread::sleep(delta_time);
         }
