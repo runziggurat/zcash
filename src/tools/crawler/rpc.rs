@@ -7,8 +7,8 @@ use ziggurat_core_crawler::summary::NetworkSummary;
 
 pub struct RpcContext(Arc<Mutex<NetworkSummary>>);
 
-/// Make this now 200MB
-pub const MAX_RESPONSE_SIZE: u32 = 200000000;
+/// Allow JSON-RPC response size to be up to 200MB
+pub const MAX_RESPONSE_SIZE: u32 = 200_000_000;
 
 impl RpcContext {
     /// Creates a new RpcContext.
