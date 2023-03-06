@@ -62,7 +62,6 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
     }
 
     let num_versions = protocol_versions.values().sum();
-    let crawler_runtime = crawler.start_time.elapsed();
     let nodes_indices = graph.get_filtered_adjacency_indices(&good_nodes);
 
     NetworkSummary {
@@ -72,7 +71,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
         num_versions,
         protocol_versions,
         user_agents,
-        crawler_runtime,
+        crawler_runtime: crawler.start_time.elapsed(),
         node_addrs: good_nodes,
         nodes_indices,
     }
