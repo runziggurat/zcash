@@ -8,9 +8,9 @@ jobs:
   install-zcashd:
     runs-on: ubuntu-latest
     steps:
-      - name: clone zcashd
+      - name: Clone zcashd
         run: git clone https://github.com/zcash/zcash
-      - name: build zcashd
+      - name: Build zcashd
         run: |
           cd zcash
           ./zcutil/build.sh -j$(nproc)
@@ -53,9 +53,7 @@ jobs:
           cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 --rpc-addr 127.0.0.1:54321 &
           # After 30 min, query rpc and send SIGINT.
           sleep 30m
-          mkdir -p results/crawler
-          rm -f results/crawler/latest.json
-          curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > results/crawler/latest.json
+          curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > latest.json
           kill -2 $(pidof crawler) $(pidof zcashd)
           # If the result contains any error, fail workflow
           if grep "error" latest.json; then
@@ -63,15 +61,20 @@ jobs:
             exit 1
           fi
           cat latest.json
-      - name: Git
+      - name: Prepare results
         run: |
           FILENAME=$(date +%Y-%m-%d)
+          mkdir -p results/crawler
+          rm -f results/crawler/latest.json
+          mv latest.json results/crawler/latest.json
           cd results/crawler
           cp latest.json $FILENAME.json
           gzip $FILENAME.json
+      - name: Git
+        run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git pull
-          git add ./
+          git add results/crawler
           git commit -m "ci: crawler results"
           git push
