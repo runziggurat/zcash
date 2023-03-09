@@ -38,7 +38,7 @@ pub struct Crawler {
     node: Pea2PeaNode,
     pub known_network: Arc<KnownNetwork>,
     pub start_time: Instant,
-    pub peer_list: Vec<Peer>,
+    pub peer_list: Arc<Vec<Peer>>,
 }
 
 impl Pea2Pea for Crawler {
@@ -61,7 +61,7 @@ impl Crawler {
             node: Pea2PeaNode::new(config),
             known_network: Default::default(),
             start_time: Instant::now(),
-            peer_list: Vec::new(),
+            peer_list: Arc::new(Vec::new()),
         }
     }
 
