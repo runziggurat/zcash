@@ -1,5 +1,11 @@
-use std::{fs, net::SocketAddr, sync::Arc, thread, time::{Duration, Instant}};
-use std::path::PathBuf;
+use std::{
+    fs,
+    net::SocketAddr,
+    path::PathBuf,
+    sync::Arc,
+    thread,
+    time::{Duration, Instant},
+};
 
 use clap::Parser;
 use jsonrpsee::core::__reexports::serde_json;

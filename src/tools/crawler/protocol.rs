@@ -5,18 +5,16 @@ use pea2pea::{
     protocols::{Handshake, Reading, Writing},
     Config, Connection, ConnectionSide, Node as Pea2PeaNode, Pea2Pea,
 };
+use serde::{Deserialize, Serialize};
 use tokio_util::codec::Framed;
 use tracing::*;
 use ziggurat::{
     protocol::{
         message::Message,
-        payload::{block::Headers, Addr, Version},
+        payload::{addr::NetworkAddr, block::Headers, Addr, Version},
     },
     tools::synthetic_node::MessageCodec,
 };
-use ziggurat::protocol::payload::addr::NetworkAddr;
-
-use serde::{Deserialize, Serialize};
 
 use super::network::KnownNetwork;
 
@@ -166,7 +164,7 @@ impl Reading for Crawler {
                             addrs.push(NetworkAddr::new(*addr));
                         }
                         Addr { addrs }
-                    },
+                    }
                     None => Addr::empty(),
                 };
                 let _ = self.unicast(source, Message::Addr(addr))?.await;
