@@ -88,7 +88,8 @@ async fn main() {
 
     if let Some(peer_file) = args.peer_file {
         if let Ok(js) = fs::read_to_string(peer_file) {
-            crawler.peer_list = Arc::new(serde_json::from_str(&js).expect("failed to parse peer file"));
+            crawler.peer_list =
+                Arc::new(serde_json::from_str(&js).expect("failed to parse peer file"));
             info!(parent: crawler.node().span(), "loaded peer list for {:?} nodes", crawler.peer_list.len());
         }
     }
