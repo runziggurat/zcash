@@ -1,11 +1,8 @@
-use std::{
-    net::SocketAddr,
-    sync::Arc,
-    thread,
-    time::{Duration, Instant},
-};
+use std::{fs, net::SocketAddr, sync::Arc, thread, time::{Duration, Instant}};
+use std::path::PathBuf;
 
 use clap::Parser;
+use jsonrpsee::core::__reexports::serde_json;
 use parking_lot::Mutex;
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
@@ -49,6 +46,10 @@ struct Args {
     /// If present, start an RPC server at the specified address
     #[clap(short, long, value_parser)]
     rpc_addr: Option<SocketAddr>,
+
+    /// If present, respond to peer with IPS addresses loaded from the given file
+    #[clap(short, long, value_parser)]
+    peer_file: Option<PathBuf>,
     // TODO
     // #[clap(short, long, value_parser, default_value = "testnet")]
     // network: String,
@@ -77,7 +78,14 @@ async fn main() {
     let args = Args::parse();
 
     // Create the crawler with the given listener address.
-    let crawler = Crawler::new().await;
+    let mut crawler = Crawler::new().await;
+
+    if let Some(peer_file) = args.peer_file {
+        if let Ok(js) = fs::read_to_string(peer_file) {
+            crawler.peer_list = serde_json::from_str(&js).expect("failed to parse peer file");
+            info!(parent: crawler.node().span(), "loaded peer list for {:?} nodes", crawler.peer_list.len());
+        }
+    }
 
     let mut network_metrics = NetworkMetrics::default();
     let summary_snapshot = Arc::new(Mutex::new(NetworkSummary::default()));

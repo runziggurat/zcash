@@ -14,6 +14,9 @@ use ziggurat::{
     },
     tools::synthetic_node::MessageCodec,
 };
+use ziggurat::protocol::payload::addr::NetworkAddr;
+
+use serde::{Deserialize, Serialize};
 
 use super::network::KnownNetwork;
 
@@ -22,12 +25,22 @@ pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
 pub const MAIN_LOOP_INTERVAL: u64 = 5;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
 
+/// Peer list structure containing peer list for each node
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Peer {
+    /// IP address of the node
+    pub ip: SocketAddr,
+    /// List of peers for the node
+    pub list: Vec<SocketAddr>,
+}
+
 /// Represents the crawler together with network metrics it has collected.
 #[derive(Clone)]
 pub struct Crawler {
     node: Pea2PeaNode,
     pub known_network: Arc<KnownNetwork>,
     pub start_time: Instant,
+    pub peer_list: Vec<Peer>,
 }
 
 impl Pea2Pea for Crawler {
@@ -50,6 +63,7 @@ impl Crawler {
             node: Pea2PeaNode::new(config),
             known_network: Default::default(),
             start_time: Instant::now(),
+            peer_list: Vec::new(),
         }
     }
 
@@ -143,7 +157,19 @@ impl Reading for Crawler {
                 let _ = self.unicast(source, Message::Pong(nonce))?.await;
             }
             Message::GetAddr => {
-                let _ = self.unicast(source, Message::Addr(Addr::empty()))?.await;
+                let peer = self.peer_list.iter().filter(|p| p.ip == source).next();
+                let addr = match peer {
+                    Some(p) => {
+                        let mut addrs = Vec::new();
+                        // Limit to 1000 addresses to avoid beeing banned
+                        for addr in p.list.iter().take(1000) {
+                            addrs.push(NetworkAddr::new(*addr));
+                        }
+                        Addr { addrs }
+                    },
+                    None => Addr::empty(),
+                };
+                let _ = self.unicast(source, Message::Addr(addr))?.await;
             }
             Message::GetHeaders(_) => {
                 let _ = self
