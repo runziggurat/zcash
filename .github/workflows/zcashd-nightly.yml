@@ -75,41 +75,20 @@ jobs:
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
           mkdir -p results/zcashd
-          mv results/zcashd/latest.jsonl results/zcashd/comparison.jsonl
+          mv results/zcashd/latest.jsonl results/zcashd/previous.jsonl
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/latest.jsonl
           cat results/zcashd/latest.jsonl
-      - name: Process results
-        run: |
-          FILENAME=$(date +%Y-%m-%d)
-          cd results/zcashd
-          cp latest.jsonl $FILENAME.jsonl
-          gzip $FILENAME.jsonl
-      - name: Compare results
-        run: |
-          # Helper function to remove ignored tests and started ones, and then attributes exec_time and type
-          filter_json() {
-            tmp=$(mktemp)
-            ! jq 'del(select(.event == "ignored"))' $1 > $tmp && mv $tmp $1 # Remove ignored tests
-            jq 'del(select(.event == "started"))' $1 > $tmp && mv $tmp $1 # Remove started tests
-            jq 'del(.exec_time) | del(.type)' $1 > $tmp && mv $tmp $1 # Remove exec_time and type attributes
-            # Remove null characters and empty lines
-            sed -i 's/null//g' $1
-            sed -i '/^$/d' $1
-          }
-          mkdir temp
-          cp results/zcashd/latest.jsonl temp/
-          mv results/zcashd/comparison.jsonl temp/
-          cd temp
-          filter_json latest.jsonl
-          filter_json comparison.jsonl
-          ! diff -u comparison.jsonl latest.jsonl
-          cd ..
-          rm -rf temp
-      - name: Git
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull
-          git add results/zcashd
-          git commit -m "ci: zcashd suite results"
-          git push
+      - uses: actions/upload-artifact@v3
+        with:
+          name: latest-result
+          path: results/zcashd/latest.jsonl
+      - uses: actions/upload-artifact@v3
+        with:
+          name: previous-result
+          path: results/zcashd/previous.jsonl
+
+  call-process-results-workflow:
+    needs: [ test-zcashd ]
+    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
+    with:
+      name: zcashd

@@ -1,0 +1,57 @@
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+
+jobs:
+  diff-with-previous:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: latest-result
+      - uses: actions/download-artifact@v3
+        with:
+          name: previous-result
+      - name: Compare results
+        run: |
+          # Helper function to remove ignored tests and started ones, and then attributes exec_time and type
+          filter_json() {
+            tmp=$(mktemp)
+            ! jq 'del(select(.event == "ignored"))' $1 > $tmp && mv $tmp $1 # Remove ignored tests
+            jq 'del(select(.event == "started"))' $1 > $tmp && mv $tmp $1 # Remove started tests
+            jq 'del(.exec_time) | del(.type)' $1 > $tmp && mv $tmp $1 # Remove exec_time and type attributes
+            # Remove null characters and empty lines
+            sed -i 's/null//g' $1
+            sed -i '/^$/d' $1
+          }
+          filter_json latest.jsonl
+          filter_json previous.jsonl
+          ! diff -u previous.jsonl latest.jsonl
+
+  process-results:
+    runs-on: ubuntu-latest
+    env:
+      NAME: ${{ inputs.name }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: latest-result
+          path: results/$NAME/latest.jsonl
+      - name: Process results
+        run: |
+          FILENAME=$(date +%Y-%m-%d)
+          cd results/$NAME
+          cp latest.jsonl $FILENAME.jsonl
+          gzip $FILENAME.jsonl
+      - name: Git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git pull
+          git add results/$NAME
+          git commit -m "ci: $NAME suite results"
+          git push
