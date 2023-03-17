@@ -3,13 +3,10 @@ name: zcashd-nightly
 on:
   schedule:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
-  push:
-    branches:
-      - reuse-workflow
 
 jobs:
   call-install-zcashd-workflow:
-    uses: zeapoz/zcash/.github/workflows/install-zcashd.yml@reuse-workflow
+    uses: runziggurat/zcash/.github/workflows/install-zcashd.yml@main
 
   install-ziggurat:
     runs-on: ubuntu-latest
@@ -77,6 +74,10 @@ jobs:
 
   call-process-results-workflow:
     needs: [ test-zcashd ]
-    uses: zeapoz/zcash/.github/workflows/process-results.yml@reuse-workflow
+    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
     with:
       name: zcashd
+
+  call-diff-with-previous-workflow:
+    needs: [ test-zcashd ]
+    uses: runziggurat/zcash/.github/workflows/diff-with-previous.yml@main
