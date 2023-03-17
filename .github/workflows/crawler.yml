@@ -3,29 +3,17 @@ name: crawler
 on:
   schedule:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
+  push:
+    branches:
+      - reuse-workflow
 
 jobs:
-  install-zcashd:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clone zcashd
-        run: git clone https://github.com/zcash/zcash
-      - name: Build zcashd
-        run: |
-          cd zcash
-          ./zcutil/build.sh -j$(nproc)
-      - uses: actions/upload-artifact@v3
-        with:
-          name: zcashd-fetch-params
-          path: ./zcash/zcutil/fetch-params.sh
-      - uses: actions/upload-artifact@v3
-        with:
-          name: zcashd-executable
-          path: ./zcash/src/zcashd
+  call-install-zcashd-workflow:
+    uses: zeapoz/zcash/.github/workflows/install-zcashd.yml@reuse-workflow
 
   crawl-network:
     runs-on: ubuntu-latest
-    needs: [ install-zcashd ]
+    needs: [ call-install-zcashd-workflow ]
     steps:
       - uses: actions/checkout@v3
       - run: rustup toolchain install stable --profile minimal
