@@ -3,6 +3,9 @@ name: zebra
 on:
   schedule:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
+  push:
+    branches:
+      - reuse-workflow
 
 jobs:
   build-zebra:
@@ -78,6 +81,6 @@ jobs:
 
   call-process-results-workflow:
     needs: [ test-zebra ]
-    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
+    uses: zeapoz/zcash/.github/workflows/process-results.yml@reuse-workflow
     with:
       name: zebra
