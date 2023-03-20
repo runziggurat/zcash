@@ -4,24 +4,30 @@ on:
       name:
         required: true
         type: string
+      extension:
+        type: string
+        default: "jsonl"
 
 jobs:
   process-results:
     runs-on: ubuntu-latest
     env:
       NAME: ${{ inputs.name }}
+      EXTENSION: ${{ inputs.extension }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
           name: latest-result
-          path: results/$NAME/latest.jsonl
+          path: ./
+      - run: |
+          mv latest.$EXTENSION results/$NAME
       - name: Process results
         run: |
           FILENAME=$(date +%Y-%m-%d)
           cd results/$NAME
-          cp latest.jsonl $FILENAME.jsonl
-          gzip $FILENAME.jsonl
+          cp latest.$EXTENSION $FILENAME.$EXTENSION
+          gzip $FILENAME.$EXTENSION
       - name: Git
         run: |
           git config user.name 'github-actions[bot]'
