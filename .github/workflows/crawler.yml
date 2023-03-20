@@ -5,27 +5,12 @@ on:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
-  install-zcashd:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clone zcashd
-        run: git clone https://github.com/zcash/zcash
-      - name: Build zcashd
-        run: |
-          cd zcash
-          ./zcutil/build.sh -j$(nproc)
-      - uses: actions/upload-artifact@v3
-        with:
-          name: zcashd-fetch-params
-          path: ./zcash/zcutil/fetch-params.sh
-      - uses: actions/upload-artifact@v3
-        with:
-          name: zcashd-executable
-          path: ./zcash/src/zcashd
+  call-build-zcashd-workflow:
+    uses: runziggurat/zcash/.github/workflows/build-zcashd.yml@main
 
   crawl-network:
     runs-on: ubuntu-latest
-    needs: [ install-zcashd ]
+    needs: [ call-build-zcashd-workflow ]
     steps:
       - uses: actions/checkout@v3
       - run: rustup toolchain install stable --profile minimal
@@ -55,26 +40,21 @@ jobs:
           sleep 30m
           curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > latest.json
           kill -2 $(pidof crawler) $(pidof zcashd)
+      - name: Check for error
+        run: |
           # If the result contains any error, fail workflow
           if grep "error" latest.json; then
             echo "Aborting. Crawler results contained an error"
             exit 1
           fi
           cat latest.json
-      - name: Prepare results
-        run: |
-          FILENAME=$(date +%Y-%m-%d)
-          mkdir -p results/crawler
-          rm -f results/crawler/latest.json
-          mv latest.json results/crawler/latest.json
-          cd results/crawler
-          cp latest.json $FILENAME.json
-          gzip $FILENAME.json
-      - name: Git
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull
-          git add results/crawler
-          git commit -m "ci: crawler results"
-          git push
+      - uses: actions/upload-artifact@v3
+        with:
+          name: latest-result
+          path: latest.json
+
+  call-process-results-workflow:
+    needs: [ crawl-network ]
+    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
+    with:
+      name: crawler

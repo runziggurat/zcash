@@ -81,3 +81,7 @@ jobs:
     uses: runziggurat/zcash/.github/workflows/process-results.yml@main
     with:
       name: zebra
+
+  call-diff-with-previous-workflow:
+    needs: [ test-zebra ]
+    uses: runziggurat/zcash/.github/workflows/diff-with-previous.yml@main
