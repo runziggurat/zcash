@@ -5,10 +5,10 @@ on:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
-  call-install-zcashd-workflow:
-    uses: runziggurat/zcash/.github/workflows/install-zcashd.yml@main
+  call-build-zcashd-workflow:
+    uses: runziggurat/zcash/.github/workflows/build-zcashd.yml@main
 
-  install-ziggurat:
+  build-ziggurat:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +23,7 @@ jobs:
 
   test-zcashd:
     runs-on: ubuntu-latest
-    needs: [ install-ziggurat, call-install-zcashd-workflow ]
+    needs: [ build-ziggurat, call-build-zcashd-workflow ]
     steps:
       - uses: actions/checkout@v3
         with:
