@@ -2,7 +2,7 @@ on:
   workflow_call:
 
 jobs:
-  install-zcashd:
+  build-zcashd:
     runs-on: ubuntu-latest
     steps:
       - name: Clone zcashd
