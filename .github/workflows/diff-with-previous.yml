@@ -15,10 +15,12 @@ jobs:
         run: |
           # Helper function to remove ignored tests and started ones, and then attributes exec_time and type
           filter_json() {
+            # Remove invalid lines (ones that don't start with "{")
+            sed -i '/^{/!d' $1
             tmp=$(mktemp)
-            jq 'del(select(.event == "ignored"))' $1 > $tmp && mv $tmp $1 # Remove ignored tests
-            jq 'del(select(.event == "started"))' $1 > $tmp && mv $tmp $1 # Remove started tests
-            jq 'del(.exec_time) | del(.type)' $1 > $tmp && mv $tmp $1 # Remove exec_time and type attributes
+            jq 'del(select(.event == "ignored"))' $1 > $tmp; mv $tmp $1 # Remove ignored tests
+            jq 'del(select(.event == "started"))' $1 > $tmp; mv $tmp $1 # Remove started tests
+            jq 'del(.exec_time) | del(.type)' $1 > $tmp; mv $tmp $1 # Remove exec_time and type attributes
             # Remove null characters and empty lines
             sed -i 's/null//g' $1
             sed -i '/^$/d' $1
