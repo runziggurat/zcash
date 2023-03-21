@@ -58,3 +58,4 @@ jobs:
     uses: runziggurat/zcash/.github/workflows/process-results.yml@main
     with:
       name: crawler
+      extension: json
