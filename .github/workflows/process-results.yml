@@ -20,7 +20,9 @@ jobs:
         with:
           name: latest-result
           path: ./
-      - run: |
+      - name: Replace with latest result
+        run: |
+          rm -rf results/$NAME/latest.$EXTENSION
           mv latest.$EXTENSION results/$NAME
       - name: Process results
         run: |
