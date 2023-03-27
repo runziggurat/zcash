@@ -1,4 +1,7 @@
 # Ziggurat
+[![dependency status](https://deps.rs/repo/github/runziggurat/zcash/status.svg)](https://deps.rs/repo/github/runziggurat/zcash)
+![workflow status](https://github.com/runziggurat/zcash/actions/workflows/zcashd-nightly.yml/badge.svg)
+![workflow status](https://github.com/runziggurat/zcash/actions/workflows/zebra.yml/badge.svg)
 > The Zcash Network Stability Framework
 
 <img src="./logo.png" alt="Ziggurat Logo" width="240" />
