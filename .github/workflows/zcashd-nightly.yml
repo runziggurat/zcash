@@ -5,40 +5,15 @@ on:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
-  install-zcashd:
-    runs-on: ubuntu-latest
-    steps:
-      - name: clone zcashd
-        run: git clone https://github.com/zcash/zcash
-      - name: build zcashd
-        run: |
-          cd zcash
-          ./zcutil/build.sh -j$(nproc)
-      - uses: actions/upload-artifact@v3
-        with:
-          name: zcashd-fetch-params
-          path: ./zcash/zcutil/fetch-params.sh
-      - uses: actions/upload-artifact@v3
-        with:
-          name: zcashd-executable
-          path: ./zcash/src/zcashd
+  call-build-zcashd-workflow:
+    uses: runziggurat/zcash/.github/workflows/build-zcashd.yml@main
 
-  install-ziggurat:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: rustup toolchain install stable --profile minimal
-      - uses: Swatinem/rust-cache@v2
-      - name: Compile unit tests
-        run: cargo test --all-targets --no-run
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ziggurat-executable
-          path: ./target/debug/deps/ziggurat-*
+  call-build-ziggurat-workflow:
+    uses: runziggurat/zcash/.github/workflows/build-ziggurat.yml@main
 
   test-zcashd:
     runs-on: ubuntu-latest
-    needs: [ install-ziggurat, install-zcashd ]
+    needs: [ call-build-ziggurat-workflow, call-build-zcashd-workflow ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -75,18 +50,24 @@ jobs:
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
           mkdir -p results/zcashd
-          rm -f results/zcashd/latest.jsonl
+          mv results/zcashd/latest.jsonl results/zcashd/previous.jsonl
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/latest.jsonl
           cat results/zcashd/latest.jsonl
-      - name: Git
-        run: |
-          FILENAME=$(date +%Y-%m-%d)
-          cd results/zcashd
-          cp latest.jsonl $FILENAME.jsonl
-          gzip $FILENAME.jsonl
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull
-          git add ./
-          git commit -m "ci: zcashd suite results"
-          git push
+      - uses: actions/upload-artifact@v3
+        with:
+          name: latest-result
+          path: results/zcashd/latest.jsonl
+      - uses: actions/upload-artifact@v3
+        with:
+          name: previous-result
+          path: results/zcashd/previous.jsonl
+
+  call-process-results-workflow:
+    needs: [ test-zcashd ]
+    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
+    with:
+      name: zcashd
+
+  call-diff-with-previous-workflow:
+    needs: [ test-zcashd ]
+    uses: runziggurat/zcash/.github/workflows/diff-with-previous.yml@main

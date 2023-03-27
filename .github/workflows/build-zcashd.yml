@@ -1,0 +1,21 @@
+on:
+  workflow_call:
+
+jobs:
+  build-zcashd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone zcashd
+        run: git clone https://github.com/zcash/zcash
+      - name: Build zcashd
+        run: |
+          cd zcash
+          ./zcutil/build.sh -j$(nproc)
+      - uses: actions/upload-artifact@v3
+        with:
+          name: zcashd-fetch-params
+          path: ./zcash/zcutil/fetch-params.sh
+      - uses: actions/upload-artifact@v3
+        with:
+          name: zcashd-executable
+          path: ./zcash/src/zcashd
