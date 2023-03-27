@@ -9,7 +9,7 @@ jobs:
     uses: runziggurat/zcash/.github/workflows/build-zcashd.yml@main
 
   call-build-ziggurat-workflow:
-    uses: runziggurat/zcash/.github/workflows/build-ziggurat.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/build-ziggurat.yml@main
 
   test-zcashd:
     runs-on: ubuntu-latest
@@ -64,10 +64,10 @@ jobs:
 
   call-process-results-workflow:
     needs: [ test-zcashd ]
-    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zcashd
 
   call-diff-with-previous-workflow:
     needs: [ test-zcashd ]
-    uses: runziggurat/zcash/.github/workflows/diff-with-previous.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main

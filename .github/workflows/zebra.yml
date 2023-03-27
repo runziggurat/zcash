@@ -20,7 +20,7 @@ jobs:
           path: ./target/release/zebrad
 
   call-build-ziggurat-workflow:
-    uses: runziggurat/zcash/.github/workflows/build-ziggurat.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/build-ziggurat.yml@main
 
   test-zebra:
     runs-on: ubuntu-latest
@@ -68,10 +68,10 @@ jobs:
 
   call-process-results-workflow:
     needs: [ test-zebra ]
-    uses: runziggurat/zcash/.github/workflows/process-results.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zebra
 
   call-diff-with-previous-workflow:
     needs: [ test-zebra ]
-    uses: runziggurat/zcash/.github/workflows/diff-with-previous.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
