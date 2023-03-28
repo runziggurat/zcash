@@ -17,13 +17,14 @@ parking_lot = "0.12"
 pea2pea = "0.45"
 rand = "0.8"
 rand_chacha = "0.3"
+regex = "1"
 sha2 = "0.10"
 spectre = { git = "https://github.com/niklaslong/spectre", rev = "9a0664f" }
 tabled = "0.10"
 time = "0.3"
 toml = "0.6.0"
-ziggurat-core-metrics = { git = "https://github.com/runziggurat/ziggurat-core", rev = "d8e4e0a" }
-ziggurat-core-crawler = { git = "https://github.com/runziggurat/ziggurat-core", rev = "d8e4e0a" }
+ziggurat-core-metrics = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
+ziggurat-core-crawler = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
 
 [dependencies.clap]
 version = "4.1.4"
