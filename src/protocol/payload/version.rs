@@ -27,7 +27,7 @@ pub struct Version {
     /// The user agent of the sender.
     pub user_agent: VarStr,
     /// The start last block received by the sender.
-    pub start_height: u32,
+    pub start_height: i32,
     /// Specifies if the receiver should relay transactions.
     pub relay: bool,
 }
@@ -75,7 +75,7 @@ impl Codec for Version {
 
         self.nonce.encode(buffer)?;
         self.user_agent.encode(buffer)?;
-        buffer.put_u32_le(self.start_height);
+        buffer.put_i32_le(self.start_height);
         buffer.put_u8(self.relay as u8);
 
         Ok(())
@@ -92,7 +92,7 @@ impl Codec for Version {
         let nonce = Nonce::decode(bytes)?;
         let user_agent = VarStr::decode(bytes)?;
 
-        let start_height = u32::from_le_bytes(read_n_bytes(bytes)?);
+        let start_height = i32::from_le_bytes(read_n_bytes(bytes)?);
         let relay = u8::from_le_bytes(read_n_bytes(bytes)?) != 0;
 
         Ok(Self {
