@@ -67,14 +67,10 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
 
     let mut node_network_types = Vec::with_capacity(num_good_nodes);
     for node in &good_nodes {
-        let mut port_matches = false;
         let mut agent_matches = false;
-        let mut height_matches = false;
         let mut blocker = false;
 
-        if node.port() == ZCASH_P2P_PORT {
-            port_matches = true;
-        }
+        let port_matches = node.port() == ZCASH_P2P_PORT;
 
         let agent = if let Some(agent) = &nodes[node].user_agent {
             agent.0.clone()
@@ -102,9 +98,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
         }
 
         let height = nodes[node].start_height.unwrap_or(0);
-        if height > MIN_BLOCK_HEIGHT {
-            height_matches = true;
-        }
+        let height_matches = height > MIN_BLOCK_HEIGHT;
 
         // Height must match and either port or agent must match to recognize node as zcash node and
         // there were no conditions that explicitly blocks matching.
