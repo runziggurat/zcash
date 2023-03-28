@@ -159,6 +159,7 @@ impl Reading for Crawler {
                     known_node.protocol_version = Some(ver.version);
                     known_node.user_agent = Some(ver.user_agent);
                     known_node.services = Some(ver.services);
+                    known_node.start_height = Some(ver.start_height);
                 }
 
                 let _ = self.unicast(source, Message::Verack)?.await;

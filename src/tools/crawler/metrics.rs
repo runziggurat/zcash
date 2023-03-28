@@ -1,9 +1,13 @@
 use std::{collections::HashMap, net::SocketAddr};
 
+use regex::Regex;
 use spectre::{edge::Edge, graph::Graph};
-use ziggurat_core_crawler::summary::NetworkSummary;
+use ziggurat_core_crawler::summary::{NetworkSummary, NetworkType};
 
 use crate::{network::LAST_SEEN_CUTOFF, Crawler};
+
+const MIN_BLOCK_HEIGHT: i32 = 2_000_000;
+const ZCASH_P2P_PORT: u16 = 8233;
 
 #[derive(Default)]
 pub struct NetworkMetrics {
@@ -48,7 +52,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
     let mut protocol_versions = HashMap::with_capacity(num_known_nodes);
     let mut user_agents = HashMap::with_capacity(num_known_nodes);
 
-    for (_, node) in nodes {
+    for (_, node) in nodes.clone() {
         if node.protocol_version.is_some() {
             protocol_versions
                 .entry(node.protocol_version.unwrap().0)
@@ -58,6 +62,56 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
                 .entry(node.user_agent.unwrap().0)
                 .and_modify(|count| *count += 1)
                 .or_insert(1);
+        }
+    }
+
+    let mut node_network_types = Vec::with_capacity(num_good_nodes);
+    for node in &good_nodes {
+        let mut port_matches = false;
+        let mut agent_matches = false;
+        let mut height_matches = false;
+        let mut blocker = false;
+
+        if node.port() == ZCASH_P2P_PORT {
+            port_matches = true;
+        }
+
+        let agent = if let Some(agent) = &nodes[node].user_agent {
+            agent.0.clone()
+        } else {
+            "".to_string()
+        };
+        let zcash_re = Regex::new(r"^/MagicBean:(\d)\.(\d)\.(\d)/$").unwrap();
+        let zebra_re = Regex::new(r"^/Zebra:(\d)\.(\d)\.(\d)").unwrap();
+
+        let cap_zc = zcash_re.captures(agent.as_str());
+        if let Some(cap) = cap_zc {
+            let major = cap.get(1).unwrap().as_str().parse::<u32>().unwrap();
+            if major < 6 {
+                // Accept all zcash versions < 6 (6 is Flux)
+                agent_matches = true;
+            } else if major == 6 {
+                blocker = true; // Block all zcash versions 6 (Flux) even if they are on the right port
+            }
+        }
+
+        let cap_ze = zebra_re.captures(agent.as_str());
+        if cap_ze.is_some() {
+            // Accept all zebra versions
+            agent_matches = true;
+        }
+
+        let height = nodes[node].start_height.unwrap_or(0);
+        if height > MIN_BLOCK_HEIGHT {
+            height_matches = true;
+        }
+
+        // Height must match and either port or agent must match to recognize node as zcash node and
+        // there were no conditions that explicitly blocks matching.
+        if height_matches && (port_matches || agent_matches) && !blocker {
+            node_network_types.push(NetworkType::Zcash);
+        } else {
+            node_network_types.push(NetworkType::Unknown);
         }
     }
 
@@ -73,6 +127,7 @@ pub fn new_network_summary(crawler: &Crawler, graph: &Graph<SocketAddr>) -> Netw
         user_agents,
         crawler_runtime: crawler.start_time.elapsed(),
         node_addrs: good_nodes,
+        node_network_types,
         nodes_indices,
     }
 }
