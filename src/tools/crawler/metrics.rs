@@ -36,6 +36,13 @@ impl NetworkMetrics {
     }
 }
 
+// Updates the node's network type.
+//
+// The decision of whether a node belongs to the Zcash network is based on these factors:
+//  `start_height` - this MUST match
+// and one of the additional factors also must match as an extra confirmation:
+// `port`
+// `agent`
 fn recognize_network_types(
     nodes: &HashMap<SocketAddr, KnownNode>,
     good_nodes: &Vec<SocketAddr>,
@@ -76,14 +83,15 @@ fn recognize_network_types(
             agent_matches = true;
         }
 
+        // Check if the height is alright - this is a mandatory check for any zcash node implementation.
         let height = nodes[node].start_height.unwrap_or(0);
         if height < MIN_BLOCK_HEIGHT {
             node_network_types.push(NetworkType::Unknown);
             continue;
         }
 
-        // Height must match and either port or agent must match to recognize node as zcash node and
-        // there were no conditions that explicitly blocks matching.
+        // When a block height is correct, we still need one additional confirmation:
+        // In rare cases, the agent or the port won't use a commonly used value.
         if port_matches || agent_matches {
             node_network_types.push(NetworkType::Zcash);
         } else {
