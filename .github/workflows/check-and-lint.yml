@@ -1,0 +1,23 @@
+name: basics
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  core:
+    uses: ziggurat/ziggurat-core/.github/workflows/check-and-lint.yml@main
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo test -- --test-threads=1 --ignored
+
+  check-crawler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo check --features=crawler
