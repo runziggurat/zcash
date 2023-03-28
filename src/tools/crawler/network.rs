@@ -23,7 +23,7 @@ pub struct KnownNode {
     pub protocol_version: Option<ProtocolVersion>,
     /// The node's user agent.
     pub user_agent: Option<VarStr>,
-    /// The node's best block height.
+    /// The node's block height.
     pub start_height: Option<i32>,
     /// The number of services supported by the node.
     pub services: Option<u64>,
