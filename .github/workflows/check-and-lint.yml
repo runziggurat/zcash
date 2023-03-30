@@ -8,16 +8,23 @@ on:
 
 jobs:
   core:
-    uses: ziggurat/ziggurat-core/.github/workflows/check-and-lint.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/check-and-lint.yml@main
 
-  test:
+  extra:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        steps:
+          - name: test
+            run: cargo test -- --test-threads=1 --ignored
+          - name: check-crawler
+            run: cargo check --features=crawler
     steps:
       - uses: actions/checkout@v3
-      - run: cargo test -- --test-threads=1 --ignored
-
-  check-crawler:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: cargo check --features=crawler
+      - uses: cachix/install-nix-action@v19
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: ${{ matrix.steps.name }}
+        run: |
+          nix develop --command \
+          ${{ matrix.steps.run }}
