@@ -3,7 +3,8 @@
 use std::{
     fs, io,
     net::SocketAddr,
-    process::{Child, Command, Stdio},
+    process::{Child, Command, ExitStatus, Stdio},
+    time::Duration,
 };
 
 use tracing::error;
@@ -144,7 +145,11 @@ impl Node {
         self.generate_config_file()?;
 
         let (stdout, stderr) = match self.config.log_to_stdout {
-            true => (Stdio::inherit(), Stdio::inherit()),
+            true => {
+                // Also append `-printtoconsole` argument if logging to stdout is enabled.
+                self.meta.start_args.push("-printtoconsole".into());
+                (Stdio::inherit(), Stdio::inherit())
+            }
             false => (Stdio::null(), Stdio::null()),
         };
 
@@ -278,6 +283,34 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    /// Non-blocking function which periodically check the node's status code.
+    pub async fn wait_until_exit(&mut self) -> ExitStatus {
+        // Once the async Drop trait support is introduced in Rust,
+        // we can remove the loop and use a non-blocking tokio::process::Command
+        // and then call a tokio version of wait() function on it.
+        //
+        // Because, calling wait() on std::process::Command will block the
+        // entire tokio runtime and the whole test process will be stopped until
+        // the node is actually killed - which is bad if we have other
+        // tokio threads running.
+        //
+        // So looping with a non-block try_wait() is the alternative solution.
+        loop {
+            match self
+                .process
+                .as_mut()
+                .unwrap()
+                .try_wait()
+                .expect("waiting try failed")
+            {
+                None => {
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                }
+                Some(status) => return status,
+            }
+        }
     }
 
     fn generate_config_file(&self) -> io::Result<()> {
