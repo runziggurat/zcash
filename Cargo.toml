@@ -8,6 +8,7 @@ edition = "2021"
 assert_matches = "1.5"
 async-trait = "0.1.53"
 bytes = "1"
+chrono = "0.4"
 hex = "0.4.3"
 home = "0.5.3"
 lazy_static = "1.4.0"
@@ -25,6 +26,7 @@ time = "0.3"
 toml = "0.6.0"
 ziggurat-core-crawler = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
 ziggurat-core-metrics = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
+ziggurat-core-utils = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
 
 [dependencies.clap]
 version = "4.1.4"
