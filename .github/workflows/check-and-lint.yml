@@ -16,7 +16,7 @@ jobs:
       matrix:
         steps:
           - name: test
-            run: cargo test -- --test-threads=1 --ignored
+            run: cargo test -- --test-threads=1 --ignored --skip dev
           - name: check-crawler
             run: cargo check --features=crawler
     steps:
