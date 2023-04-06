@@ -13,6 +13,7 @@ jobs:
   extra:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         steps:
           - name: test
@@ -21,6 +22,7 @@ jobs:
             run: cargo check --features=crawler
     steps:
       - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
       - uses: cachix/install-nix-action@v19
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
