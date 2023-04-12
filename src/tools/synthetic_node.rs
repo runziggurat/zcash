@@ -539,6 +539,7 @@ impl Writing for InnerNode {
 #[async_trait::async_trait]
 impl Handshake for InnerNode {
     async fn perform_handshake(&self, mut conn: Connection) -> io::Result<Connection> {
+        let mut version_data: Option<Version> = None;
         let node_conn_side = !conn.side();
         let conn_addr = conn.addr();
         let own_listening_addr = self.node().listening_addr().unwrap();
@@ -552,12 +553,14 @@ impl Handshake for InnerNode {
 
                 let peer_version = framed_stream.try_next().await?;
                 match peer_version {
-                    Some(Message::Version(_)) => {
+                    Some(Message::Version(version)) => {
                         // Send and receive Verack.
                         framed_stream.send(Message::Verack).await?;
 
                         let peer_verack = framed_stream.try_next().await?;
                         assert_matches!(peer_verack, Some(Message::Verack));
+
+                        version_data = Some(version);
                     }
                     Some(other) => {
                         let span = self.node().span().clone();
@@ -577,7 +580,11 @@ impl Handshake for InnerNode {
                 // Receive and send Version.
                 let peer_version = framed_stream.try_next().await?;
                 let node_addr = match peer_version {
-                    Some(Message::Version(version)) => version.addr_from.addr,
+                    Some(Message::Version(version)) => {
+                        let addr = version.addr_from.addr;
+                        version_data = Some(version);
+                        addr
+                    }
                     Some(other) => {
                         let span = self.node().span().clone();
                         error!(
@@ -603,13 +610,28 @@ impl Handshake for InnerNode {
                 framed_stream.send(own_version).await?;
 
                 let peer_version = framed_stream.try_next().await?;
-                assert_matches!(peer_version, Some(Message::Version(..)));
+                match peer_version {
+                    Some(Message::Version(version)) => version_data = Some(version),
+                    Some(other) => {
+                        let span = self.node().span().clone();
+                        error!(
+                            parent: span,
+                            "received non-version message during handshake: {:?}", other
+                        );
+                        panic!("Expected Version, got {other:?}");
+                    }
+                    None => return Err(io::ErrorKind::InvalidData.into()),
+                }
             }
             (Some(HandshakeKind::VersionOnly), ConnectionSide::Responder) => {
                 // Receive and send Version.
                 let peer_version = framed_stream.try_next().await?;
                 let node_addr = match peer_version {
-                    Some(Message::Version(version)) => version.addr_from.addr,
+                    Some(Message::Version(version)) => {
+                        let addr = version.addr_from.addr;
+                        version_data = Some(version);
+                        addr
+                    }
                     Some(other) => {
                         let span = self.node().span().clone();
                         error!(
@@ -625,6 +647,11 @@ impl Handshake for InnerNode {
                 framed_stream.send(own_version).await?;
             }
             (None, _) => {}
+        }
+
+        // Let's print some info about our new connection.
+        if let Some(version) = version_data {
+            info!("Handshake done with {conn_addr} => {version:?}");
         }
 
         Ok(conn)
