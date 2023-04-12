@@ -219,6 +219,13 @@ impl SyntheticNode {
         Ok(())
     }
 
+    /// Disconnects from the target address.
+    ///
+    /// Returns `true` if an actual disconnect took place.
+    pub async fn disconnect(&self, target: SocketAddr) -> bool {
+        self.inner_node.node().disconnect(target).await
+    }
+
     /// Indicates if the `addr` is registered as a connected peer.
     pub fn is_connected(&self, addr: SocketAddr) -> bool {
         self.inner_node.node().is_connected(addr)
