@@ -4,40 +4,30 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    ziggurat-core.url = "github:runziggurat/ziggurat-core";
   };
 
-  outputs = { nixpkgs, flake-utils, ... }:
+  outputs = { nixpkgs, flake-utils, ziggurat-core, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
 
-        localCiScript = pkgs.writeScriptBin "ci-local" ''
-          echo "Running cargo check..."
-          cargo check --all-targets
-
-          echo "Running cargo fmt check..."
-          cargo +nightly fmt --all -- --check
-
-          echo "Running cargo clippy..."
-          cargo clippy --all-targets -- -D warnings
-
-          echo "Running cargo-sort check..."
-          cargo-sort -cw
-        '';
+        # You can define additional CI scripts here, e.g.
+        # scripts = {
+        #   test-ignored = "cargo test --ignored";
+        # } // ziggurat-core.scripts;
+        scripts = {
+          test-ignored = "cargo test -- --test-threads=1 --ignored --skip dev";
+          check-crawler = "cargo check --features=crawler";
+        } // ziggurat-core.scripts;
       in
       {
-        devShells = {
-          default = pkgs.mkShell {
-            buildInputs = [ localCiScript ] ++ (with pkgs; [
-              rustup
-              cargo-sort
-            ]);
-
-            shellHook = ''
-              rustup default stable
-              rustup toolchain install nightly --allow-downgrade --profile minimal --component rustfmt
-            '';
-          };
+        devShells.default = pkgs.mkShell {
+          # Enter additional build dependencies here.
+          buildInputs = [ ]
+            # Contains all the necessities.
+            ++ ziggurat-core.buildInputs.${system}
+            ++ (ziggurat-core.lib.${system}.mkCiScripts scripts);
         };
       });
 }
