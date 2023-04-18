@@ -67,6 +67,9 @@ jobs:
     uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zcashd
+      repository: zcash
+    secrets:
+      gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
 
   call-diff-with-previous-workflow:
     needs: [ test-zcashd ]
