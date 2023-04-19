@@ -1,6 +1,8 @@
 # Ziggurat CI/CD
 
-This documentation details information on how this implementation handles CI/CD, and can be used as a reference for setting up your own CI/CD pipeline with Ziggurat. Currently the Ziggurat CI/CD pipeline includes three concurrent workflows that run daily, these are the test suites for `zcashd` and `zebra`, and the network crawler.
+This documentation details information on how this implementation handles CI/CD, and can be used as a reference for setting up your own CI/CD pipeline with Ziggurat.
+
+Currently the Ziggurat CI/CD pipeline includes three concurrent workflows that run daily, these are the test suites for `zcashd`, `zebra` and the network crawler; and another workflow that runs on commits and pull requests to the main branch to check that formatting rules are followed and that checks are passed. Each workflow is described in more detail below: 
 
 ## Test Suite
 
@@ -20,6 +22,21 @@ The network crawler workflow can be broken down into the following 4 steps:
 4. Process the results.
 
 Details on how to run the crawler, including the required arguments and how to work with the RPC, can be found [here](../../src/tools/crawler/README.md).
+
+## Check and Lint
+
+The check and lint workflow currently performs a set of six different checks, these are:
+* **Core checks** (inherited from [`ziggurat-core`](https://github.com/runziggurat/ziggurat-core)):
+1. check - `cargo check --all-targets`.
+2. fmt - `cargo fmt --all -- --check`.
+3. clippy - `cargo clippy --all-targets -- -D warnings`.
+4. sort - `cargo-sort --check --workspace`.
+
+* **Extra checks**:
+5. test-ignored - `cargo test -- --test-threads=1 --ignored --skip dev`.
+6. check-crawler - `cargo check --features=crawler`.
+
+For details regarding implementation and how to extend these tests, please refer to [this section](https://github.com/runziggurat/ziggurat-core#Nix) of the `ziggurat-core` documentation.
 
 ## Workflow References
 
