@@ -10,7 +10,7 @@ use crate::{
 };
 
 const MIN_BLOCK_HEIGHT: i32 = 2_000_000;
-const ZCASH_P2P_PORT: u16 = 8233;
+pub const ZCASH_P2P_PORT: u16 = 8233;
 
 #[derive(Default)]
 pub struct NetworkMetrics {
