@@ -12,7 +12,10 @@ $ cargo run --release --features crawler --bin crawler -- --help
 OPTIONS:
     -c, --crawl-interval <CRAWL_INTERVAL>
             The main crawling loop interval in seconds [default: 5]
-
+            
+    -d, --dns-seed <DNS_SEED_ADDRS>...
+            DNS seeder addresses to use (can be used multiple times)
+            
     -h, --help
             Print help information
 
@@ -20,13 +23,13 @@ OPTIONS:
             If present, start an RPC server at the specified address
 
     -s, --seed-addrs <SEED_ADDRS>...
-            The initial addresses to connect to
+            The initial addresses to connect to (can be used multiple times)
 
     -V, --version
             Print version information
 ```
 
-`--seed-addrs` is the only required argument and needs at least one specified address for it to run.
+`--seed-addrs` \ `--dns-seed` is the only required argument and needs at least one specified address for it to run.
 
 ## Metrics
 
