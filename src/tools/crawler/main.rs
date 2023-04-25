@@ -6,6 +6,7 @@ use std::{
 };
 
 use clap::Parser;
+use dns_lookup::lookup_host;
 use parking_lot::Mutex;
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
@@ -39,8 +40,12 @@ const LOG_PATH: &str = "crawler-log.txt";
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// The initial addresses to connect to
-    #[clap(short, long, value_parser, num_args = 1.., required = true)]
-    seed_addrs: Vec<SocketAddr>,
+    #[clap(short, long, value_parser, num_args(1..))]
+    seed_addrs: Option<Vec<SocketAddr>>,
+
+    /// The initial addresses to connect to
+    #[clap(short, long, value_parser, num_args(1..))]
+    dns_seed: Option<Vec<String>>,
 
     /// The main crawling loop interval in seconds
     #[clap(short, long, value_parser, default_value_t = MAIN_LOOP_INTERVAL)]
@@ -75,9 +80,33 @@ fn start_logger(default_level: LevelFilter) {
 async fn main() {
     start_logger(LevelFilter::INFO);
     let args = Args::parse();
+    let mut seed_addrs: Vec<SocketAddr> = Vec::new();
 
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
+
+    if let Some(seeds) = args.seed_addrs {
+        seed_addrs.extend_from_slice(&seeds);
+    }
+
+    if let Some(dns_seed) = args.dns_seed {
+        for seed_str in dns_seed {
+            let response = lookup_host(&seed_str);
+
+            if let Ok(response) = response {
+                for address in response.iter() {
+                    seed_addrs.push(SocketAddr::new(*address, 8233)); // DNS addrs use this port
+                    info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_str, address);
+                }
+            } else {
+                error!(parent: crawler.node().span(), "DNS seed {} lookup failed: {}", seed_str, response.err().unwrap());
+            }
+        }
+    }
+
+    if seed_addrs.is_empty() {
+        panic!("No seed address provided! Please provide at least one address in the seed_addrs or dns_seed argument.");
+    }
 
     let mut network_metrics = NetworkMetrics::default();
     let summary_snapshot = Arc::new(Mutex::new(NetworkSummary::default()));
@@ -95,7 +124,7 @@ async fn main() {
     crawler.enable_reading().await;
     crawler.enable_writing().await;
 
-    for addr in &args.seed_addrs {
+    for addr in &seed_addrs {
         let crawler_clone = crawler.clone();
         let addr = *addr;
 
@@ -119,7 +148,7 @@ async fn main() {
     // Wait for one of the seed nodes to respond with a list of addrs.
     wait_until!(
         Duration::from_millis(SEED_RESPONSE_TIMEOUT_MS),
-        crawler.known_network.nodes().len() > args.seed_addrs.len(),
+        crawler.known_network.nodes().len() > seed_addrs.len(),
         Duration::from_millis(SEED_WAIT_LOOP_INTERVAL_MS)
     );
 
