@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::Parser;
+use clap::{ArgGroup, Parser};
 use dns_lookup::lookup_host;
 use parking_lot::Mutex;
 use pea2pea::{
@@ -38,6 +38,12 @@ const LOG_PATH: &str = "crawler-log.txt";
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
+#[clap(group(
+ArgGroup::new("source_addrs")
+.required(true)
+.multiple(true)
+.args(&["seed_addrs", "dns_seed"])
+))]
 struct Args {
     /// The initial addresses to connect to
     #[clap(short, long, value_parser, num_args(1..))]
@@ -105,7 +111,7 @@ async fn main() {
     }
 
     if seed_addrs.is_empty() {
-        panic!("No seed address provided! Please provide at least one address in the seed_addrs or dns_seed argument.");
+        panic!("Every seed address failed to resolve. Exiting.");
     }
 
     let mut network_metrics = NetworkMetrics::default();
