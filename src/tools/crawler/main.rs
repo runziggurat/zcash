@@ -20,7 +20,7 @@ use ziggurat::{protocol::message::Message, wait_until};
 use ziggurat_core_crawler::summary::NetworkSummary;
 
 use crate::{
-    metrics::NetworkMetrics,
+    metrics::{NetworkMetrics, ZCASH_P2P_PORT},
     network::KnownNode,
     protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
     rpc::{initialize_rpc_server, RpcContext},
@@ -95,7 +95,7 @@ async fn main() {
 
             if let Ok(response) = response {
                 for address in response.iter() {
-                    seed_addrs.push(SocketAddr::new(*address, 8233)); // DNS addrs use this port
+                    seed_addrs.push(SocketAddr::new(*address, ZCASH_P2P_PORT)); // DNS addrs use this port
                     info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_str, address);
                 }
             } else {
