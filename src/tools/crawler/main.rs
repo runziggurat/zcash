@@ -21,12 +21,13 @@ use ziggurat_core_crawler::summary::NetworkSummary;
 
 use crate::{
     metrics::{NetworkMetrics, ZCASH_P2P_DEFAULT_PORT},
-    network::KnownNode,
-    protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
+    network::{KnownNode, NodeState},
+    protocol::{
+        Crawler, MAIN_LOOP_INTERVAL, MAX_WAIT_FOR_ADDR, NUM_CONN_ATTEMPTS_PERIODIC,
+        RECONNECT_INTERVAL,
+    },
     rpc::{initialize_rpc_server, RpcContext},
 };
-use crate::network::NodeState;
-use crate::protocol::MAX_WAIT_FOR_ADDR;
 
 mod metrics;
 mod network;
@@ -186,7 +187,9 @@ async fn main() {
             {
                 warn!(parent: crawler.node().span(), "disconnecting from node {} because it didn't send us proper addr message", addr);
                 crawler.node().disconnect(addr).await;
-                crawler.known_network.set_node_state(addr, NodeState::Disconnected);
+                crawler
+                    .known_network
+                    .set_node_state(addr, NodeState::Disconnected);
             }
 
             for (addr, _) in crawler
