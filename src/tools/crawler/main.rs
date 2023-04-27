@@ -25,6 +25,8 @@ use crate::{
     protocol::{Crawler, MAIN_LOOP_INTERVAL, NUM_CONN_ATTEMPTS_PERIODIC, RECONNECT_INTERVAL},
     rpc::{initialize_rpc_server, RpcContext},
 };
+use crate::network::NodeState;
+use crate::protocol::MAX_WAIT_FOR_ADDR;
 
 mod metrics;
 mod network;
@@ -164,6 +166,28 @@ async fn main() {
         loop {
             info!(parent: crawler.node().span(), "asking peers for their peers (connected to {})", crawler.node().num_connected());
             info!(parent: crawler.node().span(), "known addrs: {}", crawler.known_network.num_nodes());
+
+            // Filter nodes that stuck in connected state for longer than 3 minutes
+            for (addr, _) in crawler
+                .known_network
+                .nodes()
+                .into_iter()
+                .filter(|(_, node)| {
+                    if node.state == NodeState::Connected {
+                        if let Some(i) = node.last_connected {
+                            i.elapsed().as_secs() >= MAX_WAIT_FOR_ADDR
+                        } else {
+                            true
+                        }
+                    } else {
+                        false
+                    }
+                })
+            {
+                warn!(parent: crawler.node().span(), "disconnecting from node {} because it didn't send us proper addr message", addr);
+                crawler.node().disconnect(addr).await;
+                crawler.known_network.set_node_state(addr, NodeState::Disconnected);
+            }
 
             for (addr, _) in crawler
                 .known_network

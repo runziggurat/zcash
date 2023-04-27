@@ -11,6 +11,15 @@ use ziggurat_core_crawler::connection::KnownConnection;
 /// The elapsed time before a connection should be regarded as inactive.
 pub const LAST_SEEN_CUTOFF: u64 = 10 * 60;
 
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub enum NodeState {
+    /// The node is not connected.
+    #[default]
+    Disconnected,
+    /// The node is connected.
+    Connected,
+}
+
 /// A node encountered in the network or obtained from one of the peers.
 #[derive(Debug, Default, Clone)]
 pub struct KnownNode {
@@ -29,6 +38,8 @@ pub struct KnownNode {
     pub services: Option<u64>,
     /// The number of subsequent connection errors.
     pub connection_failures: u8,
+    /// The node's state.
+    pub state: NodeState,
 }
 
 /// The list of nodes and connections the crawler is aware of.
@@ -52,6 +63,13 @@ impl KnownNetwork {
         listening_addrs.iter().for_each(|addr| {
             nodes.entry(*addr).or_default();
         });
+    }
+
+    /// Sets the node's state.
+    pub fn set_node_state(&self, addr: SocketAddr, state: NodeState) {
+        if let Some(node) = self.nodes.write().get_mut(&addr) {
+            node.state = state;
+        }
     }
 
     /// Returns a snapshot of the known connections.
