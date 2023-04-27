@@ -14,6 +14,7 @@ use ziggurat::{
     },
     tools::synthetic_node::MessageCodec,
 };
+use crate::network::NodeState;
 
 use super::network::KnownNetwork;
 
@@ -21,6 +22,7 @@ pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 500;
 pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
 pub const MAIN_LOOP_INTERVAL: u64 = 5;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
+pub const MAX_WAIT_FOR_ADDR: u64 = 3 * 60;
 
 /// Represents the crawler together with network metrics it has collected.
 #[derive(Clone)]
@@ -67,6 +69,7 @@ impl Crawler {
                     known_node.connection_failures = 0;
                     known_node.last_connected = Some(timestamp);
                     known_node.handshake_time = Some(timestamp.elapsed());
+                    known_node.state = NodeState::Connected;
                 }
                 Err(_) => {
                     trace!(parent: self.node().span(), "failed to connect to {}", addr);
@@ -129,15 +132,25 @@ impl Reading for Crawler {
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> io::Result<()> {
         match message {
             Message::Addr(addr) => {
-                info!(parent: self.node().span(), "got {} address(es) from {}", addr.addrs.len(), source);
+                let len = addr.addrs.len();
+                info!(parent: self.node().span(), "got {} address(es) from {}", len, source);
 
-                let mut listening_addrs = Vec::with_capacity(addr.addrs.len());
-                for addr in addr.addrs {
+                let mut listening_addrs = Vec::with_capacity(len);
+                for addr in &addr.addrs {
                     listening_addrs.push(addr.addr);
                 }
 
                 self.known_network.add_addrs(source, &listening_addrs);
-                self.node().disconnect(source).await;
+
+                // Disconnect after getting more than 1 addresses or if the received address is
+                // not the same as the source address.
+                // In theory, zero length addr response has no sense but it's not
+                // forbidden by the standard so we should handle it. (that's why there is len == 1
+                // condition preventing address comparision to source when len would be 0).
+                if len > 1 || (len == 1 && addr.addrs[0].addr != source) {
+                    self.node().disconnect(source).await;
+                    self.known_network.set_node_state(source, NodeState::Disconnected);
+                }
             }
             Message::Ping(nonce) => {
                 let _ = self.unicast(source, Message::Pong(nonce))?.await;
