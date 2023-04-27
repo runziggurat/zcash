@@ -21,10 +21,10 @@ use ziggurat_core_crawler::summary::NetworkSummary;
 
 use crate::{
     metrics::{NetworkMetrics, ZCASH_P2P_DEFAULT_PORT},
-    network::{KnownNode, NodeState},
+    network::{ConnectionState, KnownNode},
     protocol::{
-        Crawler, MAIN_LOOP_INTERVAL, MAX_WAIT_FOR_ADDR, NUM_CONN_ATTEMPTS_PERIODIC,
-        RECONNECT_INTERVAL,
+        Crawler, MAIN_LOOP_INTERVAL_SECS, MAX_WAIT_FOR_ADDR_SECS, NUM_CONN_ATTEMPTS_PERIODIC,
+        RECONNECT_INTERVAL_SECS,
     },
     rpc::{initialize_rpc_server, RpcContext},
 };
@@ -57,7 +57,7 @@ struct Args {
     dns_seed: Option<Vec<String>>,
 
     /// The main crawling loop interval in seconds
-    #[clap(short, long, value_parser, default_value_t = MAIN_LOOP_INTERVAL)]
+    #[clap(short, long, value_parser, default_value_t = MAIN_LOOP_INTERVAL_SECS)]
     crawl_interval: u64,
 
     /// If present, start an RPC server at the specified address
@@ -174,9 +174,9 @@ async fn main() {
                 .nodes()
                 .into_iter()
                 .filter(|(_, node)| {
-                    if node.state == NodeState::Connected {
+                    if node.state == ConnectionState::Connected {
                         if let Some(i) = node.last_connected {
-                            i.elapsed().as_secs() >= MAX_WAIT_FOR_ADDR
+                            i.elapsed().as_secs() >= MAX_WAIT_FOR_ADDR_SECS
                         } else {
                             true
                         }
@@ -189,7 +189,7 @@ async fn main() {
                 crawler.node().disconnect(addr).await;
                 crawler
                     .known_network
-                    .set_node_state(addr, NodeState::Disconnected);
+                    .set_node_state(addr, ConnectionState::Disconnected);
             }
 
             for (addr, _) in crawler
@@ -198,7 +198,7 @@ async fn main() {
                 .into_iter()
                 .filter(|(_, node)| {
                     if let Some(i) = node.last_connected {
-                        i.elapsed().as_secs() >= RECONNECT_INTERVAL
+                        i.elapsed().as_secs() >= RECONNECT_INTERVAL_SECS
                     } else {
                         true
                     }
