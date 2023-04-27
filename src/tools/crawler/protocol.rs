@@ -14,9 +14,9 @@ use ziggurat::{
     },
     tools::synthetic_node::MessageCodec,
 };
-use crate::network::NodeState;
 
 use super::network::KnownNetwork;
+use crate::network::NodeState;
 
 pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 500;
 pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1200;
@@ -149,7 +149,8 @@ impl Reading for Crawler {
                 // condition preventing address comparision to source when len would be 0).
                 if len > 1 || (len == 1 && addr.addrs[0].addr != source) {
                     self.node().disconnect(source).await;
-                    self.known_network.set_node_state(source, NodeState::Disconnected);
+                    self.known_network
+                        .set_node_state(source, NodeState::Disconnected);
                 }
             }
             Message::Ping(nonce) => {
