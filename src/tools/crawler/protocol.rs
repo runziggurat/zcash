@@ -19,8 +19,8 @@ use crate::network::NodeState;
 use super::network::KnownNetwork;
 
 pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 500;
-pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1000;
-pub const MAIN_LOOP_INTERVAL: u64 = 5;
+pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1200;
+pub const MAIN_LOOP_INTERVAL: u64 = 20;
 pub const RECONNECT_INTERVAL: u64 = 5 * 60;
 pub const MAX_WAIT_FOR_ADDR: u64 = 3 * 60;
 
