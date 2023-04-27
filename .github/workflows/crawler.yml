@@ -5,37 +5,13 @@ on:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
-  call-build-zcashd-workflow:
-    uses: runziggurat/zcash/.github/workflows/build-zcashd.yml@main
-
   crawl-network:
     runs-on: ubuntu-latest
-    needs: [ call-build-zcashd-workflow ]
     steps:
       - uses: actions/checkout@v3
-      - run: rustup toolchain install stable --profile minimal
-      - uses: actions/download-artifact@v3
-        with:
-          name: zcashd-fetch-params
-          path: ./zcash
-      - uses: actions/download-artifact@v3
-        with:
-          name: zcashd-executable
-          path: ./zcash
-      - name: Create ~/.zcash/zcash.conf
-        run: |
-          mkdir ~/.zcash/
-          touch ~/.zcash/zcash.conf
-          echo bind=127.0.0.1:12345 > ~/.zcash/zcash.conf
-      - name: Fetch zcashd params
-        run: |
-          chmod +x zcash/fetch-params.sh
-          ./zcash/fetch-params.sh
       - name: Begin crawling
         run: |
-          chmod +x zcash/zcashd
-          ./zcash/zcashd &
-          cargo run --release --features crawler --bin crawler -- --seed-addrs 127.0.0.1:12345 --rpc-addr 127.0.0.1:54321 &
+          cargo run --release --features crawler --bin crawler -- --dns-seed "dnsseed.z.cash" "dnsseed.str4d.xyz" "mainnet.seeder.zfnd.org" "mainnet.is.yolo.money" --rpc-addr 127.0.0.1:54321 &
           # After 30 min, query rpc and send SIGINT.
           sleep 30m
           curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > latest.json
