@@ -12,7 +12,7 @@ use ziggurat_core_crawler::connection::KnownConnection;
 pub const LAST_SEEN_CUTOFF: u64 = 10 * 60;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
-pub enum NodeState {
+pub enum ConnectionState {
     /// The node is not connected.
     #[default]
     Disconnected,
@@ -39,7 +39,7 @@ pub struct KnownNode {
     /// The number of subsequent connection errors.
     pub connection_failures: u8,
     /// The node's state.
-    pub state: NodeState,
+    pub state: ConnectionState,
 }
 
 /// The list of nodes and connections the crawler is aware of.
@@ -65,8 +65,8 @@ impl KnownNetwork {
         });
     }
 
-    /// Sets the node's state.
-    pub fn set_node_state(&self, addr: SocketAddr, state: NodeState) {
+    /// Sets the node's connection state.
+    pub fn set_node_state(&self, addr: SocketAddr, state: ConnectionState) {
         if let Some(node) = self.nodes.write().get_mut(&addr) {
             node.state = state;
         }

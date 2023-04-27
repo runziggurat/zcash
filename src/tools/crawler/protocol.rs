@@ -16,13 +16,13 @@ use ziggurat::{
 };
 
 use super::network::KnownNetwork;
-use crate::network::NodeState;
+use crate::network::ConnectionState;
 
 pub const NUM_CONN_ATTEMPTS_PERIODIC: usize = 500;
 pub const MAX_CONCURRENT_CONNECTIONS: u16 = 1200;
-pub const MAIN_LOOP_INTERVAL: u64 = 20;
-pub const RECONNECT_INTERVAL: u64 = 5 * 60;
-pub const MAX_WAIT_FOR_ADDR: u64 = 3 * 60;
+pub const MAIN_LOOP_INTERVAL_SECS: u64 = 20;
+pub const RECONNECT_INTERVAL_SECS: u64 = 5 * 60;
+pub const MAX_WAIT_FOR_ADDR_SECS: u64 = 3 * 60;
 
 /// Represents the crawler together with network metrics it has collected.
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl Crawler {
                     known_node.connection_failures = 0;
                     known_node.last_connected = Some(timestamp);
                     known_node.handshake_time = Some(timestamp.elapsed());
-                    known_node.state = NodeState::Connected;
+                    known_node.state = ConnectionState::Connected;
                 }
                 Err(_) => {
                     trace!(parent: self.node().span(), "failed to connect to {}", addr);
@@ -150,7 +150,7 @@ impl Reading for Crawler {
                 if len > 1 || (len == 1 && addr.addrs[0].addr != source) {
                     self.node().disconnect(source).await;
                     self.known_network
-                        .set_node_state(source, NodeState::Disconnected);
+                        .set_node_state(source, ConnectionState::Disconnected);
                 }
             }
             Message::Ping(nonce) => {
