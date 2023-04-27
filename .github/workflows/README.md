@@ -16,8 +16,8 @@ The test suite workflows can be broken down into the following 5 steps:
 ## Network Crawler
 
 The network crawler workflow can be broken down into the following 4 steps:
-1. Build a `zcashd` node from source.
-2. Run the crawler binary with the compiled node as the network entry point.
+1. (Optional) Build a `zcashd` node from source.
+2. Run the crawler binary, fetching node addresses via DNS or connecting to the network through a local node.
 3. Wait 30 minutes, then query metrics via RPC and kill the running crawler.
 4. Process the results.
 
