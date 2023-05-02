@@ -7,7 +7,7 @@ use pea2pea::{
 };
 use tokio_util::codec::Framed;
 use tracing::*;
-use ziggurat::{
+use ziggurat_zcash::{
     protocol::{
         message::Message,
         payload::{block::Headers, Addr, Version},
