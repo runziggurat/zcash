@@ -495,7 +495,7 @@ impl Reading for InnerNode {
     async fn process_message(&self, source: SocketAddr, message: Self::Message) -> io::Result<()> {
         let span = self.node().span().clone();
 
-        debug!(parent: span.clone(), "processing {:?}", message);
+        info!(parent: span.clone(), "processing {:?}", message);
         match self.message_filter.message_filter_type(&message) {
             Filter::AutoReply => {
                 // Autoreply with the appropriate response.
