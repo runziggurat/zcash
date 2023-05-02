@@ -1,0 +1,16 @@
+[package]
+name = "synth_node_bin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.2", features = ["derive"] }
+rand = "0.8"
+tokio = { version = "1", features = ["time"] }
+tracing-subscriber = "0.3"
+ziggurat-zcash = { path = "../" }
+
+[dependencies.tracing]
+version = "0.1"
+default-features = false

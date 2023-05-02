@@ -5,8 +5,8 @@ use std::{
 };
 
 use parking_lot::RwLock;
-use ziggurat_zcash::protocol::payload::{ProtocolVersion, VarStr};
 use ziggurat_core_crawler::connection::KnownConnection;
+use ziggurat_zcash::protocol::payload::{ProtocolVersion, VarStr};
 
 /// The elapsed time before a connection should be regarded as inactive.
 pub const LAST_SEEN_CUTOFF: u64 = 10 * 60;

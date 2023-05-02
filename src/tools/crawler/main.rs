@@ -16,8 +16,8 @@ use rand::prelude::IteratorRandom;
 use tokio::{signal, time::sleep};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
-use ziggurat_zcash::{protocol::message::Message, wait_until};
 use ziggurat_core_crawler::summary::NetworkSummary;
+use ziggurat_zcash::{protocol::message::Message, wait_until};
 
 use crate::{
     metrics::{NetworkMetrics, ZCASH_P2P_DEFAULT_PORT},
