@@ -6,17 +6,17 @@ edition = "2021"
 
 [dependencies]
 assert_matches = "1.5"
-async-trait = "0.1.53"
+async-trait = "0.1"
 bytes = "1"
 chrono = "0.4"
-dns-lookup = "1.0.8"
-hex = "0.4.3"
-home = "0.5.3"
-lazy_static = "1.4.0"
-metrics = "0.20.0"
-metrics-util = "0.14.0"
+dns-lookup = "2.0"
+hex = "0.4"
+home = "0.5"
+lazy_static = "1.4"
+metrics = "0.21"
+metrics-util = "0.15"
 parking_lot = "0.12"
-pea2pea = "0.45"
+pea2pea = "0.46"
 rand = "0.8"
 rand_chacha = "0.3"
 regex = "1"
@@ -24,13 +24,13 @@ sha2 = "0.10"
 spectre = { git = "https://github.com/niklaslong/spectre", rev = "9a0664f" }
 tabled = "0.10"
 time = "0.3"
-toml = "0.6.0"
+toml = "0.7"
 ziggurat-core-crawler = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
 ziggurat-core-metrics = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
 ziggurat-core-utils = { git = "https://github.com/runziggurat/ziggurat-core", rev = "33ef131" }
 
 [dependencies.clap]
-version = "4.1.4"
+version = "4.2"
 features = ["derive"]
 optional = true
 
@@ -39,7 +39,7 @@ version = "0.3"
 features = ["sink"]
 
 [dependencies.jsonrpsee]
-version = "0.16.2"
+version = "0.16"
 features = ["server"]
 optional = true
 
