@@ -5,8 +5,12 @@ use std::{io, net::SocketAddr};
 use bytes::{Buf, BufMut};
 use time::OffsetDateTime;
 
-use crate::protocol::payload::{
-    addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion, VarStr,
+use crate::protocol::{
+    message::constants::USER_AGENT,
+    payload::{
+        addr::NetworkAddr, codec::Codec, read_n_bytes, read_timestamp, Nonce, ProtocolVersion,
+        VarStr,
+    },
 };
 
 /// A version payload.
@@ -51,7 +55,8 @@ impl Version {
                 addr: addr_from,
             },
             nonce: Nonce::default(),
-            user_agent: VarStr(String::from("")),
+            // Let's pretend to be a ZCashd node 5.4.2
+            user_agent: VarStr(String::from(USER_AGENT)),
             start_height: 0,
             relay: false,
         }

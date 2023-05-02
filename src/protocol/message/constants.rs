@@ -17,6 +17,9 @@ pub const PROTOCOL_VERSION: u32 = 170_100;
 pub const MAGIC_TESTNET: [u8; MAGIC_LEN] = [0xfa, 0x1a, 0xf9, 0xbf];
 pub const MAGIC_MAINNET: [u8; MAGIC_LEN] = [0x24, 0xe9, 0x27, 0x64];
 
+/// Version message user agent
+pub const USER_AGENT: &str = "MagicBean:5.4.2";
+
 #[cfg(test)]
 pub const MAGIC: [u8; MAGIC_LEN] = MAGIC_TESTNET;
 #[cfg(all(not(test), not(feature = "crawler")))]
