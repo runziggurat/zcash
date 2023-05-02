@@ -5,7 +5,7 @@ use std::{
 };
 
 use parking_lot::RwLock;
-use ziggurat::protocol::payload::{ProtocolVersion, VarStr};
+use ziggurat_zcash::protocol::payload::{ProtocolVersion, VarStr};
 use ziggurat_core_crawler::connection::KnownConnection;
 
 /// The elapsed time before a connection should be regarded as inactive.
