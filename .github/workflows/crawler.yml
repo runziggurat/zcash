@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Begin crawling
         run: |
-          cargo run --release --features crawler --bin crawler -- --dns-seed "dnsseed.z.cash" "dnsseed.str4d.xyz" "mainnet.seeder.zfnd.org" "mainnet.is.yolo.money" --rpc-addr 127.0.0.1:54321 &
+          cargo run --release --features crawler --bin crawler -- --seed-addrs "dnsseed.z.cash" "dnsseed.str4d.xyz" "mainnet.seeder.zfnd.org" "mainnet.is.yolo.money" --rpc-addr 127.0.0.1:54321 &
           # After 30 min, query rpc and send SIGINT.
           sleep 30m
           curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > latest.json
