@@ -12,10 +12,7 @@ $ cargo run --release --features crawler --bin crawler -- --help
 OPTIONS:
     -c, --crawl-interval <CRAWL_INTERVAL>
             The main crawling loop interval in seconds [default: 5]
-            
-    -d, --dns-seed <DNS_SEED_ADDRS>...
-            DNS seeder addresses to use (can be used multiple times)
-            
+
     -h, --help
             Print help information
 
@@ -23,7 +20,7 @@ OPTIONS:
             If present, start an RPC server at the specified address
 
     -s, --seed-addrs <SEED_ADDRS>...
-            The initial addresses to connect to (can be used multiple times)
+            A list of initial standalone IP addresses and/or DNS servers to connect to
 
     -V, --version
             Print version information
@@ -78,4 +75,3 @@ A sample of the data we collect and metrics we compute (obtained via RPC):
   "avg_degree_centrality": 274
 }
 ```
-
