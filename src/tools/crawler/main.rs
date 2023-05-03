@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::{ArgGroup, Parser};
+use clap::Parser;
 use dns_lookup::lookup_host;
 use parking_lot::Mutex;
 use pea2pea::{
@@ -41,20 +41,10 @@ const LOG_PATH: &str = "crawler-log.txt";
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
-#[clap(group(
-ArgGroup::new("source_addrs")
-.required(true)
-.multiple(true)
-.args(&["seed_addrs", "dns_seed"])
-))]
 struct Args {
-    /// The initial addresses to connect to
-    #[clap(short, long, value_parser, num_args(1..))]
-    seed_addrs: Option<Vec<SocketAddr>>,
-
-    /// The initial addresses to connect to
-    #[clap(short, long, value_parser, num_args(1..))]
-    dns_seed: Option<Vec<String>>,
+    /// A list of initial standalone IP addresses and/or DNS servers to connect to
+    #[clap(short, long, value_parser, num_args(1..), required = true)]
+    seed_addrs: Vec<String>,
 
     /// The main crawling loop interval in seconds
     #[clap(short, long, value_parser, default_value_t = MAIN_LOOP_INTERVAL_SECS)]
@@ -94,27 +84,23 @@ async fn main() {
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
 
-    if let Some(seeds) = args.seed_addrs {
-        seed_addrs.extend_from_slice(&seeds);
-    }
-
-    if let Some(dns_seed) = args.dns_seed {
-        for seed_str in dns_seed {
-            let response = lookup_host(&seed_str);
+    for seed_addr in args.seed_addrs {
+        // First, try parsing as a `SocketAddr`.
+        if let Ok(addr) = seed_addr.parse::<SocketAddr>() {
+            seed_addrs.push(addr);
+        } else {
+            // If above failed, try to do a DNS lookup instead.
+            let response = lookup_host(&seed_addr);
 
             if let Ok(response) = response {
                 for address in response.iter() {
                     seed_addrs.push(SocketAddr::new(*address, ZCASH_P2P_DEFAULT_PORT)); // DNS addrs use this port
-                    info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_str, address);
+                    info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_addr, address);
                 }
             } else {
-                error!(parent: crawler.node().span(), "DNS seed {} lookup failed: {}", seed_str, response.err().unwrap());
+                error!(parent: crawler.node().span(), "DNS seed {} lookup failed: {}", seed_addr, response.err().unwrap());
             }
         }
-    }
-
-    if seed_addrs.is_empty() {
-        panic!("seed address not found");
     }
 
     let mut network_metrics = NetworkMetrics::default();
