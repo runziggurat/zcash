@@ -1,5 +1,5 @@
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     sync::Arc,
     thread,
     time::{Duration, Instant},
@@ -75,33 +75,68 @@ fn start_logger(default_level: LevelFilter) {
         .init();
 }
 
+/// Parses and converts `String` values found in a `Vec` to valid `SocketAddr`.
+///
+/// # Input
+///
+/// Valid inputs can be in the following forms:
+/// - IP + port (both IPv4 and IPv6 are valid)
+/// - IP (Default `ZCASH_P2P_DEFAULT_PORT` will be appended)
+/// - DNS + port
+/// - DNS
+fn parse_addrs(seed_addrs: Vec<String>, crawler: &Crawler) -> Vec<SocketAddr> {
+    let mut parsed_addrs = Vec::with_capacity(seed_addrs.len());
+
+    for seed_addr in seed_addrs {
+        // First, try parsing as a `SocketAddr`.
+        if let Ok(addr) = seed_addr.parse::<SocketAddr>() {
+            parsed_addrs.push(addr);
+            continue;
+        }
+        // User may supply an IP address without a port,
+        // append `ZCASH_P2P_DEFAULT_PORT` in that case.
+        if let Ok(addr) = seed_addr.parse::<IpAddr>() {
+            parsed_addrs.push(SocketAddr::new(addr, ZCASH_P2P_DEFAULT_PORT));
+            info!(parent: crawler.node().span(), "no port specified for address: {}, using default: {}", seed_addr, ZCASH_P2P_DEFAULT_PORT);
+            continue;
+        }
+        // If above failed, try to do a DNS lookup instead.
+        //
+        // We make sure to remove remove the port if it exists.
+        // This is safe to do since we catch all IPv6 addresses above.
+        let mut clean_addrs = seed_addr.clone();
+        let mut addr_split: Vec<_> = seed_addr.split(":").collect();
+        let mut port = ZCASH_P2P_DEFAULT_PORT; // DNS addresses use this port.
+        if addr_split.len() > 1 {
+            // Port should be the last item, remove it from addrs.
+            if let Some(p) = addr_split.pop() {
+                port = p.parse().unwrap();
+            }
+            clean_addrs = addr_split.into_iter().collect();
+        }
+        // Do the lookup on the clean address.
+        let response = lookup_host(&clean_addrs);
+        if let Ok(response) = response {
+            for address in response.iter() {
+                parsed_addrs.push(SocketAddr::new(*address, port));
+                info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_addr, address);
+            }
+        } else {
+            error!(parent: crawler.node().span(), "failed to resolve address: {}", seed_addr);
+        }
+    }
+
+    return parsed_addrs;
+}
+
 #[tokio::main]
 async fn main() {
     start_logger(LevelFilter::INFO);
     let args = Args::parse();
-    let mut seed_addrs: Vec<SocketAddr> = Vec::new();
 
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
-
-    for seed_addr in args.seed_addrs {
-        // First, try parsing as a `SocketAddr`.
-        if let Ok(addr) = seed_addr.parse::<SocketAddr>() {
-            seed_addrs.push(addr);
-        } else {
-            // If above failed, try to do a DNS lookup instead.
-            let response = lookup_host(&seed_addr);
-
-            if let Ok(response) = response {
-                for address in response.iter() {
-                    seed_addrs.push(SocketAddr::new(*address, ZCASH_P2P_DEFAULT_PORT)); // DNS addrs use this port
-                    info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_addr, address);
-                }
-            } else {
-                error!(parent: crawler.node().span(), "DNS seed {} lookup failed: {}", seed_addr, response.err().unwrap());
-            }
-        }
-    }
+    let seed_addrs = parse_addrs(args.seed_addrs, &crawler);
 
     let mut network_metrics = NetworkMetrics::default();
     let summary_snapshot = Arc::new(Mutex::new(NetworkSummary::default()));
