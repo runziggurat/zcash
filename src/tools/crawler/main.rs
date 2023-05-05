@@ -81,10 +81,10 @@ fn start_logger(default_level: LevelFilter) {
 ///
 /// Valid inputs can be in the following forms:
 /// - IP + port (both IPv4 and IPv6 are valid)
-/// - IP (Default `ZCASH_P2P_DEFAULT_PORT` will be appended)
-/// - DNS + port
-/// - DNS
-fn parse_addrs(seed_addrs: Vec<String>, crawler: &Crawler) -> Vec<SocketAddr> {
+/// - IP (can be DNS seeder, default `ZCASH_P2P_DEFAULT_PORT` will be appended)
+/// - Hostname + port
+/// - Hostname (can be DNS seeder, default `ZCASH_P2P_DEFAULT_PORT` will be appended)
+fn parse_addrs(seed_addrs: Vec<String>) -> Vec<SocketAddr> {
     let mut parsed_addrs = Vec::with_capacity(seed_addrs.len());
 
     for seed_addr in seed_addrs {
@@ -97,12 +97,15 @@ fn parse_addrs(seed_addrs: Vec<String>, crawler: &Crawler) -> Vec<SocketAddr> {
         // append `ZCASH_P2P_DEFAULT_PORT` in that case.
         if let Ok(addr) = seed_addr.parse::<IpAddr>() {
             parsed_addrs.push(SocketAddr::new(addr, ZCASH_P2P_DEFAULT_PORT));
-            info!(parent: crawler.node().span(), "no port specified for address: {}, using default: {}", seed_addr, ZCASH_P2P_DEFAULT_PORT);
+            println!(
+                "no port specified for address: {}, using default: {}",
+                seed_addr, ZCASH_P2P_DEFAULT_PORT
+            );
             continue;
         }
         // If above failed, try to do a DNS lookup instead.
         //
-        // We make sure to remove remove the port if it exists.
+        // We make sure to remove remove the port, and store it for later use, if it exists.
         // This is safe to do since we catch all IPv6 addresses above.
         let mut clean_addrs = seed_addr.clone();
         let mut addr_split: Vec<_> = seed_addr.split(":").collect();
@@ -119,10 +122,10 @@ fn parse_addrs(seed_addrs: Vec<String>, crawler: &Crawler) -> Vec<SocketAddr> {
         if let Ok(response) = response {
             for address in response.iter() {
                 parsed_addrs.push(SocketAddr::new(*address, port));
-                info!(parent: crawler.node().span(), "DNS seed {} address added: {}", seed_addr, address);
+                println!("DNS seed {} address added: {}", seed_addr, address);
             }
         } else {
-            error!(parent: crawler.node().span(), "failed to resolve address: {}", seed_addr);
+            error!("failed to resolve address: {}", seed_addr);
         }
     }
 
@@ -133,10 +136,10 @@ fn parse_addrs(seed_addrs: Vec<String>, crawler: &Crawler) -> Vec<SocketAddr> {
 async fn main() {
     start_logger(LevelFilter::INFO);
     let args = Args::parse();
+    let seed_addrs = parse_addrs(args.seed_addrs);
 
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
-    let seed_addrs = parse_addrs(args.seed_addrs, &crawler);
 
     let mut network_metrics = NetworkMetrics::default();
     let summary_snapshot = Arc::new(Mutex::new(NetworkSummary::default()));
@@ -287,5 +290,40 @@ async fn main() {
     info!(parent: crawler_clone.node().span(), "{}", summary);
     if let Err(e) = summary.log_to_file(LOG_PATH) {
         error!(parent: crawler_clone.node().span(), "couldn't write summary to file: {}", e);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
+    use super::*;
+
+    #[test]
+    fn parse_addrs_test() {
+        let addrs = vec![
+            String::from("[::1]:12345"),
+            String::from("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+            String::from("127.0.0.1"),
+            String::from("192.0.2.235:54321"),
+        ];
+        let parsed_addrs = parse_addrs(addrs);
+
+        let correct_addrs = vec![
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 12345),
+            SocketAddr::new(
+                IpAddr::V6(Ipv6Addr::new(
+                    0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334,
+                )),
+                ZCASH_P2P_DEFAULT_PORT,
+            ),
+            SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                ZCASH_P2P_DEFAULT_PORT,
+            ),
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 235)), 54321),
+        ];
+
+        assert_eq!(parsed_addrs, correct_addrs)
     }
 }

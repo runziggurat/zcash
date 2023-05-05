@@ -24,7 +24,7 @@ pub const USER_AGENT: &str = "MagicBean:5.4.2";
 pub const MAGIC: [u8; MAGIC_LEN] = MAGIC_TESTNET;
 #[cfg(all(not(test), not(feature = "crawler")))]
 pub const MAGIC: [u8; MAGIC_LEN] = MAGIC_MAINNET;
-#[cfg(feature = "crawler")]
+#[cfg(all(not(test), feature = "crawler"))]
 pub const MAGIC: [u8; MAGIC_LEN] = MAGIC_MAINNET;
 
 pub const COMMAND_LEN: usize = 12;
