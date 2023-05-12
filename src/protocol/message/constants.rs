@@ -49,3 +49,4 @@ pub const REJECT_COMMAND: [u8; COMMAND_LEN] = *b"reject\0\0\0\0\0\0";
 pub const FILTERLOAD_COMMAND: [u8; COMMAND_LEN] = *b"filterload\0\0";
 pub const FILTERADD_COMMAND: [u8; COMMAND_LEN] = *b"filteradd\0\0\0";
 pub const FILTERCLEAR_COMMAND: [u8; COMMAND_LEN] = *b"filterclear\0";
+pub const ALERT_COMMAND: [u8; COMMAND_LEN] = *b"alert\0\0\0\0\0\0\0";

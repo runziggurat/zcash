@@ -96,6 +96,7 @@ pub enum Message {
     FilterLoad(FilterLoad),
     FilterAdd(FilterAdd),
     FilterClear,
+    Alert,
 }
 
 macro_rules! encode_with_header_prefix {
@@ -174,6 +175,8 @@ impl Message {
             Self::FilterClear => {
                 encode_with_header_prefix!(FILTERCLEAR_COMMAND, buffer);
             }
+            // Don't send deprecated alert messages.
+            Self::Alert => (),
         }
 
         Ok(())
@@ -198,6 +201,11 @@ impl Message {
             MEMPOOL_COMMAND => Self::MemPool,
             TX_COMMAND => Self::Tx(Tx::decode(bytes)?),
             REJECT_COMMAND => Self::Reject(Reject::decode(bytes)?),
+            // Explicitly ignore alert messages since they are deprecated.
+            ALERT_COMMAND => {
+                bytes.advance(bytes.remaining());
+                Self::Alert
+            }
             cmd => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
@@ -232,6 +240,7 @@ impl std::fmt::Display for Message {
             Message::FilterLoad(_) => f.write_str("FilterLoad"),
             Message::FilterAdd(_) => f.write_str("FilterAdd"),
             Message::FilterClear => f.write_str("FilterClear"),
+            Message::Alert => f.write_str("Alert"),
         }
     }
 }
