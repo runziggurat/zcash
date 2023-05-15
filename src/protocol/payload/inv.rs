@@ -36,61 +36,44 @@ impl Codec for Inv {
     }
 }
 
-/// An inventory hash.
+/// An inventory hash which refers to some advertised or requested data.
+///
+/// Bitcoin calls this an "inventory vector" but it is just a typed hash, not a
+/// container, so we do not use that term to avoid confusion with `Vec<T>`.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct InvHash {
-    /// The object type linked to this inventory.
-    kind: ObjectKind,
-    /// The hash of the object.
-    hash: Hash,
+pub enum InvHash {
+    /// Any data of this kind may be ignored.
+    Error,
+    /// The hash is that of a transaction.
+    Tx(Hash),
+    /// The hash is that of a block.
+    Block(Hash),
+    /// The hash is that of a block header.
+    FilteredBlock(Hash),
 }
 
 impl InvHash {
-    /// Returns a new `InvHash` instance.
-    pub fn new(kind: ObjectKind, hash: Hash) -> Self {
-        Self { kind, hash }
+    /// Returns the serialized Zcash network protocol code for the current variant.
+    fn code(&self) -> u32 {
+        match self {
+            Self::Error => 0,
+            Self::Tx(_) => 1,
+            Self::Block(_) => 2,
+            Self::FilteredBlock(_) => 3,
+        }
     }
 }
 
 impl Codec for InvHash {
     fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
-        self.kind.encode(buffer)?;
-        self.hash.encode(buffer)?;
+        buffer.put_u32_le(self.code());
 
-        Ok(())
-    }
-
-    fn decode<B: Buf>(bytes: &mut B) -> io::Result<Self> {
-        let kind = ObjectKind::decode(bytes)?;
-        let hash = Hash::decode(bytes)?;
-
-        Ok(Self { kind, hash })
-    }
-}
-
-/// The inventory object kind.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ObjectKind {
-    /// Any data of this kind may be ignored.
-    Error,
-    /// The hash is that of a transaction.
-    Tx,
-    /// The hash is that of a block.
-    Block,
-    /// The hash is that of a block header.
-    FilteredBlock,
-}
-
-impl Codec for ObjectKind {
-    fn encode<B: BufMut>(&self, buffer: &mut B) -> io::Result<()> {
-        let value: u32 = match self {
-            Self::Error => 0,
-            Self::Tx => 1,
-            Self::Block => 2,
-            Self::FilteredBlock => 3,
-        };
-
-        buffer.put_u32_le(value);
+        match self {
+            Self::Tx(hash) | Self::Block(hash) | Self::FilteredBlock(hash) => {
+                hash.encode(buffer)?;
+            }
+            _ => (),
+        }
 
         Ok(())
     }
@@ -100,13 +83,13 @@ impl Codec for ObjectKind {
 
         let kind = match value {
             0 => Self::Error,
-            1 => Self::Tx,
-            2 => Self::Block,
-            3 => Self::FilteredBlock,
+            1 => Self::Tx(Hash::decode(bytes)?),
+            2 => Self::Block(Hash::decode(bytes)?),
+            3 => Self::FilteredBlock(Hash::decode(bytes)?),
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "ObjectKind is not known",
+                    format!("unknown inv hash value type: {value}"),
                 ))
             }
         };

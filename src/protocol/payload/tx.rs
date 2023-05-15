@@ -5,11 +5,7 @@ use std::{convert::TryInto, io};
 use bytes::{Buf, BufMut};
 use sha2::Digest;
 
-use crate::protocol::payload::{
-    codec::Codec,
-    inv::{InvHash, ObjectKind},
-    read_n_bytes, Hash, VarInt,
-};
+use crate::protocol::payload::{codec::Codec, inv::InvHash, read_n_bytes, Hash, VarInt};
 
 /// A Zcash transaction ([spec](https://zips.z.cash/protocol/canopy.pdf#txnencodingandconsensus)).
 ///
@@ -40,7 +36,7 @@ impl Tx {
 
     /// Convenience function which creates the [`InvHash`] for this `Tx`.
     pub fn inv_hash(&self) -> InvHash {
-        InvHash::new(ObjectKind::Tx, self.double_sha256().unwrap())
+        InvHash::Tx(self.double_sha256().unwrap())
     }
 }
 

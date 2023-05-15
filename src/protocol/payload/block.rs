@@ -6,9 +6,7 @@ use bytes::{Buf, BufMut};
 use sha2::Digest;
 
 use crate::protocol::payload::{
-    codec::Codec,
-    inv::{InvHash, ObjectKind},
-    read_n_bytes, Hash, ProtocolVersion, Tx, VarInt,
+    codec::Codec, inv::InvHash, read_n_bytes, Hash, ProtocolVersion, Tx, VarInt,
 };
 
 /// The locator hash object, used to communicate chain state.
@@ -163,7 +161,7 @@ impl Block {
 
     /// Convenience function which creates the [`InvHash`] for this block.
     pub fn inv_hash(&self) -> InvHash {
-        InvHash::new(ObjectKind::Block, self.double_sha256().unwrap())
+        InvHash::Block(self.double_sha256().unwrap())
     }
 }
 

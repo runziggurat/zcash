@@ -9,10 +9,7 @@
 use crate::{
     protocol::{
         message::Message,
-        payload::{
-            inv::{InvHash, ObjectKind},
-            Hash, Inv,
-        },
+        payload::{inv::InvHash, Hash, Inv},
     },
     tests::conformance::query::{run_test_query, SEED_BLOCKS},
 };
@@ -57,7 +54,7 @@ mod single_block {
     #[allow(non_snake_case)]
     async fn c018_t4_GET_DATA_non_existent() {
         // zcashd: fail (ignores non-existent block)
-        let inv = Inv::new(vec![InvHash::new(ObjectKind::Block, Hash::new([17; 32]))]);
+        let inv = Inv::new(vec![InvHash::Block(Hash::new([17; 32]))]);
         let query = Message::GetData(inv.clone());
         let expected = vec![Message::NotFound(inv)];
         let response = run_test_query(query).await.unwrap();
@@ -118,9 +115,9 @@ mod multiple_blocks {
     async fn c018_t8_GET_DATA_non_existent_blocks() {
         // zcashd: fails (ignores non-existent blocks).
         let inv = Inv::new(vec![
-            InvHash::new(ObjectKind::Block, Hash::new([17; 32])),
-            InvHash::new(ObjectKind::Block, Hash::new([211; 32])),
-            InvHash::new(ObjectKind::Block, Hash::new([74; 32])),
+            InvHash::Block(Hash::new([17; 32])),
+            InvHash::Block(Hash::new([211; 32])),
+            InvHash::Block(Hash::new([74; 32])),
         ]);
 
         let query = Message::GetData(inv.clone());
@@ -144,9 +141,9 @@ mod multiple_blocks {
         // zcashd: fails (ignores non-existent blocks).
 
         let non_existent_inv = vec![
-            InvHash::new(ObjectKind::Block, Hash::new([17; 32])),
-            InvHash::new(ObjectKind::Block, Hash::new([211; 32])),
-            InvHash::new(ObjectKind::Block, Hash::new([74; 32])),
+            InvHash::Block(Hash::new([17; 32])),
+            InvHash::Block(Hash::new([211; 32])),
+            InvHash::Block(Hash::new([74; 32])),
         ];
         let blocks = SEED_BLOCKS
             .iter()

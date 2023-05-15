@@ -8,8 +8,8 @@
 //! [`Inv`](Message::Inv) containing both [`Block`][inv_block] and [`Tx`][inv_tx] types in [`InvHash`][inv_hash].
 //! [`Addr`](Message::Addr) containing a [`NetworkAddr`][net_addr] *without* a  timestamp.
 //!
-//! [inv_block]: crate::protocol::payload::inv::ObjectKind::Block
-//! [inv_tx]: crate::protocol::payload::inv::ObjectKind::Tx
+//! [inv_block]: crate::protocol::payload::inv::InvHash::Block
+//! [inv_tx]: crate::protocol::payload::inv::InvHash::Tx
 //! [inv_hash]: crate::protocol::payload::inv::InvHash
 //! [net_addr]: crate::protocol::payload::addr::NetworkAddr
 //!
