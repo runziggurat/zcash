@@ -15,7 +15,7 @@ jobs:
           # After 30 min, query rpc and send SIGINT.
           sleep 30m
           curl --data-binary '{"jsonrpc": "2.0", "id":0, "method": "getmetrics", "params": [] }' -H 'content-type: application/json' http://127.0.0.1:54321/ > latest.json
-          kill -2 $(pidof crawler) $(pidof zcashd)
+          kill -2 $(pidof crawler)
       - name: Check for error
         run: |
           # If the result contains any error, fail workflow
