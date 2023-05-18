@@ -85,7 +85,7 @@ async fn run_synth_node(node_addr: SocketAddr) -> Result<()> {
     synth_node.connect(node_addr).await?;
 
     // Run the wanted action with the node.
-    perform_action(&mut synth_node).await;
+    perform_action(&mut synth_node, node_addr).await?;
 
     // Optional.
     sleep(Duration::from_millis(100)).await;
@@ -102,24 +102,21 @@ async fn run_synth_node(node_addr: SocketAddr) -> Result<()> {
 //
 // All the program logic happens here.
 #[allow(unused_variables)]
-async fn perform_action(synth_node: &mut SyntheticNode) {
-    println!("Synthetic node performs an action");
+async fn perform_action(synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
+    println!("Synthetic node performs an action.");
 
     // Custom code goes here, example:
     sleep(Duration::from_millis(5000)).await;
 
-    let addr = *synth_node
-        .connected_peers()
-        .first()
-        .expect("failed to fetch the node's addr");
+    let msg = Message::GetAddr;
+    tracing::info!("unicast {msg:?}\n");
+    if synth_node.unicast(addr, msg.clone()).is_err() {
+        tracing::warn!("failed to send {msg:?}\n");
+        anyhow::bail!("connection closed");
+    }
 
-    let send_msg = |msg| {
-        tracing::info!("unicast {msg:?}\n");
-        synth_node.unicast(addr, msg).unwrap();
-    };
-
-    send_msg(Message::GetAddr);
-    sleep(Duration::from_millis(5000)).await;
-
-    println!("Synthetic node completed the action");
+    loop {
+        let (_, msg) = synth_node.try_recv_message().await?;
+        tracing::info!("message received: {msg:?}");
+    }
 }
