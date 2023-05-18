@@ -28,6 +28,30 @@ use crate::{
     tools::message_filter::{Filter, MessageFilter},
 };
 
+/// An [`Error`](std::error::Error) type for [`SyntheticNode::inbound_rx`]
+pub enum ConnectionError {
+    /// The connection was dropped.
+    ConnectionDropped,
+}
+
+impl std::fmt::Debug for ConnectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            ConnectionError::ConnectionDropped => "Connection is dropped".to_string(),
+        };
+
+        f.write_str(&str)
+    }
+}
+
+impl std::fmt::Display for ConnectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{self:?}"))
+    }
+}
+
+impl std::error::Error for ConnectionError {}
+
 /// An [`Error`](std::error::Error) type for [`SyntheticNode::ping_pong_timeout`]
 pub enum PingPongError {
     /// The connection was aborted during the [`Ping`](Message::Ping)-[`Pong`](Message::Pong) exchange.
@@ -271,6 +295,7 @@ impl SyntheticNode {
     }
 
     /// Reads a message from the inbound (internal) queue of the node.
+    /// In case of channel failure, it panics.
     ///
     /// Messages are sent to the queue when unfiltered by the message filter.
     pub async fn recv_message(&mut self) -> (SocketAddr, Message) {
@@ -278,6 +303,17 @@ impl SyntheticNode {
             Some(message) => message,
             None => panic!("all senders dropped!"),
         }
+    }
+
+    /// Reads a message from the inbound (internal) queue of the node.
+    /// In case of channel failure, it returns an [`ConnectionError`].
+    ///
+    /// Messages are sent to the queue when unfiltered by the message filter.
+    pub async fn try_recv_message(&mut self) -> Result<(SocketAddr, Message), ConnectionError> {
+        self.inbound_rx
+            .recv()
+            .await
+            .ok_or(ConnectionError::ConnectionDropped)
     }
 
     // Attempts to read a message from the inbound (internal) queue of the node before the timeout
