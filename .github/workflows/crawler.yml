@@ -7,7 +7,7 @@ on:
 
 jobs:
   crawl-network:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Begin crawling
@@ -33,6 +33,8 @@ jobs:
   call-build-viz-state-workflow:
     needs: [ crawl-network ]
     uses: runziggurat/ziggurat-core/.github/workflows/build-viz-state.yml@main
+    with: 
+      filter: Zcash
 
   call-process-results-workflow:
     needs: [ call-build-viz-state-workflow ]
