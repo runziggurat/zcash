@@ -28,9 +28,13 @@ jobs:
         with:
           name: latest-result
           path: latest.json
+          
+  call-build-viz-state-workflow:
+    needs: [ crawl-network ]
+    uses: runziggurat/ziggurat-core/.github/workflows/build-viz-state.yml@main
 
   call-process-results-workflow:
-    needs: [ crawl-network ]
+    needs: [ call-build-viz-state-workflow ]
     uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: crawler
