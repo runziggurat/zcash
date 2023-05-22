@@ -7,11 +7,12 @@ on:
 
 jobs:
   crawl-network:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
       - name: Begin crawling
         run: |
+          nix develop --command \
           cargo run --release --features crawler --bin crawler -- --seed-addrs "dnsseed.z.cash" "dnsseed.str4d.xyz" "mainnet.seeder.zfnd.org" "mainnet.is.yolo.money" --rpc-addr 127.0.0.1:54321 &
           # After 30 min, query rpc and send SIGINT.
           sleep 30m
