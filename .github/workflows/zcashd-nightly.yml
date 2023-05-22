@@ -1,6 +1,7 @@
 name: zcashd-nightly
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
@@ -49,18 +50,12 @@ jobs:
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
           chmod +x zcash/zcashd
-          mkdir -p results/zcashd
-          mv results/zcashd/latest.jsonl results/zcashd/previous.jsonl
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zcashd/latest.jsonl
-          cat results/zcashd/latest.jsonl
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > latest.jsonl
+          cat latest.jsonl
       - uses: actions/upload-artifact@v3
         with:
           name: latest-result
-          path: results/zcashd/latest.jsonl
-      - uses: actions/upload-artifact@v3
-        with:
-          name: previous-result
-          path: results/zcashd/previous.jsonl
+          path: latest.jsonl
 
   call-process-results-workflow:
     needs: [ test-zcashd ]
