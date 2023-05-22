@@ -52,7 +52,7 @@ jobs:
         continue-on-error: true
         run: |
           rm ./ziggurat/*.d
-          mv ./ziggurat/ziggurat-* ziggurat_test
+          mv ./ziggurat/ziggurat_zcash-* ziggurat_test
           chmod +x ziggurat_test
           ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > latest.jsonl
           cat latest.jsonl
@@ -73,3 +73,8 @@ jobs:
   call-diff-with-previous-workflow:
     needs: [ test-zebra ]
     uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
+    with:
+      name: zebra
+      repository: zcash
+    secrets:
+      gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
