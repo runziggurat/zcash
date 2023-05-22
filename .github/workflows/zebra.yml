@@ -1,6 +1,7 @@
 name: zebra
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
@@ -53,18 +54,12 @@ jobs:
           rm ./ziggurat/*.d
           mv ./ziggurat/ziggurat-* ziggurat_test
           chmod +x ziggurat_test
-          mkdir -p results/zebra
-          mv results/zebra/latest.jsonl results/zebra/previous.jsonl
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > results/zebra/latest.jsonl
-          cat results/zebra/latest.jsonl
+          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > latest.jsonl
+          cat latest.jsonl
       - uses: actions/upload-artifact@v3
         with:
           name: latest-result
-          path: results/zebra/latest.jsonl
-      - uses: actions/upload-artifact@v3
-        with:
-          name: previous-result
-          path: results/zebra/previous.jsonl
+          path: latest.jsonl
 
   call-process-results-workflow:
     needs: [ test-zebra ]
