@@ -57,18 +57,18 @@ jobs:
           name: latest-result
           path: latest.jsonl
 
-  call-process-results-workflow:
+  call-diff-with-previous-workflow:
     needs: [ test-zcashd ]
-    uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
     with:
       name: zcashd
       repository: zcash
     secrets:
       gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
 
-  call-diff-with-previous-workflow:
-    needs: [ test-zcashd ]
-    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
+  call-process-results-workflow:
+    needs: [ call-diff-with-previous-workflow ]
+    uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zcashd
       repository: zcash

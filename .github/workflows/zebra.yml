@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ build-zebra, call-build-ziggurat-workflow ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - run: rustup toolchain install nightly --profile minimal
@@ -61,18 +61,18 @@ jobs:
           name: latest-result
           path: latest.jsonl
 
-  call-process-results-workflow:
+  call-diff-with-previous-workflow:
     needs: [ test-zebra ]
-    uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
+    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
     with:
       name: zebra
       repository: zcash
     secrets:
       gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
 
-  call-diff-with-previous-workflow:
-    needs: [ test-zebra ]
-    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
+  call-process-results-workflow:
+    needs: [ call-diff-with-previous-workflow ]
+    uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zebra
       repository: zcash
