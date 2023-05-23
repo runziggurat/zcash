@@ -168,9 +168,8 @@ async fn main() {
                 .write()
                 .insert(addr, KnownNode::default());
 
-            // Don't care about the result - errors are logged inside connect() and
-            // successful connections do not involve any further actions as sending
-            // GetAddr message was moved to process_message in protocol.rs.
+            // Once the Version message is received in the process_message function,
+            // GetAddr will be requested from the peer
             let _ = crawler_clone.connect(addr).await;
         });
     }
@@ -232,9 +231,8 @@ async fn main() {
                 if crawler.should_connect(addr) {
                     let crawler_clone = crawler.clone();
                     tokio::spawn(async move {
-                        // Don't care about the result - errors are logged inside connect() and
-                        // successful connections do not involve any further actions as sending
-                        // GetAddr message was moved to process_message in protocol.rs.
+                        // Once the Version message is received in the process_message function,
+                        // GetAddr will be requested from the peer
                         let _ = crawler_clone.connect(addr).await;
                     });
                 }
