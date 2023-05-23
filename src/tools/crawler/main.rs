@@ -17,7 +17,7 @@ use tokio::{signal, time::sleep};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use ziggurat_core_crawler::summary::NetworkSummary;
-use ziggurat_zcash::{protocol::message::Message, wait_until};
+use ziggurat_zcash::wait_until;
 
 use crate::{
     metrics::{NetworkMetrics, ZCASH_P2P_DEFAULT_PORT},
@@ -168,10 +168,10 @@ async fn main() {
                 .write()
                 .insert(addr, KnownNode::default());
 
-            if crawler_clone.connect(addr).await.is_ok() {
-                sleep(Duration::from_secs(1)).await;
-                let _ = crawler_clone.unicast(addr, Message::GetAddr);
-            }
+            // Don't care about the result - errors are logged inside connect() and
+            // successful connections do not involve any further actions as sending
+            // GetAddr message was moved to process_message in protocol.rs.
+            let _ = crawler_clone.connect(addr).await;
         });
     }
 
@@ -232,15 +232,13 @@ async fn main() {
                 if crawler.should_connect(addr) {
                     let crawler_clone = crawler.clone();
                     tokio::spawn(async move {
-                        if crawler_clone.connect(addr).await.is_ok() {
-                            sleep(Duration::from_secs(1)).await;
-                            let _ = crawler_clone.unicast(addr, Message::GetAddr);
-                        }
+                        // Don't care about the result - errors are logged inside connect() and
+                        // successful connections do not involve any further actions as sending
+                        // GetAddr message was moved to process_message in protocol.rs.
+                        let _ = crawler_clone.connect(addr).await;
                     });
                 }
             }
-
-            crawler.broadcast(Message::GetAddr).unwrap();
 
             sleep(Duration::from_secs(args.crawl_interval)).await;
         }

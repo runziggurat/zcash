@@ -116,6 +116,10 @@ impl Handshake for Crawler {
         let own_version = Message::Version(Version::new(conn_addr, own_listening_addr));
         framed_stream.send(own_version).await?;
 
+        // Here should be waiting for remote version message but as some nodes don't send it
+        // quickly enough we will wait for it in the process_message function.
+        // @see process_message function for more details.
+
         Ok(conn)
     }
 }
@@ -177,6 +181,17 @@ impl Reading for Crawler {
                 }
 
                 let _ = self.unicast(source, Message::Verack)?.await;
+
+                // Send GetAddr as soon as we get version message from the peer.
+                // In fact, this part should be done during the handshake but it would increase
+                // handshake time and there are some nodes that do not send version message
+                // quickly (we know that zebra can delay sending version message for over 30 seconds).
+                // Sending GetAddr before receiving version results in dropping this message by
+                // the remote peer so we're stuck waiting for reply that will never come that's why we
+                // need to wait for remote version message.
+                // Sending GetAddr message was moved to this place to and it's not sent anymore
+                // directly from main module.
+                let _ = self.unicast(source, Message::GetAddr)?.await;
             }
             _ => {}
         }
