@@ -186,11 +186,11 @@ impl Reading for Crawler {
                 // In fact, this part should be done during the handshake but it would increase
                 // handshake time and there are some nodes that do not send version message
                 // quickly (we know that zebra can delay sending version message for over 30 seconds).
-                // Sending GetAddr before receiving version results in dropping this message by
-                // the remote peer so we're stuck waiting for reply that will never come that's why we
-                // need to wait for remote version message.
-                // Sending GetAddr message was moved to this place to and it's not sent anymore
-                // directly from main module.
+                // Sending GetAddr before receiving the version results in dropping this message by
+                // the remote peer, so we're stuck waiting for a reply that will never come that's why we
+                // need to wait for the remote version message response.
+                // Extra background: Sending GetAddr message was moved to this place,
+                // and it's not sent anymore directly from the main module.
                 let _ = self.unicast(source, Message::GetAddr)?.await;
             }
             _ => {}
