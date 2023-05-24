@@ -69,12 +69,3 @@ jobs:
       repository: zcash
     secrets:
       gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
-
-  call-diff-with-previous-workflow:
-    needs: [ test-zebra ]
-    uses: runziggurat/ziggurat-core/.github/workflows/diff-with-previous.yml@main
-    with:
-      name: zebra
-      repository: zcash
-    secrets:
-      gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
