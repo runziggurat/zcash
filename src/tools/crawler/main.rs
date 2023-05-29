@@ -20,7 +20,7 @@ use ziggurat_core_crawler::summary::NetworkSummary;
 use ziggurat_zcash::wait_until;
 
 use crate::{
-    metrics::{NetworkMetrics, ZCASH_P2P_DEFAULT_PORT},
+    metrics::{NetworkMetrics, ZCASH_P2P_DEFAULT_MAINNET_PORT},
     network::{ConnectionState, KnownNode},
     protocol::{
         Crawler, MAIN_LOOP_INTERVAL_SECS, MAX_WAIT_FOR_ADDR_SECS, NUM_CONN_ATTEMPTS_PERIODIC,
@@ -53,6 +53,10 @@ struct Args {
     /// If present, start an RPC server at the specified address
     #[clap(short, long, value_parser)]
     rpc_addr: Option<SocketAddr>,
+
+    /// Default port used for connecting to the nodes
+    #[clap(short, long, value_parser, default_value_t = ZCASH_P2P_DEFAULT_MAINNET_PORT)]
+    default_port: u16,
     // TODO
     // #[clap(short, long, value_parser, default_value = "testnet")]
     // network: String,
@@ -81,10 +85,10 @@ fn start_logger(default_level: LevelFilter) {
 ///
 /// Valid inputs can be in the following forms:
 /// - IP + port (both IPv4 and IPv6 are valid)
-/// - IP (can be DNS seeder, default `ZCASH_P2P_DEFAULT_PORT` will be appended)
+/// - IP (can be DNS seeder, default_port will be appended)
 /// - Hostname + port
-/// - Hostname (can be DNS seeder, default `ZCASH_P2P_DEFAULT_PORT` will be appended)
-fn parse_addrs(seed_addrs: Vec<String>) -> Vec<SocketAddr> {
+/// - Hostname (can be DNS seeder, default_port will be appended)
+fn parse_addrs(seed_addrs: Vec<String>, default_port: u16) -> Vec<SocketAddr> {
     let mut parsed_addrs = Vec::with_capacity(seed_addrs.len());
 
     for seed_addr in seed_addrs {
@@ -94,12 +98,12 @@ fn parse_addrs(seed_addrs: Vec<String>) -> Vec<SocketAddr> {
             continue;
         }
         // User may supply an IP address without a port,
-        // append `ZCASH_P2P_DEFAULT_PORT` in that case.
+        // append default_port in that case.
         if let Ok(addr) = seed_addr.parse::<IpAddr>() {
-            parsed_addrs.push(SocketAddr::new(addr, ZCASH_P2P_DEFAULT_PORT));
+            parsed_addrs.push(SocketAddr::new(addr, default_port));
             println!(
                 "no port specified for address: {}, using default: {}",
-                seed_addr, ZCASH_P2P_DEFAULT_PORT
+                seed_addr, default_port
             );
             continue;
         }
@@ -109,7 +113,7 @@ fn parse_addrs(seed_addrs: Vec<String>) -> Vec<SocketAddr> {
         // This is safe to do since we catch all IPv6 addresses above.
         let mut clean_addrs = seed_addr.clone();
         let mut addr_split: Vec<_> = seed_addr.split(":").collect();
-        let mut port = ZCASH_P2P_DEFAULT_PORT; // DNS addresses use this port.
+        let mut port = default_port; // DNS addresses use this port.
         if addr_split.len() > 1 {
             // Port should be the last item, remove it from addrs.
             if let Some(p) = addr_split.pop() {
@@ -136,7 +140,7 @@ fn parse_addrs(seed_addrs: Vec<String>) -> Vec<SocketAddr> {
 async fn main() {
     start_logger(LevelFilter::INFO);
     let args = Args::parse();
-    let seed_addrs = parse_addrs(args.seed_addrs);
+    let seed_addrs = parse_addrs(args.seed_addrs, args.default_port);
 
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
@@ -311,11 +315,11 @@ mod tests {
                 IpAddr::V6(Ipv6Addr::new(
                     0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334,
                 )),
-                ZCASH_P2P_DEFAULT_PORT,
+                ZCASH_P2P_DEFAULT_MAINNET_PORT,
             ),
             SocketAddr::new(
                 IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                ZCASH_P2P_DEFAULT_PORT,
+                ZCASH_P2P_DEFAULT_MAINNET_PORT,
             ),
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 235)), 54321),
         ];
