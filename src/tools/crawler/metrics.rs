@@ -10,7 +10,8 @@ use crate::{
 };
 
 const MIN_BLOCK_HEIGHT: i32 = 2_000_000;
-pub const ZCASH_P2P_DEFAULT_PORT: u16 = 8233;
+pub const ZCASH_P2P_DEFAULT_MAINNET_PORT: u16 = 8233;
+pub const ZCASH_P2P_DEFAULT_TESTNET_PORT: u16 = 18233;
 
 #[derive(Default)]
 pub struct NetworkMetrics {
@@ -52,7 +53,8 @@ fn recognize_network_types(
     for node in good_nodes {
         let mut agent_matches = false;
 
-        let port_matches = node.port() == ZCASH_P2P_DEFAULT_PORT;
+        let port_matches = node.port() == ZCASH_P2P_DEFAULT_MAINNET_PORT
+            || node.port() == ZCASH_P2P_DEFAULT_TESTNET_PORT;
 
         let agent = if let Some(agent) = &nodes[node].user_agent {
             agent.0.clone()
