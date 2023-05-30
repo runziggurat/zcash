@@ -22,6 +22,9 @@ OPTIONS:
     -s, --seed-addrs <SEED_ADDRS>...
             A list of initial standalone IP addresses and/or DNS servers to connect to
 
+    -n, --node-listening-port <NODE_LISTENING_PORT>
+            Default port used for connecting to the nodes [default: 8233]
+
     -V, --version
             Print version information
 ```
