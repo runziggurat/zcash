@@ -56,7 +56,7 @@ struct Args {
 
     /// Default port used for connecting to the nodes
     #[clap(short, long, value_parser, default_value_t = ZCASH_P2P_DEFAULT_MAINNET_PORT)]
-    default_port: u16,
+    node_listening_port: u16,
     // TODO
     // #[clap(short, long, value_parser, default_value = "testnet")]
     // network: String,
@@ -88,7 +88,7 @@ fn start_logger(default_level: LevelFilter) {
 /// - IP (can be DNS seeder, default_port will be appended)
 /// - Hostname + port
 /// - Hostname (can be DNS seeder, default_port will be appended)
-fn parse_addrs(seed_addrs: Vec<String>, default_port: u16) -> Vec<SocketAddr> {
+fn parse_addrs(seed_addrs: Vec<String>, node_listening_port: u16) -> Vec<SocketAddr> {
     let mut parsed_addrs = Vec::with_capacity(seed_addrs.len());
 
     for seed_addr in seed_addrs {
@@ -100,10 +100,10 @@ fn parse_addrs(seed_addrs: Vec<String>, default_port: u16) -> Vec<SocketAddr> {
         // User may supply an IP address without a port,
         // append default_port in that case.
         if let Ok(addr) = seed_addr.parse::<IpAddr>() {
-            parsed_addrs.push(SocketAddr::new(addr, default_port));
+            parsed_addrs.push(SocketAddr::new(addr, node_listening_port));
             println!(
                 "no port specified for address: {}, using default: {}",
-                seed_addr, default_port
+                seed_addr, node_listening_port
             );
             continue;
         }
@@ -113,7 +113,7 @@ fn parse_addrs(seed_addrs: Vec<String>, default_port: u16) -> Vec<SocketAddr> {
         // This is safe to do since we catch all IPv6 addresses above.
         let mut clean_addrs = seed_addr.clone();
         let mut addr_split: Vec<_> = seed_addr.split(":").collect();
-        let mut port = default_port; // DNS addresses use this port.
+        let mut port = node_listening_port; // DNS addresses use this port.
         if addr_split.len() > 1 {
             // Port should be the last item, remove it from addrs.
             if let Some(p) = addr_split.pop() {
@@ -140,7 +140,7 @@ fn parse_addrs(seed_addrs: Vec<String>, default_port: u16) -> Vec<SocketAddr> {
 async fn main() {
     start_logger(LevelFilter::INFO);
     let args = Args::parse();
-    let seed_addrs = parse_addrs(args.seed_addrs, args.default_port);
+    let seed_addrs = parse_addrs(args.seed_addrs, args.node_listening_port);
 
     // Create the crawler with the given listener address.
     let crawler = Crawler::new().await;
