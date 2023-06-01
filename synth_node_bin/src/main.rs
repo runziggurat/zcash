@@ -12,10 +12,12 @@
 //!     ```
 use std::{net::SocketAddr, process::ExitCode};
 
+use action::{ActionHandler, ActionType};
 use anyhow::Result;
 use clap::Parser;
-use tokio::time::{sleep, Duration};
-use ziggurat_zcash::{protocol::message::Message, tools::synthetic_node::SyntheticNode};
+use ziggurat_zcash::tools::synthetic_node::SyntheticNode;
+
+mod action;
 
 /// A synthetic node which can connect to the XRPL node and preform some
 /// actions independently.
@@ -73,6 +75,9 @@ async fn main() -> ExitCode {
 }
 
 async fn run_synth_node(node_addr: SocketAddr) -> Result<()> {
+    // Select action.
+    let action = ActionHandler::new(ActionType::SendGetAddrAndForeverSleep);
+
     // Create a synthetic node and enable handshaking.
     let mut synth_node = SyntheticNode::builder()
         .with_full_handshake()
@@ -85,38 +90,10 @@ async fn run_synth_node(node_addr: SocketAddr) -> Result<()> {
     synth_node.connect(node_addr).await?;
 
     // Run the wanted action with the node.
-    perform_action(&mut synth_node, node_addr).await?;
-
-    // Optional.
-    sleep(Duration::from_millis(100)).await;
+    action.execute(&mut synth_node, node_addr).await?;
 
     // Stop the synthetic node.
     synth_node.shut_down().await;
 
     Ok(())
-}
-
-// --- TRY NOT TO CHANGE THE ABOVE CODE ---
-
-// Use this function to add some action which a synthetic node can do.
-//
-// All the program logic happens here.
-#[allow(unused_variables)]
-async fn perform_action(synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
-    println!("Synthetic node performs an action.");
-
-    // Custom code goes here, example:
-    sleep(Duration::from_millis(5000)).await;
-
-    let msg = Message::GetAddr;
-    tracing::info!("unicast {msg:?}\n");
-    if synth_node.unicast(addr, msg.clone()).is_err() {
-        tracing::warn!("failed to send {msg:?}\n");
-        anyhow::bail!("connection closed");
-    }
-
-    loop {
-        let (_, msg) = synth_node.try_recv_message().await?;
-        tracing::info!("message received: {msg:?}");
-    }
 }
