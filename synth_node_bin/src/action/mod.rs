@@ -3,8 +3,8 @@ use std::net::SocketAddr;
 use anyhow::Result;
 use ziggurat_zcash::tools::{message_filter::MessageFilter, synthetic_node::SyntheticNode};
 
-mod send_get_addr_and_forever_sleep;
 mod advanced_sn_for_s001;
+mod send_get_addr_and_forever_sleep;
 
 /// Defines properties of any action for a synth node binary.
 ///
@@ -32,7 +32,13 @@ trait SynthNodeAction {
 #[allow(dead_code)]
 pub enum ActionType {
     SendGetAddrAndForeverSleep,
-    AdvancedSnFors001,
+    // TODO(Rqnsom): Add support for choosing listening address in config and apply it in the main.rs here. Details:
+    // To use this Action, use:
+    //    listener_ip: Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+    //    desired_listening_port: Some(8233),
+    // on lines here:
+    // https://github.com/runziggurat/zcash/blob/8c0985a87a19d2f3c9cfb10b5d3137e144a27928/src/tools/synthetic_node.rs#L149
+    AdvancedSnForS001,
 }
 
 /// Action configuration options.
@@ -62,7 +68,7 @@ impl ActionHandler {
     pub fn new(action_type: ActionType) -> Self {
         let action = match action_type {
             ActionType::SendGetAddrAndForeverSleep => send_get_addr_and_forever_sleep::action(),
-            ActionType::AdvancedSnFors001 => advanced_sn_for_s001::action(),
+            ActionType::AdvancedSnForS001 => advanced_sn_for_s001::action(),
         };
         let cfg = action.config();
 
