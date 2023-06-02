@@ -1298,6 +1298,7 @@ name = "synth_node_bin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "rand",
  "tokio",
