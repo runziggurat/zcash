@@ -561,7 +561,7 @@ impl Codec for TxV5 {
 
         // Decode output proofs.
         let mut output_proofs_sapling = Vec::new();
-        for _ in 0..spends_sapling.len() {
+        for _ in 0..outputs_sapling.len() {
             output_proofs_sapling.push(read_n_bytes(bytes)?);
         }
 
