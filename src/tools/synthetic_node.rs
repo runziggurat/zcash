@@ -460,7 +460,7 @@ impl Default for MessageCodec {
                 .length_field_offset(16)
                 .little_endian()
                 .num_skip(0)
-                .max_frame_length(65536) // FIXME
+                .max_frame_length(1048576)
                 .new_codec(),
         }
     }
