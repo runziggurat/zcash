@@ -149,7 +149,7 @@ pub struct TxV2 {
 
     // Only present if the join_split count > 0.
     join_split_pub_key: Option<[u8; 32]>,
-    join_split_sig: Option<[u8; 32]>,
+    join_split_sig: Option<[u8; 64]>,
 }
 
 impl Codec for TxV2 {
@@ -188,14 +188,14 @@ impl Codec for TxV2 {
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count > 0 {
-            if bytes.remaining() < 64 {
+            if bytes.remaining() < 96 {
                 return Err(io::ErrorKind::InvalidData.into());
             }
 
             let mut pub_key = [0u8; 32];
             bytes.copy_to_slice(&mut pub_key);
 
-            let mut sig = [0u8; 32];
+            let mut sig = [0u8; 64];
             bytes.copy_to_slice(&mut sig);
 
             (Some(pub_key), Some(sig))
@@ -230,7 +230,7 @@ pub struct TxV3 {
 
     // Only present if the join_split count > 0.
     join_split_pub_key: Option<[u8; 32]>,
-    join_split_sig: Option<[u8; 32]>,
+    join_split_sig: Option<[u8; 64]>,
 }
 
 impl Codec for TxV3 {
@@ -275,14 +275,14 @@ impl Codec for TxV3 {
         }
 
         let (join_split_pub_key, join_split_sig) = if join_split_count > 0 {
-            if bytes.remaining() < 64 {
+            if bytes.remaining() < 96 {
                 return Err(io::ErrorKind::InvalidData.into());
             }
 
             let mut pub_key = [0u8; 32];
             bytes.copy_to_slice(&mut pub_key);
 
-            let mut sig = [0u8; 32];
+            let mut sig = [0u8; 64];
             bytes.copy_to_slice(&mut sig);
 
             (Some(pub_key), Some(sig))
@@ -323,7 +323,7 @@ pub struct TxV4 {
 
     // Only present if the join_split count > 0.
     join_split_pub_key: Option<[u8; 32]>,
-    join_split_sig: Option<[u8; 32]>,
+    join_split_sig: Option<[u8; 64]>,
 
     // Present if and only if spends_sapling_count + outputs_sapling_count > 0.
     binding_sig_sapling: Option<[u8; 64]>,
@@ -384,14 +384,14 @@ impl Codec for TxV4 {
         }
 
         let (join_split_pub_key, join_split_sig) = if *join_split_count > 0 {
-            if bytes.remaining() < 64 {
+            if bytes.remaining() < 96 {
                 return Err(io::ErrorKind::InvalidData.into());
             }
 
             let mut pub_key = [0u8; 32];
             bytes.copy_to_slice(&mut pub_key);
 
-            let mut sig = [0u8; 32];
+            let mut sig = [0u8; 64];
             bytes.copy_to_slice(&mut sig);
 
             (Some(pub_key), Some(sig))
