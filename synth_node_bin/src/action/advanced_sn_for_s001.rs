@@ -1,6 +1,10 @@
-use std::{net::SocketAddr, str::FromStr};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    str::FromStr,
+};
 
 use anyhow::Result;
+use pea2pea::Config as NodeConfig;
 use tokio::time::{interval, sleep, Duration};
 use ziggurat_zcash::{
     protocol::{
@@ -36,6 +40,11 @@ impl SynthNodeAction for Action {
     fn config(&self) -> ActionCfg {
         ActionCfg {
             msg_filter: MessageFilter::with_all_auto_reply().with_getaddr_filter(Filter::Disabled),
+            network_cfg: NodeConfig {
+                listener_ip: Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+                desired_listening_port: Some(8233),
+                ..Default::default()
+            },
         }
     }
 

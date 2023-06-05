@@ -216,6 +216,12 @@ impl SyntheticNodeBuilder {
         self.message_filter = filter;
         self
     }
+
+    /// Sets the node's [`NodeConfig`].
+    pub fn with_network_config(mut self, config: NodeConfig) -> Self {
+        self.network_config = config;
+        self
+    }
 }
 
 /// Convenient abstraction over a `pea2pea` node.
