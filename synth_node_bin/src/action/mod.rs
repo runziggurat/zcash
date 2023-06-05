@@ -1,6 +1,7 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use anyhow::Result;
+use pea2pea::Config as NodeConfig;
 use ziggurat_zcash::tools::{message_filter::MessageFilter, synthetic_node::SyntheticNode};
 
 mod advanced_sn_for_s001;
@@ -32,24 +33,23 @@ trait SynthNodeAction {
 #[allow(dead_code)]
 pub enum ActionType {
     SendGetAddrAndForeverSleep,
-    // TODO(Rqnsom): Add support for choosing listening address in config and apply it in the main.rs here. Details:
-    // To use this Action, use:
-    //    listener_ip: Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
-    //    desired_listening_port: Some(8233),
-    // on lines here:
-    // https://github.com/runziggurat/zcash/blob/8c0985a87a19d2f3c9cfb10b5d3137e144a27928/src/tools/synthetic_node.rs#L149
     AdvancedSnForS001,
 }
 
 /// Action configuration options.
 pub struct ActionCfg {
     pub msg_filter: MessageFilter,
+    pub network_cfg: NodeConfig,
 }
 
 impl Default for ActionCfg {
     fn default() -> Self {
         Self {
             msg_filter: MessageFilter::with_all_auto_reply(),
+            network_cfg: NodeConfig {
+                listener_ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
+                ..Default::default()
+            },
         }
     }
 }

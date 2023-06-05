@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0"
 async-trait = "0.1"
 clap = { version = "4.2", features = ["derive"] }
+pea2pea = "0.46"
 rand = "0.8"
 tokio = { version = "1", features = ["time"] }
 tracing-subscriber = "0.3"
