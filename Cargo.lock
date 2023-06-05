@@ -116,12 +116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrayvec"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
-
-[[package]]
 name = "assert_matches"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -723,9 +717,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee"
-version = "0.16.2"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d291e3a5818a2384645fd9756362e6d89cf0541b0b916fa7702ea4a9833608e"
+checksum = "1822d18e4384a5e79d94dc9e4d1239cfa9fad24e55b44d2efeff5b394c9fece4"
 dependencies = [
  "jsonrpsee-core",
  "jsonrpsee-server",
@@ -734,15 +728,13 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee-core"
-version = "0.16.2"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4e70b4439a751a5de7dd5ed55eacff78ebf4ffe0fc009cb1ebb11417f5b536b"
+checksum = "64c6832a55f662b5a6ecc844db24b8b9c387453f923de863062c60ce33d62b81"
 dependencies = [
  "anyhow",
- "arrayvec",
  "async-trait",
  "beef",
- "futures-channel",
  "futures-util",
  "globset",
  "hyper",
@@ -760,13 +752,11 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee-server"
-version = "0.16.2"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fb69dad85df79527c019659a992498d03f8495390496da2f07e6c24c2b356fc"
+checksum = "4f06661d1a6b6e5b85469dc9c29acfbb9b3bb613797a6fd10a3ebb8a70754057"
 dependencies = [
- "futures-channel",
  "futures-util",
- "http",
  "hyper",
  "jsonrpsee-core",
  "jsonrpsee-types",
@@ -782,9 +772,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee-types"
-version = "0.16.2"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bd522fe1ce3702fd94812965d7bb7a3364b1c9aba743944c5a00529aae80f8c"
+checksum = "6e5bf6c75ce2a4217421154adfc65a24d2b46e77286e59bba5d9fa6544ccc8f4"
 dependencies = [
  "anyhow",
  "beef",
@@ -1125,6 +1115,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "papergrid"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae7891b22598926e4398790c8fe6447930c72a67d36d983a49d6ce682ce83290"
+dependencies = [
+ "bytecount",
+ "fnv",
+ "unicode-width",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1155,9 +1156,9 @@ checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "pea2pea"
-version = "0.46.0"
+version = "0.47.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1051ff6b30971947b93dc4d76f281a276200a3a0fffd95abe8274e8d92455f2"
+checksum = "7e396d183f7b8b6226fbc99d47ee1822baf64f464c06cb3db19ef067471f08d0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1607,8 +1608,19 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56c3ee73732ffceaea7b8f6b719ce3bb17f253fa27461ffeaf568ebd0cdb4b85"
 dependencies = [
- "papergrid",
- "tabled_derive",
+ "papergrid 0.7.1",
+ "tabled_derive 0.5.0",
+ "unicode-width",
+]
+
+[[package]]
+name = "tabled"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "994ca3cfbe91dd1756a82a605a150fd7c9d9196cddc7af0612c1999cef224588"
+dependencies = [
+ "papergrid 0.9.1",
+ "tabled_derive 0.6.0",
  "unicode-width",
 ]
 
@@ -1617,6 +1629,19 @@ name = "tabled_derive"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "beca1b4eaceb4f2755df858b88d9b9315b7ccfd1ffd0d7a48a52602301f01a57"
+dependencies = [
+ "heck",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "tabled_derive"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99f688a08b54f4f02f0a3c382aefdb7884d3d69609f785bd253dc033243e3fe4"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -2183,7 +2208,7 @@ dependencies = [
  "histogram",
  "metrics 0.20.1",
  "metrics-util 0.14.0",
- "tabled",
+ "tabled 0.10.0",
 ]
 
 [[package]]
@@ -2216,7 +2241,7 @@ dependencies = [
  "serde",
  "sha2",
  "spectre",
- "tabled",
+ "tabled 0.12.1",
  "time 0.3.21",
  "tokio",
  "tokio-util",

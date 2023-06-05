@@ -869,6 +869,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "papergrid"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae7891b22598926e4398790c8fe6447930c72a67d36d983a49d6ce682ce83290"
+dependencies = [
+ "bytecount",
+ "fnv",
+ "unicode-width",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,9 +910,9 @@ checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "pea2pea"
-version = "0.46.0"
+version = "0.47.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1051ff6b30971947b93dc4d76f281a276200a3a0fffd95abe8274e8d92455f2"
+checksum = "7e396d183f7b8b6226fbc99d47ee1822baf64f464c06cb3db19ef067471f08d0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1314,8 +1325,19 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56c3ee73732ffceaea7b8f6b719ce3bb17f253fa27461ffeaf568ebd0cdb4b85"
 dependencies = [
- "papergrid",
- "tabled_derive",
+ "papergrid 0.7.1",
+ "tabled_derive 0.5.0",
+ "unicode-width",
+]
+
+[[package]]
+name = "tabled"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "994ca3cfbe91dd1756a82a605a150fd7c9d9196cddc7af0612c1999cef224588"
+dependencies = [
+ "papergrid 0.9.1",
+ "tabled_derive 0.6.0",
  "unicode-width",
 ]
 
@@ -1324,6 +1346,19 @@ name = "tabled_derive"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "beca1b4eaceb4f2755df858b88d9b9315b7ccfd1ffd0d7a48a52602301f01a57"
+dependencies = [
+ "heck",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "tabled_derive"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99f688a08b54f4f02f0a3c382aefdb7884d3d69609f785bd253dc033243e3fe4"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -1806,7 +1841,7 @@ dependencies = [
  "histogram",
  "metrics 0.20.1",
  "metrics-util 0.14.0",
- "tabled",
+ "tabled 0.10.0",
 ]
 
 [[package]]
@@ -1837,7 +1872,7 @@ dependencies = [
  "serde",
  "sha2",
  "spectre",
- "tabled",
+ "tabled 0.12.1",
  "time 0.3.21",
  "tokio",
  "tokio-util",
