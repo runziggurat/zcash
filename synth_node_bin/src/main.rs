@@ -81,7 +81,7 @@ async fn run_synth_node(node_addr: SocketAddr) -> Result<()> {
     // Create a synthetic node and enable handshaking.
     let mut synth_node = SyntheticNode::builder()
         .with_full_handshake()
-        .with_all_auto_reply()
+        .with_message_filter(action.cfg.msg_filter.clone())
         .build()
         .await
         .unwrap();

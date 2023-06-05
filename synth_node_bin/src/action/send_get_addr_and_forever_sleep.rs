@@ -4,14 +4,22 @@ use anyhow::Result;
 use tokio::time::{sleep, Duration};
 use ziggurat_zcash::{protocol::message::Message, tools::synthetic_node::SyntheticNode};
 
-use super::SynthNodeAction;
+use super::{ActionCfg, SynthNodeAction};
 
-pub struct Action;
+pub(super) struct Action;
+
+pub(super) fn action() -> Box<dyn SynthNodeAction> {
+    Box::new(Action {})
+}
 
 #[async_trait::async_trait]
 impl SynthNodeAction for Action {
     fn info(&self) -> &str {
         "request an GetAddr and then sleeps forever"
+    }
+
+    fn config(&self) -> ActionCfg {
+        ActionCfg::default()
     }
 
     #[allow(unused_variables)]
