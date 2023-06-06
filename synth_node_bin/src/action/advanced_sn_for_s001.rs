@@ -97,8 +97,18 @@ async fn trace_debug_info(synth_node: &SyntheticNode) {
         // Using this value, just like the INET6_ADDRSTRLEN constant in Linux, has 46 bytes
         const MAX_IPV6_ADDR_LEN: usize = 46;
 
+        // Print some handshake details first - it's easier to see the IP when it it is shown after
+        // these details.
+        if let Some(hs_info) = synth_node.handshake_info(addr) {
+            log.push_str(&format!(
+                "{:?} - Services({}) - UserAgent({}) - AddrFrom({}) - Timestamp({}) - StartHeight({})\n",
+                hs_info.version, hs_info.services, hs_info.user_agent.0, hs_info.addr_from.addr, hs_info.timestamp, hs_info.start_height
+            ));
+        }
+
+        // Print basic info.
         log.push_str(&format!(
-            "{addr:>ident$}   ({side:?}) seconds: {time:?}\n",
+            "{side:?}: {addr:>ident$} - connection established for {time:?}\n\n",
             addr = addr,
             ident = MAX_IPV6_ADDR_LEN,
             side = info.side(),
