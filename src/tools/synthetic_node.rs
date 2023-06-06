@@ -4,14 +4,16 @@ use std::{
     collections::HashMap,
     io::{self, Error, ErrorKind},
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
     time::Duration,
 };
 
 use assert_matches::assert_matches;
 use bytes::{BufMut, BytesMut};
 use futures_util::{sink::SinkExt, TryStreamExt};
+use parking_lot::Mutex;
 use pea2pea::{
-    protocols::{Handshake, Reading, Writing},
+    protocols::{Disconnect, Handshake, Reading, Writing},
     Config as NodeConfig, Connection, ConnectionInfo, ConnectionSide, Node, Pea2Pea,
 };
 use tokio::{
@@ -170,6 +172,7 @@ impl SyntheticNodeBuilder {
         // Enable the read and write protocols
         inner_node.enable_reading().await;
         inner_node.enable_writing().await;
+        inner_node.enable_disconnect().await;
 
         // Always start listening as inner node expects `listening_addr` to be always available.
         inner_node.node().start_listening().await?;
@@ -234,6 +237,11 @@ impl SyntheticNode {
     // FIXME: remove in favour of calling `SyntheticNodeBuilder::default()` or `new` directly?
     pub fn builder() -> SyntheticNodeBuilder {
         SyntheticNodeBuilder::default()
+    }
+
+    /// Return a handshake info in form of [`Version`] message.
+    pub fn handshake_info(&self, addr: &SocketAddr) -> Option<Version> {
+        self.inner_node.handshake_info(addr)
     }
 
     /// Returns the listening address of the node.
@@ -429,6 +437,7 @@ struct InnerNode {
     handshake: Option<HandshakeKind>,
     inbound_tx: Sender<(SocketAddr, Message)>,
     message_filter: MessageFilter,
+    handshake_infos: Arc<Mutex<HashMap<SocketAddr, Version>>>,
 }
 
 impl InnerNode {
@@ -440,9 +449,10 @@ impl InnerNode {
     ) -> Self {
         let node = Self {
             node,
+            handshake,
             inbound_tx: tx,
             message_filter,
-            handshake,
+            handshake_infos: Default::default(),
         };
 
         if handshake.is_some() {
@@ -450,6 +460,10 @@ impl InnerNode {
         }
 
         node
+    }
+
+    fn handshake_info(&self, addr: &SocketAddr) -> Option<Version> {
+        Some(self.handshake_infos.lock().get(addr)?.clone())
     }
 }
 
@@ -702,8 +716,16 @@ impl Handshake for InnerNode {
         // Let's print some info about our new connection.
         if let Some(version) = version_data {
             info!("Handshake done with {conn_addr} => {version:?}");
+            self.handshake_infos.lock().insert(conn_addr, version);
         }
 
         Ok(conn)
+    }
+}
+
+#[async_trait::async_trait]
+impl Disconnect for InnerNode {
+    async fn handle_disconnect(&self, addr: SocketAddr) {
+        self.handshake_infos.lock().remove(&addr);
     }
 }
