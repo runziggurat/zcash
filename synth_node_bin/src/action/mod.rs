@@ -9,6 +9,7 @@ use pea2pea::Config as NodeConfig;
 use ziggurat_zcash::tools::{message_filter::MessageFilter, synthetic_node::SyntheticNode};
 
 mod advanced_sn_for_s001;
+mod constantly_ask_for_random_blocks;
 mod quick_connect_and_then_clean_disconnect;
 mod send_get_addr_and_forever_sleep;
 
@@ -39,6 +40,7 @@ pub enum ActionType {
     SendGetAddrAndForeverSleep,
     AdvancedSnForS001,
     QuickConnectAndThenCleanDisconnect,
+    ConstantlyAskForRandomBlocks,
 }
 
 impl Display for ActionType {
@@ -50,6 +52,7 @@ impl Display for ActionType {
                 Self::SendGetAddrAndForeverSleep => "SendGetAddrAndForeverSleep",
                 Self::AdvancedSnForS001 => "AdvancedSnForS001",
                 Self::QuickConnectAndThenCleanDisconnect => "QuickConnectAndThenCleanDisconnect",
+                Self::ConstantlyAskForRandomBlocks => "ConstantlyAskForRandomBlocks",
             }
         )
     }
@@ -63,6 +66,7 @@ impl FromStr for ActionType {
             "SendGetAddrAndForeverSleep" => Ok(Self::SendGetAddrAndForeverSleep),
             "AdvancedSnForS001" => Ok(Self::AdvancedSnForS001),
             "QuickConnectAndThenCleanDisconnect" => Ok(Self::QuickConnectAndThenCleanDisconnect),
+            "ConstantlyAskForRandomBlocks" => Ok(Self::ConstantlyAskForRandomBlocks),
             _ => Err("Invalid action type"),
         }
     }
@@ -104,6 +108,7 @@ impl ActionHandler {
             ActionType::QuickConnectAndThenCleanDisconnect => {
                 quick_connect_and_then_clean_disconnect::action()
             }
+            ActionType::ConstantlyAskForRandomBlocks => constantly_ask_for_random_blocks::action(),
         };
         let cfg = action.config();
 

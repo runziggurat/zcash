@@ -4,6 +4,7 @@ use std::io;
 
 use bytes::{Buf, BufMut};
 use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 pub mod addr;
@@ -186,7 +187,7 @@ impl VarStr {
 }
 
 /// A general purpose hash of length `32`.
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Hash([u8; 32]);
 
 impl Hash {
