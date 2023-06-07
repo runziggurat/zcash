@@ -5,17 +5,16 @@ jobs:
   build-zcashd:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone zcashd
-        run: git clone https://github.com/zcash/zcash
+      - uses: actions/checkout@v3
+        with:
+          repository: zcash/zcash
       - name: Build zcashd
-        run: |
-          cd zcash
-          ./zcutil/build.sh -j$(nproc)
+        run: ./zcutil/build.sh -j$(nproc)
       - uses: actions/upload-artifact@v3
         with:
           name: zcashd-fetch-params
-          path: ./zcash/zcutil/fetch-params.sh
+          path: ./zcutil/fetch-params.sh
       - uses: actions/upload-artifact@v3
         with:
-          name: zcashd-executable
-          path: ./zcash/src/zcashd
+          name: node-executable
+          path: ./src/zcashd

@@ -6,59 +6,42 @@ on:
     - cron: '0 6 * * *' # Every day at 6:00 AM UTC.
 
 jobs:
-  call-build-zcashd-workflow:
+  build-zcashd:
     uses: runziggurat/zcash/.github/workflows/build-zcashd.yml@main
 
-  call-build-ziggurat-workflow:
+  build-ziggurat:
     uses: runziggurat/ziggurat-core/.github/workflows/build-ziggurat.yml@main
 
-  test-zcashd:
+  run-test-suite:
     runs-on: ubuntu-latest
-    needs: [ call-build-ziggurat-workflow, call-build-zcashd-workflow ]
+    needs: [ build-zcashd, build-ziggurat ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
         with:
-          fetch-depth: 0
-      - run: rustup toolchain install nightly --profile minimal
+          name: node-executable
+          path: ./
+      - run: chmod +x zcashd
       - uses: actions/download-artifact@v3
         with:
           name: zcashd-fetch-params
           path: ./zcash
-      - uses: actions/download-artifact@v3
-        with:
-          name: zcashd-executable
-          path: ./zcash
-      - uses: actions/download-artifact@v3
-        with:
-          name: ziggurat-executable
-          path: ./ziggurat
-      - name: Create ~/.ziggurat/config.toml
-        run: |
-          mkdir ~/.ziggurat/
-          touch ~/.ziggurat/config.toml
-          echo kind = \"zcashd\" > ~/.ziggurat/config.toml
-          echo path = \"/home/runner/work/zcash/zcash/zcash\" >> ~/.ziggurat/config.toml
-          echo start_command = \"./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0\" >> ~/.ziggurat/config.toml
       - name: Fetch zcashd params
         run: |
           chmod +x zcash/fetch-params.sh
           ./zcash/fetch-params.sh
-      - name: Run ziggurat suite
-        continue-on-error: true
+      - name: Create Ziggurat config file
         run: |
-          rm ./ziggurat/*.d
-          mv ./ziggurat/ziggurat_zcash-* ziggurat_test
-          chmod +x ziggurat_test
-          chmod +x zcash/zcashd
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > latest.jsonl
-          cat latest.jsonl
-      - uses: actions/upload-artifact@v3
+          mkdir ~/.ziggurat/
+          echo 'kind = "zcashd"' > ~/.ziggurat/config.toml
+          echo 'path = "/home/runner/work/zcash/zcash"' >> ~/.ziggurat/config.toml
+          echo 'start_command = "./zcashd -debug=1 -printtoconsole -logips=1 -dnsseed=0 -dns=0 -listenonion=0"' >> ~/.ziggurat/config.toml
+      - name: Run Ziggurat test suite
+        uses: runziggurat/ziggurat-core@main
         with:
-          name: latest-result
-          path: latest.jsonl
+          node-name: zcashd
 
-  call-process-results-workflow:
-    needs: [ test-zcashd ]
+  process-results:
+    needs: [ run-test-suite ]
     uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zcashd
