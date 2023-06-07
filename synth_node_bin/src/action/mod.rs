@@ -5,6 +5,7 @@ use pea2pea::Config as NodeConfig;
 use ziggurat_zcash::tools::{message_filter::MessageFilter, synthetic_node::SyntheticNode};
 
 mod advanced_sn_for_s001;
+mod quick_connect_and_then_clean_disconnect;
 mod send_get_addr_and_forever_sleep;
 
 /// Defines properties of any action for a synth node binary.
@@ -34,6 +35,7 @@ trait SynthNodeAction {
 pub enum ActionType {
     SendGetAddrAndForeverSleep,
     AdvancedSnForS001,
+    QuickConnectAndThenCleanDisconnect,
 }
 
 /// Action configuration options.
@@ -69,6 +71,9 @@ impl ActionHandler {
         let action = match action_type {
             ActionType::SendGetAddrAndForeverSleep => send_get_addr_and_forever_sleep::action(),
             ActionType::AdvancedSnForS001 => advanced_sn_for_s001::action(),
+            ActionType::QuickConnectAndThenCleanDisconnect => {
+                quick_connect_and_then_clean_disconnect::action()
+            }
         };
         let cfg = action.config();
 
