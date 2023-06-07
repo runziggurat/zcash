@@ -8,12 +8,17 @@ on:
 jobs:
   build-zebra:
     runs-on: ubuntu-latest
+    outputs:
+      commit-hash: ${{ steps.commit-hash.outputs.commit-hash }}
     steps:
       - uses: actions/checkout@v3
         with:
           repository: ZcashFoundation/zebra
       - name: Build Zebra and download artifacts
         run: cargo build --release
+      - name: Grab short commit hash and store in env
+        id: commit-hash
+        run: echo commit-hash=$(git log -n 1 --pretty=format:"%h") >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v3
         with:
           name: node-executable
@@ -40,6 +45,7 @@ jobs:
         uses: runziggurat/ziggurat-core@main
         with:
           node-name: zebrad
+          commit-hash: ${{ needs.build-zebra.outputs.commit-hash }}
 
   process-results:
     needs: [ run-test-suite ]

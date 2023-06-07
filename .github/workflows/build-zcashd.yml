@@ -1,15 +1,23 @@
 on:
   workflow_call:
+    outputs:
+      commit-hash:
+        value: ${{ jobs.build-zcashd.outputs.commit-hash }}
 
 jobs:
   build-zcashd:
     runs-on: ubuntu-latest
+    outputs:
+      commit-hash: ${{ steps.commit-hash.outputs.commit-hash }}
     steps:
       - uses: actions/checkout@v3
         with:
           repository: zcash/zcash
       - name: Build zcashd
         run: ./zcutil/build.sh -j$(nproc)
+      - name: Grab short commit hash and store in env
+        id: commit-hash
+        run: echo commit-hash=$(git log -n 1 --pretty=format:"%h") >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v3
         with:
           name: zcashd-fetch-params

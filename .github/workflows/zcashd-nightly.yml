@@ -39,6 +39,7 @@ jobs:
         uses: runziggurat/ziggurat-core@main
         with:
           node-name: zcashd
+          commit-hash: ${{ needs.build-zcashd.outputs.commit-hash }}
 
   process-results:
     needs: [ run-test-suite ]
