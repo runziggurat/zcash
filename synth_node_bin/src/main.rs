@@ -1,15 +1,5 @@
 //! A synthetic node binary can be used to interact with the node in the
 //! background from a different runtime environment.
-//!
-//! This is a quick solution - in future Ziggurat projects it will be done differently.
-//!
-//! Remaining worklist (probably not going to be implemented in this repo):
-//!   - Add an argument option to choose specific action in order to support
-//!     different synthetic node binary implementations at once. A few examples:
-//!     ```
-//!        ./synthetic_node_bin --action=A    // Runs an idle/friendly synthetic node
-//!        ./synthetic_node_bin --action=B    // Runs a wild synthetic node which does something funny
-//!     ```
 use std::{net::SocketAddr, process::ExitCode};
 
 use action::{ActionHandler, ActionType};
@@ -17,15 +7,16 @@ use anyhow::Result;
 use clap::Parser;
 use ziggurat_zcash::tools::synthetic_node::SyntheticNode;
 
+use crate::ActionType::SendGetAddrAndForeverSleep;
+
 mod action;
 
-/// A synthetic node which can connect to the XRPL node and preform some
-/// actions independently.
+/// A synthetic node which can connect to the node and preform some actions independently.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct CmdArgs {
     /// An address of the node in the <ip>:<port> format.
-    #[arg(short = 'i', long)]
+    #[arg(short = 'n', long)]
     node_addr: Option<SocketAddr>,
 
     /// Always reconnect in the case the connection fails - synthetic node never dies.
@@ -35,6 +26,11 @@ struct CmdArgs {
     /// Enable tracing.
     #[arg(short = 't', long, default_value_t = false)]
     tracing: bool,
+
+    /// Possible actions:
+    /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect
+    #[arg(short = 'a', long, default_value_t = SendGetAddrAndForeverSleep)]
+    action_type: ActionType,
 }
 
 #[tokio::main]
@@ -61,7 +57,7 @@ async fn main() -> ExitCode {
     loop {
         println!("Starting a synthetic node.");
 
-        if let Err(e) = run_synth_node(node_addr).await {
+        if let Err(e) = run_synth_node(node_addr, args.action_type).await {
             eprintln!("The synthetic node stopped: {e:?}.");
         }
 
@@ -74,9 +70,9 @@ async fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-async fn run_synth_node(node_addr: SocketAddr) -> Result<()> {
+async fn run_synth_node(node_addr: SocketAddr, action_type: ActionType) -> Result<()> {
     // Select action.
-    let action = ActionHandler::new(ActionType::SendGetAddrAndForeverSleep);
+    let action = ActionHandler::new(action_type);
 
     // Create a synthetic node and enable handshaking.
     let mut synth_node = SyntheticNode::builder()

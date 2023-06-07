@@ -1,4 +1,8 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    fmt::{self, Display},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    str::FromStr,
+};
 
 use anyhow::Result;
 use pea2pea::Config as NodeConfig;
@@ -30,12 +34,38 @@ trait SynthNodeAction {
 }
 
 /// List of available actions.
-// TODO: Make a command argument to choose action type.
-#[allow(dead_code)]
+#[derive(Clone, Copy)]
 pub enum ActionType {
     SendGetAddrAndForeverSleep,
     AdvancedSnForS001,
     QuickConnectAndThenCleanDisconnect,
+}
+
+impl Display for ActionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::SendGetAddrAndForeverSleep => "SendGetAddrAndForeverSleep",
+                Self::AdvancedSnForS001 => "AdvancedSnForS001",
+                Self::QuickConnectAndThenCleanDisconnect => "QuickConnectAndThenCleanDisconnect",
+            }
+        )
+    }
+}
+
+impl FromStr for ActionType {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "SendGetAddrAndForeverSleep" => Ok(Self::SendGetAddrAndForeverSleep),
+            "AdvancedSnForS001" => Ok(Self::AdvancedSnForS001),
+            "QuickConnectAndThenCleanDisconnect" => Ok(Self::QuickConnectAndThenCleanDisconnect),
+            _ => Err("Invalid action type"),
+        }
+    }
 }
 
 /// Action configuration options.
