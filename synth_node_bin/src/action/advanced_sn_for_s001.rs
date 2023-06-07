@@ -45,6 +45,7 @@ impl SynthNodeAction for Action {
                 desired_listening_port: Some(8233),
                 ..Default::default()
             },
+            allow_proper_shutdown: true,
         }
     }
 

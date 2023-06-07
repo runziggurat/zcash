@@ -74,8 +74,14 @@ impl FromStr for ActionType {
 
 /// Action configuration options.
 pub struct ActionCfg {
+    /// A message filter for a synthetic node.
     pub msg_filter: MessageFilter,
+
+    /// Network configuration.
     pub network_cfg: NodeConfig,
+
+    /// When enabled, the shutdown API in synthetic node is skipped.
+    pub allow_proper_shutdown: bool,
 }
 
 impl Default for ActionCfg {
@@ -86,6 +92,7 @@ impl Default for ActionCfg {
                 listener_ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
                 ..Default::default()
             },
+            allow_proper_shutdown: true,
         }
     }
 }
