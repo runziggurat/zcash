@@ -11,6 +11,7 @@ use ziggurat_zcash::tools::{message_filter::MessageFilter, synthetic_node::Synth
 mod advanced_sn_for_s001;
 mod constantly_ask_for_random_blocks;
 mod quick_connect_and_then_clean_disconnect;
+mod quick_connect_with_improper_disconnect;
 mod send_get_addr_and_forever_sleep;
 
 /// Defines properties of any action for a synth node binary.
@@ -40,6 +41,7 @@ pub enum ActionType {
     SendGetAddrAndForeverSleep,
     AdvancedSnForS001,
     QuickConnectAndThenCleanDisconnect,
+    QuickConnectWithImproperDisconnect,
     ConstantlyAskForRandomBlocks,
 }
 
@@ -52,6 +54,7 @@ impl Display for ActionType {
                 Self::SendGetAddrAndForeverSleep => "SendGetAddrAndForeverSleep",
                 Self::AdvancedSnForS001 => "AdvancedSnForS001",
                 Self::QuickConnectAndThenCleanDisconnect => "QuickConnectAndThenCleanDisconnect",
+                Self::QuickConnectWithImproperDisconnect => "QuickConnectWithImproperDisconnect",
                 Self::ConstantlyAskForRandomBlocks => "ConstantlyAskForRandomBlocks",
             }
         )
@@ -66,6 +69,7 @@ impl FromStr for ActionType {
             "SendGetAddrAndForeverSleep" => Ok(Self::SendGetAddrAndForeverSleep),
             "AdvancedSnForS001" => Ok(Self::AdvancedSnForS001),
             "QuickConnectAndThenCleanDisconnect" => Ok(Self::QuickConnectAndThenCleanDisconnect),
+            "QuickConnectWithImproperDisconnect" => Ok(Self::QuickConnectWithImproperDisconnect),
             "ConstantlyAskForRandomBlocks" => Ok(Self::ConstantlyAskForRandomBlocks),
             _ => Err("Invalid action type"),
         }
@@ -114,6 +118,9 @@ impl ActionHandler {
             ActionType::AdvancedSnForS001 => advanced_sn_for_s001::action(),
             ActionType::QuickConnectAndThenCleanDisconnect => {
                 quick_connect_and_then_clean_disconnect::action()
+            }
+            ActionType::QuickConnectWithImproperDisconnect => {
+                quick_connect_with_improper_disconnect::action()
             }
             ActionType::ConstantlyAskForRandomBlocks => constantly_ask_for_random_blocks::action(),
         };

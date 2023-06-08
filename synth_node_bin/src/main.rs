@@ -28,7 +28,8 @@ struct CmdArgs {
     tracing: bool,
 
     /// Possible actions:
-    /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect
+    /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect /
+    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks
     #[arg(short = 'a', long, default_value_t = SendGetAddrAndForeverSleep)]
     action_type: ActionType,
 }
