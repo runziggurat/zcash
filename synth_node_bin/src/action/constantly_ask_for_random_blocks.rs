@@ -37,7 +37,6 @@ impl SynthNodeAction for Action {
     async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
         println!("Synthetic node performs an action.");
 
-        // Custom code goes here, example:
         let mut rng = StdRng::from_entropy();
 
         let jstring = fs::read_to_string("hashes.json").expect("could not open hashes file");

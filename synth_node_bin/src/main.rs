@@ -28,7 +28,8 @@ struct CmdArgs {
     tracing: bool,
 
     /// Possible actions:
-    /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect
+    /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect /
+    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks
     #[arg(short = 'a', long, default_value_t = SendGetAddrAndForeverSleep)]
     action_type: ActionType,
 }
@@ -89,8 +90,10 @@ async fn run_synth_node(node_addr: SocketAddr, action_type: ActionType) -> Resul
     // Run the wanted action with the node.
     action.execute(&mut synth_node, node_addr).await?;
 
-    // Stop the synthetic node.
-    synth_node.shut_down().await;
+    if action.cfg.allow_proper_shutdown {
+        // Stop the synthetic node.
+        synth_node.shut_down().await;
+    }
 
     Ok(())
 }
