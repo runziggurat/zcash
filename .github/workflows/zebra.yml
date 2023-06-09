@@ -8,61 +8,47 @@ on:
 jobs:
   build-zebra:
     runs-on: ubuntu-latest
+    outputs:
+      commit-hash: ${{ steps.commit-hash.outputs.commit-hash }}
     steps:
       - uses: actions/checkout@v3
         with:
           repository: ZcashFoundation/zebra
-      - run: rustup toolchain install stable --profile minimal
       - name: Build Zebra and download artifacts
-        run: cargo +stable build --release
+        run: cargo build --release
+      - name: Grab short commit hash and store in env
+        id: commit-hash
+        run: echo commit-hash=$(git log -n 1 --pretty=format:"%h") >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v3
         with:
-          name: zebra-executable
+          name: node-executable
           path: ./target/release/zebrad
 
-  call-build-ziggurat-workflow:
+  build-ziggurat:
     uses: runziggurat/ziggurat-core/.github/workflows/build-ziggurat.yml@main
 
-  test-zebra:
+  run-test-suite:
     runs-on: ubuntu-latest
-    needs: [ build-zebra, call-build-ziggurat-workflow ]
+    needs: [ build-zebra, build-ziggurat ]
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - run: rustup toolchain install nightly --profile minimal
       - uses: actions/download-artifact@v3
         with:
-          name: zebra-executable
-          path: ./zebrad
-      - uses: actions/download-artifact@v3
-        with:
-          name: ziggurat-executable
-          path: ./ziggurat
-      - run: |
-          chmod +x ./zebrad/zebrad
-      - name: Create ~/.ziggurat/config.toml
+          name: node-executable
+          path: ./
+      - name: Create Ziggurat config file
         run: |
           mkdir ~/.ziggurat/
-          touch ~/.ziggurat/config.toml
-          echo kind = \"zebra\" > ~/.ziggurat/config.toml
-          echo path = \"/home/runner/work/zcash/zcash/zebrad\" >> ~/.ziggurat/config.toml
-          echo start_command = \"./zebrad start\" >> ~/.ziggurat/config.toml
-      - name: Run ziggurat suite
-        continue-on-error: true
-        run: |
-          rm ./ziggurat/*.d
-          mv ./ziggurat/ziggurat_zcash-* ziggurat_test
-          chmod +x ziggurat_test
-          ./ziggurat_test --test-threads=1 --nocapture -Z unstable-options --report-time --format json > latest.jsonl
-          cat latest.jsonl
-      - uses: actions/upload-artifact@v3
+          echo 'kind = "zebra"' > ~/.ziggurat/config.toml
+          echo 'path = "/home/runner/work/zcash/zcash"' >> ~/.ziggurat/config.toml
+          echo 'start_command = "./zebrad start"' >> ~/.ziggurat/config.toml
+      - name: Run Ziggurat test suite
+        uses: runziggurat/ziggurat-core@main
         with:
-          name: latest-result
-          path: latest.jsonl
+          node-name: zebrad
+          commit-hash: ${{ needs.build-zebra.outputs.commit-hash }}
 
-  call-process-results-workflow:
-    needs: [ test-zebra ]
+  process-results:
+    needs: [ run-test-suite ]
     uses: runziggurat/ziggurat-core/.github/workflows/process-results.yml@main
     with:
       name: zebra
