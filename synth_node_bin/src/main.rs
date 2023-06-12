@@ -29,7 +29,7 @@ struct CmdArgs {
 
     /// Possible actions:
     /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect /
-    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks
+    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks / RtS1Collector
     #[arg(short = 'a', long, default_value_t = SendGetAddrAndForeverSleep)]
     action_type: ActionType,
 }
@@ -81,8 +81,7 @@ async fn run_synth_node(node_addr: SocketAddr, action_type: ActionType) -> Resul
         .with_full_handshake()
         .with_message_filter(action.cfg.msg_filter.clone())
         .build()
-        .await
-        .unwrap();
+        .await?;
 
     // Perform the handshake.
     synth_node.connect(node_addr).await?;

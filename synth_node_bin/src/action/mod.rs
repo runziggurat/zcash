@@ -12,6 +12,7 @@ mod advanced_sn_for_s001;
 mod constantly_ask_for_random_blocks;
 mod quick_connect_and_then_clean_disconnect;
 mod quick_connect_with_improper_disconnect;
+mod rt_s1_collector;
 mod send_get_addr_and_forever_sleep;
 
 /// Defines properties of any action for a synth node binary.
@@ -43,6 +44,7 @@ pub enum ActionType {
     QuickConnectAndThenCleanDisconnect,
     QuickConnectWithImproperDisconnect,
     ConstantlyAskForRandomBlocks,
+    RtS1Collector,
 }
 
 impl Display for ActionType {
@@ -56,6 +58,7 @@ impl Display for ActionType {
                 Self::QuickConnectAndThenCleanDisconnect => "QuickConnectAndThenCleanDisconnect",
                 Self::QuickConnectWithImproperDisconnect => "QuickConnectWithImproperDisconnect",
                 Self::ConstantlyAskForRandomBlocks => "ConstantlyAskForRandomBlocks",
+                Self::RtS1Collector => "RtS1Collector",
             }
         )
     }
@@ -71,6 +74,7 @@ impl FromStr for ActionType {
             "QuickConnectAndThenCleanDisconnect" => Ok(Self::QuickConnectAndThenCleanDisconnect),
             "QuickConnectWithImproperDisconnect" => Ok(Self::QuickConnectWithImproperDisconnect),
             "ConstantlyAskForRandomBlocks" => Ok(Self::ConstantlyAskForRandomBlocks),
+            "RtS1Collector" => Ok(Self::RtS1Collector),
             _ => Err("Invalid action type"),
         }
     }
@@ -123,6 +127,7 @@ impl ActionHandler {
                 quick_connect_with_improper_disconnect::action()
             }
             ActionType::ConstantlyAskForRandomBlocks => constantly_ask_for_random_blocks::action(),
+            ActionType::RtS1Collector => rt_s1_collector::action(),
         };
         let cfg = action.config();
 
