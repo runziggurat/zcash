@@ -33,7 +33,7 @@ trait SynthNodeAction {
     /// Defines the core action functionality.
     ///
     /// All the program logic happens here.
-    async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()>;
+    async fn run(&self, synth_node: &mut SyntheticNode, addr: Option<SocketAddr>) -> Result<()>;
 }
 
 /// List of available actions.
@@ -140,7 +140,11 @@ impl ActionHandler {
     }
 
     /// Runs the underlying action.
-    pub async fn execute(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
+    pub async fn execute(
+        &self,
+        synth_node: &mut SyntheticNode,
+        addr: Option<SocketAddr>,
+    ) -> Result<()> {
         self.action.run(synth_node, addr).await
     }
 }

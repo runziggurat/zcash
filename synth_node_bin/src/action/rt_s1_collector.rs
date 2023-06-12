@@ -45,7 +45,7 @@ impl SynthNodeAction for Action {
     }
 
     #[allow(unused_variables)]
-    async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
+    async fn run(&self, synth_node: &mut SyntheticNode, addr: Option<SocketAddr>) -> Result<()> {
         let mut broadcast_msgs_interval = interval(BROADCAST_INTERVAL_SEC);
         let mut dbg_info_interval = interval(DBG_INFO_LOG_INTERVAL_SEC);
 
