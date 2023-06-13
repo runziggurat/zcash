@@ -578,7 +578,7 @@ impl Reading for InnerNode {
                 self.inbound_tx
                     .send((source, message))
                     .await
-                    .expect("receiver dropped!");
+                    .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;
             }
 
             Filter::Enabled => {

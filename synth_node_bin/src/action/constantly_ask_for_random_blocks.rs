@@ -34,8 +34,14 @@ impl SynthNodeAction for Action {
     }
 
     #[allow(unused_variables)]
-    async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
+    async fn run(&self, synth_node: &mut SyntheticNode, addr: Option<SocketAddr>) -> Result<()> {
         println!("Synthetic node performs an action.");
+
+        let addr = if let Some(addr) = addr {
+            addr
+        } else {
+            anyhow::bail!("address not provided");
+        };
 
         let mut rng = StdRng::from_entropy();
 

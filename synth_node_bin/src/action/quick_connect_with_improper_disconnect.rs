@@ -25,7 +25,13 @@ impl SynthNodeAction for Action {
     }
 
     #[allow(unused_variables)]
-    async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
+    async fn run(&self, synth_node: &mut SyntheticNode, addr: Option<SocketAddr>) -> Result<()> {
+        let addr = if let Some(addr) = addr {
+            addr
+        } else {
+            anyhow::bail!("address not provided");
+        };
+
         println!("Synthetic node connected to {addr}!");
 
         // An optional short sleep.

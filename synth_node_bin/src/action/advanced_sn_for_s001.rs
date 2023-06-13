@@ -50,17 +50,10 @@ impl SynthNodeAction for Action {
     }
 
     #[allow(unused_variables)]
-    async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
+    async fn run(&self, synth_node: &mut SyntheticNode, addr: Option<SocketAddr>) -> Result<()> {
         // Sleep for three seconds before taking any actions - so the GetHeaders is handled before we
         // send GetAddr to the zcashd node for our only outbound connection.
         sleep(Duration::from_secs(3)).await;
-
-        let msg = Message::GetAddr;
-        tracing::info!("unicast {msg:?}\n");
-        if synth_node.unicast(addr, msg.clone()).is_err() {
-            tracing::warn!("failed to send {msg:?}\n");
-            anyhow::bail!("connection closed");
-        }
 
         let mut dbg_info_interval = interval(DBG_INFO_LOG_INTERVAL_SEC);
         let mut broadcast_msgs_interval = interval(BROADCAST_INTERVAL_SEC);
