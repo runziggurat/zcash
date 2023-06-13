@@ -103,10 +103,6 @@ impl SynthNodeAction for Action {
                     _ => continue,
                 }
             }
-
-            // This sleep is because pushing msgs to the queue at full speed disconnects us from
-            // the node.
-            sleep(Duration::from_millis(100)).await;
         }
     }
 }
