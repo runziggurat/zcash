@@ -29,7 +29,7 @@ struct CmdArgs {
 
     /// Possible actions:
     /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect /
-    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks
+    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks / RtS1Collector
     #[arg(short = 'a', long, default_value_t = SendGetAddrAndForeverSleep)]
     action_type: ActionType,
 }
@@ -37,13 +37,7 @@ struct CmdArgs {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = CmdArgs::parse();
-
-    let node_addr = if let Some(addr) = args.node_addr {
-        addr
-    } else {
-        eprintln!("Node address should be provided.");
-        return ExitCode::FAILURE;
-    };
+    let node_addr = args.node_addr;
 
     if args.tracing {
         println!("Enabling tracing.");
@@ -71,7 +65,7 @@ async fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-async fn run_synth_node(node_addr: SocketAddr, action_type: ActionType) -> Result<()> {
+async fn run_synth_node(node_addr: Option<SocketAddr>, action_type: ActionType) -> Result<()> {
     // Select action.
     let action = ActionHandler::new(action_type);
 
@@ -81,11 +75,12 @@ async fn run_synth_node(node_addr: SocketAddr, action_type: ActionType) -> Resul
         .with_full_handshake()
         .with_message_filter(action.cfg.msg_filter.clone())
         .build()
-        .await
-        .unwrap();
+        .await?;
 
     // Perform the handshake.
-    synth_node.connect(node_addr).await?;
+    if let Some(addr) = node_addr {
+        synth_node.connect(addr).await?;
+    }
 
     // Run the wanted action with the node.
     action.execute(&mut synth_node, node_addr).await?;
