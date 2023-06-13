@@ -23,6 +23,8 @@ pub(super) fn action() -> Box<dyn SynthNodeAction> {
     Box::new(Action {})
 }
 
+const BLOCKS_FOR_AVG: u128 = 100;
+
 #[async_trait::async_trait]
 impl SynthNodeAction for Action {
     fn info(&self) -> &str {
@@ -36,6 +38,11 @@ impl SynthNodeAction for Action {
     #[allow(unused_variables)]
     async fn run(&self, synth_node: &mut SyntheticNode, addr: SocketAddr) -> Result<()> {
         println!("Synthetic node performs an action.");
+
+        let mut min = u128::MAX;
+        let mut max = 0;
+        let mut avg = 0;
+        let mut count = 0;
 
         let mut rng = StdRng::from_entropy();
 
@@ -52,12 +59,41 @@ impl SynthNodeAction for Action {
                 tracing::warn!("failed to send {msg:?}\n");
                 anyhow::bail!("connection closed");
             }
+            let start = std::time::Instant::now();
 
             loop {
                 let (_, msg) = synth_node.try_recv_message().await?;
                 tracing::info!("message received: {msg:?}");
                 match msg {
-                    Message::Block(block) => break,
+                    Message::Block(block) => {
+                        let end = std::time::Instant::now();
+                        let elapsed = end - start;
+                        let elapsed = elapsed.as_millis();
+                        if elapsed > max {
+                            max = elapsed;
+                        }
+                        if elapsed < min {
+                            min = elapsed;
+                        }
+
+                        avg = avg + elapsed;
+
+                        count += 1;
+
+                        if count == BLOCKS_FOR_AVG {
+                            println!(
+                                "min: {} ms, max: {} ms, avg: {} ms",
+                                min,
+                                max,
+                                avg / BLOCKS_FOR_AVG
+                            );
+                            min = u128::MAX;
+                            max = 0;
+                            avg = 0;
+                            count = 0;
+                        }
+                        break;
+                    }
                     _ => continue,
                 }
             }
