@@ -13,6 +13,7 @@ mod constantly_ask_for_random_blocks;
 mod quick_connect_and_then_clean_disconnect;
 mod quick_connect_with_improper_disconnect;
 mod rt_s1_collector;
+mod rt_s1_tainter;
 mod send_get_addr_and_forever_sleep;
 
 /// Defines properties of any action for a synth node binary.
@@ -45,6 +46,7 @@ pub enum ActionType {
     QuickConnectWithImproperDisconnect,
     ConstantlyAskForRandomBlocks,
     RtS1Collector,
+    RtS1Tainter,
 }
 
 impl Display for ActionType {
@@ -59,6 +61,7 @@ impl Display for ActionType {
                 Self::QuickConnectWithImproperDisconnect => "QuickConnectWithImproperDisconnect",
                 Self::ConstantlyAskForRandomBlocks => "ConstantlyAskForRandomBlocks",
                 Self::RtS1Collector => "RtS1Collector",
+                Self::RtS1Tainter => "RtS1Tainter",
             }
         )
     }
@@ -75,6 +78,7 @@ impl FromStr for ActionType {
             "QuickConnectWithImproperDisconnect" => Ok(Self::QuickConnectWithImproperDisconnect),
             "ConstantlyAskForRandomBlocks" => Ok(Self::ConstantlyAskForRandomBlocks),
             "RtS1Collector" => Ok(Self::RtS1Collector),
+            "RtS1Tainter" => Ok(Self::RtS1Tainter),
             _ => Err("Invalid action type"),
         }
     }
@@ -128,6 +132,7 @@ impl ActionHandler {
             }
             ActionType::ConstantlyAskForRandomBlocks => constantly_ask_for_random_blocks::action(),
             ActionType::RtS1Collector => rt_s1_collector::action(),
+            ActionType::RtS1Tainter => rt_s1_tainter::action(),
         };
         let cfg = action.config();
 
