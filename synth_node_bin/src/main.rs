@@ -27,9 +27,13 @@ struct CmdArgs {
     #[arg(short = 't', long, default_value_t = false)]
     tracing: bool,
 
+    /// A desired listening port.
+    #[arg(short = 'p', long)]
+    desired_listening_port: Option<u16>,
+
     /// Possible actions:
     /// SendGetAddrAndForeverSleep / AdvancedSnForS001 / QuickConnectAndThenCleanDisconnect /
-    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks / RtS1Collector
+    /// QuickConnectWithImproperDisconnect / ConstantlyAskForRandomBlocks / RtS1Collector / RtS1Tainter
     #[arg(short = 'a', long, default_value_t = SendGetAddrAndForeverSleep)]
     action_type: ActionType,
 }
@@ -52,7 +56,9 @@ async fn main() -> ExitCode {
     loop {
         println!("Starting a synthetic node.");
 
-        if let Err(e) = run_synth_node(node_addr, args.action_type).await {
+        if let Err(e) =
+            run_synth_node(node_addr, args.action_type, args.desired_listening_port).await
+        {
             eprintln!("The synthetic node stopped: {e:?}.");
         }
 
@@ -65,13 +71,23 @@ async fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-async fn run_synth_node(node_addr: Option<SocketAddr>, action_type: ActionType) -> Result<()> {
-    // Select action.
+async fn run_synth_node(
+    node_addr: Option<SocketAddr>,
+    action_type: ActionType,
+    desired_listening_port: Option<u16>,
+) -> Result<()> {
+    // Select an action.
     let action = ActionHandler::new(action_type);
+
+    let mut net_cfg = action.cfg.network_cfg.clone();
+    // A user can always override a default value from an action.
+    if desired_listening_port.is_some() {
+        net_cfg.desired_listening_port = desired_listening_port;
+    }
 
     // Create a synthetic node and enable handshaking.
     let mut synth_node = SyntheticNode::builder()
-        .with_network_config(action.cfg.network_cfg.clone())
+        .with_network_config(net_cfg)
         .with_full_handshake()
         .with_message_filter(action.cfg.msg_filter.clone())
         .build()
