@@ -6,7 +6,6 @@ use rand::{
     rngs::StdRng,
     SeedableRng,
 };
-use tokio::time::{sleep, Duration};
 use ziggurat_zcash::{
     protocol::{
         message::Message,

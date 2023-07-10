@@ -15,7 +15,7 @@ use ziggurat_zcash::{
 use super::{ActionCfg, SynthNodeAction};
 
 // Configurable status printout interval.
-const BROADCAST_INTERVAL_SEC: Duration = Duration::from_secs(3);
+const BROADCAST_INTERVAL_SEC: Duration = Duration::from_secs(60);
 const DBG_INFO_LOG_INTERVAL_SEC: Duration = Duration::from_secs(10);
 
 const MAX_PEER_LIST_LEN: usize = 1000;
@@ -38,6 +38,7 @@ impl SynthNodeAction for Action {
             network_cfg: NodeConfig {
                 listener_ip: Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
                 desired_listening_port: Some(18233),
+                max_connections: 3000,
                 ..Default::default()
             },
             allow_proper_shutdown: true,
@@ -48,6 +49,7 @@ impl SynthNodeAction for Action {
     async fn run(&self, synth_node: &mut SyntheticNode, addr: Option<SocketAddr>) -> Result<()> {
         let mut broadcast_msgs_interval = interval(BROADCAST_INTERVAL_SEC);
         let mut dbg_info_interval = interval(DBG_INFO_LOG_INTERVAL_SEC);
+        let mut num_connected = synth_node.num_connected();
 
         loop {
             tokio::select! {
@@ -57,6 +59,13 @@ impl SynthNodeAction for Action {
                 },
                 // Broadcast an Addr message to all peers.
                 _ = broadcast_msgs_interval.tick() => {
+                    let num_connected_new = synth_node.num_connected();
+
+                    if num_connected == num_connected_new {
+                        continue;
+                    }
+
+                    num_connected = num_connected_new;
                     let _ = broadcast_addr_msg(synth_node);
                 },
                 // Clear inbound queue.
