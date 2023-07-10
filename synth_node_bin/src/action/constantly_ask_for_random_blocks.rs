@@ -6,7 +6,6 @@ use rand::{
     rngs::StdRng,
     SeedableRng,
 };
-use tokio::time::{sleep, Duration};
 use ziggurat_zcash::{
     protocol::{
         message::Message,
@@ -82,7 +81,7 @@ impl SynthNodeAction for Action {
                             min = elapsed;
                         }
 
-                        avg = avg + elapsed;
+                        avg += elapsed;
 
                         count += 1;
 

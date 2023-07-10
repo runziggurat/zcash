@@ -38,6 +38,7 @@ impl SynthNodeAction for Action {
             network_cfg: NodeConfig {
                 listener_ip: Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
                 desired_listening_port: Some(8233),
+                max_connections: 1000,
                 ..Default::default()
             },
             allow_proper_shutdown: true,
