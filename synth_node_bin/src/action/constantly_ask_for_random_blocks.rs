@@ -81,7 +81,7 @@ impl SynthNodeAction for Action {
                             min = elapsed;
                         }
 
-                        avg = avg + elapsed;
+                        avg += elapsed;
 
                         count += 1;
 
